@@ -1,0 +1,20 @@
+[Unit]
+Description=LINxAI Core Pipeline Daemon
+After=network.target ollama.service linxai-ebpf.service
+Wants=linxai-ebpf.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/linxai/main.py --daemon
+Restart=on-failure
+RestartSec=10
+User=ubuntu
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=linxai-core
+Environment=PYTHONPATH=/opt/linxai
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+{
+  "model": "qwen2.5:1.5b",
+  "ollama_host": "http://localhost:11434",
+  "ebpf_enabled": true,
+  "voice_enabled": false,
+  "log_path": "~/.linxai/audit.jsonl",
+  "context_db": "~/.linxai/context.db",
+  "max_context": 5,
+  "command_timeout": 30
+}

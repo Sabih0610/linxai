@@ -1,0 +1,18 @@
+[Unit]
+Description=LINxAI eBPF Kernel Monitor
+After=network.target ollama.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/linxai/ebpf/daemon.py
+Restart=always
+RestartSec=5
+User=root
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=linxai-ebpf
+
+[Install]
+WantedBy=multi-user.target

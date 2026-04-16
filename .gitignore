@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# LINxAI runtime data
+*.jsonl
+*.db
+*.sqlite
+face_template.yml
+~/.linxai/
+
+# Environment
+.env
+*.log
+
+# VS Code
+.vscode/
+
+# Models (downloaded via ollama pull)
+*.bin
+*.gguf
+
+# OS
+.DS_Store
+Thumbs.db
