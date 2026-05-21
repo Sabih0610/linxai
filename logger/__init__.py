@@ -1,2 +1,4 @@
 from logger.audit import AuditLogger
-__all__ = ["AuditLogger"]
+from logger.integration import LoggingHub
+
+__all__ = ["AuditLogger", "LoggingHub"]

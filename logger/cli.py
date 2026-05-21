@@ -117,10 +117,11 @@ def main():
     parser.add_argument("--session", help="filter by session UUID")
     parser.add_argument("--last",    type=int, default=20)
     parser.add_argument("--stats",   action="store_true")
+    parser.add_argument("--summary", action="store_true")
     parser.add_argument("--follow",  action="store_true")
     args = parser.parse_args()
 
-    if args.stats:
+    if args.stats or args.summary:
         cmd_stats(args)
     elif args.follow:
         cmd_follow(args)

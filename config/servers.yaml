@@ -1,0 +1,11 @@
+servers:
+  local-vm:
+    host: "127.0.0.1"
+    port: 22
+    username: "ubuntu"
+    key_path: "/home/ubuntu/.ssh/linxai_test_key"
+    description: "Local Multipass VM used as VPS test target"
+    tags:
+      - local
+      - test
+      - ubuntu
