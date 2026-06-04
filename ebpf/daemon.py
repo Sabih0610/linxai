@@ -6,7 +6,7 @@
 #   - connect kprobe → every outbound network connection
 #   - openat tracepoint → every file access
 #
-# Events flow: kernel → BPF ring buffer → Python consumer → audit log
+# Events flow: kernel → BPF perf buffer → Python consumer → audit log
 # CPU overhead: <2% at 1000 syscalls/second
 # Requires: root, kernel 5.15+, BCC installed
 #
@@ -46,8 +46,7 @@ SENSITIVE_PATHS = {
     "/etc/ssh", "/root", "/proc/keys",
 }
 
-# Processes to filter OUT of openat events — they are too noisy
-# and produce no security value.
+# Processes to filter OUT of openat events — too noisy, no security value
 NOISE_PROCESSES = {
     "python3", "python", "ollama", "bash", "sh",
     "systemd", "journald", "snapd", "sudo", "tail",
@@ -57,6 +56,7 @@ NOISE_PROCESSES = {
 
 # Extensions to always skip in openat — shared libraries, not interesting
 NOISE_EXTENSIONS = (".so", ".so.1", ".so.2", ".cache", ".conf")
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -68,6 +68,21 @@ def _ip_to_str(ip_int: int) -> str:
         return socket.inet_ntoa(ip_int.to_bytes(4, 'big'))
     except Exception:
         return str(ip_int)
+
+
+def _bpf_load_silent(src: str) -> BPF:
+    """Load a BPF program while suppressing BCC compiler warnings.
+    Redirects fd 2 at OS level — BCC's C compiler cannot bypass this."""
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    old_stderr_fd = os.dup(2)
+    os.dup2(devnull_fd, 2)
+    os.close(devnull_fd)
+    try:
+        bpf = BPF(text=src)
+    finally:
+        os.dup2(old_stderr_fd, 2)
+        os.close(old_stderr_fd)
+    return bpf
 
 
 class eBPFDaemon:
@@ -110,11 +125,10 @@ class eBPFDaemon:
                 "eBPF daemon requires root. Run with sudo."
             )
 
-    # ── Log writer ──────────────────────────────────────────────────────────
+    # ── Log writer ────────────────────────────────────────────────────────────
 
     def _write_event(self, event_type: str, payload: dict):
         """Write one event to the JSON Lines audit log."""
-        # Never log events about the audit log file itself — prevents infinite loop
         if payload.get("filename", "").endswith("audit.jsonl"):
             return
 
@@ -138,7 +152,7 @@ class eBPFDaemon:
             except Exception as e:
                 logger.error(f"eBPF callback error: {e}")
 
-    # ── BPF program loaders ─────────────────────────────────────────────────
+    # ── BPF program loaders ───────────────────────────────────────────────────
 
     def _load_execve(self):
         """Load execve kprobe BPF program."""
@@ -146,7 +160,7 @@ class eBPFDaemon:
         with open(src_path, "r") as f:
             src = f.read()
 
-        bpf = BPF(text=src)
+        bpf = _bpf_load_silent(src)
         bpf.attach_kprobe(event="__x64_sys_execve", fn_name="trace_execve")
 
         def handle_execve(cpu, data, size):
@@ -171,7 +185,7 @@ class eBPFDaemon:
         with open(src_path, "r") as f:
             src = f.read()
 
-        bpf = BPF(text=src)
+        bpf = _bpf_load_silent(src)
         bpf.attach_kprobe(event="__x64_sys_connect", fn_name="trace_connect")
 
         def handle_connect(cpu, data, size):
@@ -200,28 +214,23 @@ class eBPFDaemon:
         with open(src_path, "r") as f:
             src = f.read()
 
-        bpf = BPF(text=src)
+        bpf = _bpf_load_silent(src)
 
         def handle_openat(cpu, data, size):
             event = bpf["openat_events"].event(data)
             filename = event.filename.decode("utf-8", errors="replace")
             process  = event.comm.decode("utf-8", errors="replace")
 
-            # Filter noise — skip uninteresting high-volume events
             if self.filter_noise:
                 is_sensitive = any(
                     filename.startswith(p) for p in SENSITIVE_PATHS
                 )
-                # Skip noise processes unless accessing sensitive paths
                 if process in NOISE_PROCESSES and not is_sensitive:
                     return
-                # Skip shared libraries and caches
                 if any(filename.endswith(ext) for ext in NOISE_EXTENSIONS):
                     return
-                # Skip /proc, /sys, /dev
                 if filename.startswith(("/proc/", "/sys/", "/dev/")):
                     return
-                # Skip empty
                 if not filename or filename == "/":
                     return
 
@@ -239,13 +248,12 @@ class eBPFDaemon:
         logger.info("eBPF openat tracepoint loaded")
         return bpf
 
-    # ── Main loop ────────────────────────────────────────────────────────────
+    # ── Main loop ─────────────────────────────────────────────────────────────
 
     def _run(self):
-        """Main polling loop — drains all ring buffers continuously."""
-        logger.info("eBPF daemon polling loop started")
-        print("[eBPF] Daemon running. Monitoring execve, connect, openat.")
-        print(f"[eBPF] Writing events to: {self.log_path}")
+        """Main polling loop — drains all perf buffers continuously."""
+        logger.info("eBPF daemon running — execve, connect, openat")
+        logger.info(f"eBPF writing to: {self.log_path}")
 
         last_stats = time.time()
 
@@ -258,12 +266,11 @@ class eBPFDaemon:
                 if self._bpf_openat:
                     self._bpf_openat.perf_buffer_poll(timeout=50)
 
-                # Print stats every 30 seconds
                 now = time.time()
                 if now - last_stats >= 30:
                     total = sum(self._event_count.values())
-                    print(
-                        f"[eBPF] Events — "
+                    logger.info(
+                        f"eBPF Events — "
                         f"execve:{self._event_count['execve']} "
                         f"connect:{self._event_count['connect']} "
                         f"openat:{self._event_count['openat']} "
@@ -279,13 +286,8 @@ class eBPFDaemon:
         logger.info("eBPF daemon polling loop stopped")
 
     def start(self):
-        """
-        Load all BPF programs and start polling.
-        Blocks until stop() is called or SIGTERM received.
-        """
+        """Load all BPF programs and start polling."""
         self.running = True
-
-        print("[eBPF] Loading BPF programs...")
         try:
             self._bpf_execve  = self._load_execve()
             self._bpf_connect = self._load_connect()
@@ -293,9 +295,6 @@ class eBPFDaemon:
         except Exception as e:
             self.running = False
             raise RuntimeError(f"Failed to load eBPF programs: {e}")
-
-        print("[eBPF] All 3 probes loaded successfully.")
-
         self._run()
 
     def start_async(self):
@@ -306,24 +305,21 @@ class eBPFDaemon:
             name="linxai-ebpf"
         )
         self._thread.start()
-        # Give probes time to load
         time.sleep(2)
         return self._thread
 
     def stop(self):
         """Signal the daemon to stop cleanly."""
         self.running = False
-        print("\n[eBPF] Daemon stopping...")
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=3.0)
-        print("[eBPF] Daemon stopped.")
 
     def get_stats(self) -> dict:
         """Return event counts since daemon started."""
         return dict(self._event_count)
 
 
-# ── Standalone test ──────────────────────────────────────────────────────────
+# ── Standalone run ────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -332,7 +328,7 @@ if __name__ == "__main__":
     )
 
     print("=" * 55)
-    print("  LINxAI eBPF Daemon — Standalone Test")
+    print("  LINxAI eBPF Daemon — Standalone")
     print("  Kernel:", os.popen("uname -r").read().strip())
     print("  Watching: execve, connect, openat")
     print("  Press Ctrl+C to stop")
@@ -344,7 +340,6 @@ if __name__ == "__main__":
         filter_noise=True
     )
 
-    # Signal handlers only in main thread
     signal.signal(signal.SIGTERM, lambda s, f: daemon.stop())
     signal.signal(signal.SIGINT,  lambda s, f: daemon.stop())
 

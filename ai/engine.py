@@ -140,6 +140,122 @@ class AIEngine:
         raise RuntimeError(
             f"Failed to get valid JSON after {max_retries + 1} attempts. Last error: {last_error}"
         )
+
+    def explain_audit_log(self, records: list) -> str:
+        """
+        Takes recent audit log records and returns a plain English
+        explanation of what happened — for the 'what just happened' command.
+        """
+        if not records:
+            return "No recent audit records found."
+
+        # Build a concise summary of events for the model
+        lines = []
+        for r in records[-20:]:  # last 20 records
+            ts = r.get("timestamp", "")[:19].replace("T", " ")
+            module = r.get("module", "?")
+            event = r.get("event_type", "?")
+            payload = r.get("payload", {})
+
+            # Extract the most meaningful field per module
+            detail = ""
+            if module == "ai_engine":
+                detail = f"intent={payload.get('intent','?')} cmd={payload.get('command','?')}"
+            elif module == "cie":
+                detail = f"decision={payload.get('decision','?')} reason={payload.get('reason','?')}"
+            elif module == "executor":
+                detail = f"status={payload.get('status','?')} cmd={payload.get('command_issued','?')}"
+            elif module == "ebpf":
+                if event == "process_exec":
+                    detail = f"process={payload.get('process','?')} pid={payload.get('pid','?')}"
+                elif event == "network_connect":
+                    detail = f"process={payload.get('process','?')} -> {payload.get('dest_ip','?')}:{payload.get('dest_port','?')}"
+                elif event == "file_open":
+                    detail = f"process={payload.get('process','?')} file={payload.get('filename','?')}"
+            elif module == "resources":
+                detail = f"event={event} {payload.get('reason','')}"
+            elif module == "vps":
+                detail = f"server={payload.get('server','?')} status={payload.get('status','?')}"
+            elif module == "system":
+                detail = f"system {event}"
+
+            lines.append(f"[{ts}] {module}/{event}: {detail}")
+
+        log_summary = "\n".join(lines)
+
+        prompt = f"""You are LINxAI, an intelligent Linux administration assistant.
+A user asked: "what just happened on my system?"
+
+Here are the recent system events from the audit log:
+
+{log_summary}
+
+Explain in 3-5 plain English sentences what happened on this Linux system.
+Be specific about what commands ran, what was detected, and whether anything looks suspicious.
+Do not use technical jargon. Write as if explaining to a junior sysadmin.
+Do not repeat the raw log lines. Synthesise them into a clear narrative."""
+
+        try:
+            response = requests.post(
+                f"{self.host}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                    "options": {
+                        "num_predict": 300,
+                        "temperature": 0.3,
+                    }
+                },
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data["message"]["content"].strip()
+        except Exception as e:
+            logger.error(f"explain_audit_log failed: {e}")
+            return f"Could not generate explanation: {e}"
+
+    def explain_ebpf_alert(self, alert: dict) -> str:
+        """
+        Takes a single eBPF security alert and explains what it means
+        and how serious it is. Used by the feedback loop.
+        """
+        event_type = alert.get("event_type", "unknown")
+        payload = alert.get("payload", {})
+
+        if event_type == "process_exec":
+            desc = f"A process named '{payload.get('process','?')}' (PID {payload.get('pid','?')}) was launched by parent PID {payload.get('ppid','?')}."
+        elif event_type == "network_connect":
+            desc = f"Process '{payload.get('process','?')}' connected to {payload.get('dest_ip','?')}:{payload.get('dest_port','?')}."
+        elif event_type == "file_open":
+            desc = f"Process '{payload.get('process','?')}' accessed file '{payload.get('filename','?')}'."
+        else:
+            desc = str(alert)
+
+        prompt = f"""You are a Linux security monitor.
+A kernel-level eBPF probe detected this event:
+{desc}
+
+In one sentence, say whether this is: NORMAL, SUSPICIOUS, or DANGEROUS.
+Then in one more sentence explain why.
+Be direct. No preamble."""
+
+        try:
+            response = requests.post(
+                f"{self.host}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                    "options": {"num_predict": 100, "temperature": 0.1}
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            return response.json()["message"]["content"].strip()
+        except Exception as e:
+            return f"Alert: {desc}"
  
     def is_healthy(self) -> bool:
         try:
@@ -147,4 +263,3 @@ class AIEngine:
             return r.status_code == 200
         except Exception:
             return False
- 
