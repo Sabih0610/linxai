@@ -165,14 +165,20 @@ def check_port_free(port: int) -> dict:
     pid = _inode_to_pid(inode)
     name = _pid_to_name(pid) if pid else "unknown"
 
+    try:
+        from system.state import SystemStateRegistry
+        _state = SystemStateRegistry()
+        rich_msg = _state.format_port_conflict(port)
+    except Exception:
+        rich_msg = (
+            f"Port {port} is already occupied by '{name}' "
+            f"(PID {pid}). Starting a new service on this port will fail."
+        )
     return {
         "check": "port_free",
         "status": "conflict",
         "found": {"pid": pid, "name": name, "port": port},
-        "reason": (
-            f"Port {port} is already occupied by '{name}' "
-            f"(PID {pid}). Starting a new service on this port will fail."
-        ),
+        "reason": rich_msg,
         "detail": {"port": port, "pid": pid, "process": name, "inode": inode}
     }
 

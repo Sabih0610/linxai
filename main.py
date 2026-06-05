@@ -86,6 +86,8 @@ class LINxAIPipeline:
         from ai.cache import CommandCache
         self.cache    = CommandCache()
         self.ai       = AIEngine(cache=self.cache)
+        from system.state import SystemStateRegistry
+        self.state    = SystemStateRegistry()
         self.cie      = CommandIntelligenceEngine(timeout_ms=500)
         timeout_s     = self.cfg["execution"]["command_timeout_s"]
         face_auth     = use_face_auth or self.cfg["execution"]["face_auth_enabled"]
@@ -181,6 +183,9 @@ class LINxAIPipeline:
             except Exception as e:
                 if not quiet:
                     print(f"  {yellow('⚠')} Resources    — unavailable ({e})")
+
+        if not quiet:
+            print(f"  {green('✓')} System State — port registry, health monitor active")
 
         if not quiet:
             print()
@@ -449,6 +454,7 @@ class LINxAIPipeline:
             self._resource_mgr.stop()
         self.memory.close()
         self.cache.close()
+        # state registry has no persistent connection to close
         if not self.quiet:
             print(f"\n  {dim('Session ended. Logs:')} "
                   f"{self.audit.log_path}\n")
