@@ -83,6 +83,10 @@ class ContextMemory:
             )
         except Exception as e:
             logger.error(f"save_security_alert failed: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
 
     def get_security_alerts(self, last_n: int = 5) -> list:
         """

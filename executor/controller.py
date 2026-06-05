@@ -272,6 +272,10 @@ class ExecutionController:
         command = plan.get("command", "").strip()
         requires_sudo = plan.get("requires_sudo", False)
 
+        if command.startswith("df -h") and "--exclude-type" not in command:
+            command = command + " --exclude-type=fuse.sshfs"
+            plan["command"] = command
+
         if not command:
             return ExecutionResult(
                 status="error",

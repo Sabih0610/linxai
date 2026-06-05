@@ -240,6 +240,22 @@ class LINxAIPipeline:
                               f"{p.get('process','?')} "
                               f"pid={p.get('pid','?')}")
 
+        # ── Chat + Unknown intent handlers ────────────────────────────────────
+        if plan.get("intent") == "unknown":
+            if not self.quiet:
+                msg = plan.get("explanation", "I did not understand that as a Linux admin command.")
+                print(f"  {dim('│')}  {yellow('[?]')} {msg}")
+                print(f"  {dim('└─')} {dim('Try: restart nginx | check disk | show memory | list processes')}")
+            self.memory.save(user_input, plan, {"skipped": True})
+            return {"input": user_input, "plan": plan, "outcome": "unknown"}
+
+        if plan.get("intent") == "chat":
+            if not self.quiet:
+                print(f"  {dim('│')}  {yellow('[chat]')} {plan.get('explanation', 'How can I help?')}")
+                print(f"  {dim('└─')} {dim('Chat mode coming soon — for now try a Linux command')}")
+            self.memory.save(user_input, plan, {"skipped": True})
+            return {"input": user_input, "plan": plan, "outcome": "chat"}
+
         # ── Step 2: CIE ───────────────────────────────────────────────────────
         t2 = time.perf_counter()
         n_checks = len(plan.get("pre_conditions", []))
