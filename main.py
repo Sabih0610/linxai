@@ -83,7 +83,9 @@ class LINxAIPipeline:
         self.hub      = LoggingHub(log_path=log_path)
         self.audit    = self.hub.audit
         self.memory   = ContextMemory(max_context=5)
-        self.ai       = AIEngine()
+        from ai.cache import CommandCache
+        self.cache    = CommandCache()
+        self.ai       = AIEngine(cache=self.cache)
         self.cie      = CommandIntelligenceEngine(timeout_ms=500)
         timeout_s     = self.cfg["execution"]["command_timeout_s"]
         face_auth     = use_face_auth or self.cfg["execution"]["face_auth_enabled"]
@@ -446,6 +448,7 @@ class LINxAIPipeline:
         if self._resource_mgr:
             self._resource_mgr.stop()
         self.memory.close()
+        self.cache.close()
         if not self.quiet:
             print(f"\n  {dim('Session ended. Logs:')} "
                   f"{self.audit.log_path}\n")
