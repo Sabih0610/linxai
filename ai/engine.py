@@ -12,10 +12,12 @@ class AIEngine:
  
     def __init__(self, model: str = "qwen2.5:1.5b",
                  host: str = "http://localhost:11434",
-                 timeout: int = 120):
+                 timeout: int = 120,
+                 cache=None):
         self.model = model
         self.host = host
         self.timeout = timeout
+        self.cache = cache
         self._verify_connection()
  
     def _verify_connection(self):
@@ -92,6 +94,14 @@ class AIEngine:
                  max_retries: int = 2) -> dict:
         if context is None:
             context = []
+
+        # Cache lookup — skip Ollama if we have a cached plan
+        if self.cache:
+            cached = self.cache.get(user_input)
+            if cached:
+                logger.info(f"Cache HIT: '{user_input}' → {cached.get('intent')}")
+                return cached
+
         messages = self._build_messages(user_input, context)
         last_error = None
  
@@ -106,7 +116,7 @@ class AIEngine:
                         "options": {
                             "temperature": 0.1,
                             "top_p": 0.9,
-                            "num_predict": 512,
+                            "num_predict": 150,
                         }
                     },
                     timeout=self.timeout
@@ -119,6 +129,9 @@ class AIEngine:
                 plan = json.loads(json_str)
                 plan = self._validate_plan(plan)
                 logger.info(f"Classified '{user_input}' → intent: {plan['intent']}")
+                # Store in cache for next time
+                if self.cache:
+                    self.cache.store(user_input, plan)
                 return plan
  
             except (json.JSONDecodeError, ValueError) as e:
@@ -150,8 +163,11 @@ class AIEngine:
             return "No recent audit records found."
 
         # Build a concise summary of events for the model
+        priority_modules = ("ai_engine", "cie", "executor", "system")
+        filtered = [r for r in records if r.get("module") in priority_modules]
+        use_records = filtered[-20:] if filtered else records[-20:]
         lines = []
-        for r in records[-20:]:  # last 20 records
+        for r in use_records:
             ts = r.get("timestamp", "")[:19].replace("T", " ")
             module = r.get("module", "?")
             event = r.get("event_type", "?")
