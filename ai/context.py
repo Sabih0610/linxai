@@ -39,17 +39,39 @@ class ContextMemory:
         self.conn.commit()
 
     def save(self, user_input: str, plan: dict, result: dict = None):
-        self.conn.execute(
-            "INSERT INTO history (session, ts, input, plan, result) VALUES (?, ?, ?, ?, ?)",
-            (
-                self.session_id,
-                datetime.utcnow().isoformat() + "Z",
-                user_input,
-                json.dumps(plan),
-                json.dumps(result) if result else None
+        try:
+            self.conn.execute(
+                "INSERT INTO history (session, ts, input, plan, result) VALUES (?, ?, ?, ?, ?)",
+                (
+                    self.session_id,
+                    datetime.utcnow().isoformat() + "Z",
+                    user_input,
+                    json.dumps(plan),
+                    json.dumps(result) if result else None
+                )
             )
-        )
-        self.conn.commit()
+            self.conn.commit()
+        except sqlite3.OperationalError as e:
+            logger.error(f"save failed: {e}")
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+            try:
+                self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+                self.conn.execute(
+                    "INSERT INTO history (session, ts, input, plan, result) VALUES (?, ?, ?, ?, ?)",
+                    (
+                        self.session_id,
+                        datetime.utcnow().isoformat() + "Z",
+                        user_input,
+                        json.dumps(plan),
+                        json.dumps(result) if result else None
+                    )
+                )
+                self.conn.commit()
+            except Exception as e2:
+                logger.error(f"save retry failed: {e2}")
 
     def get_recent(self, n: int = None) -> List[Dict]:
         limit = n or self.max_context

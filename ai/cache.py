@@ -44,18 +44,46 @@ PREWARMED = [
     ("nginx status",           {"intent":"service_status","target":"nginx","pre_conditions":[{"check":"service_exists","service":"nginx"}],"command":"systemctl status nginx","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows nginx status."}),
     ("show nginx status",      {"intent":"service_status","target":"nginx","pre_conditions":[{"check":"service_exists","service":"nginx"}],"command":"systemctl status nginx","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows nginx status."}),
     ("list installed packages",{"intent":"package_list","target":"","pre_conditions":[],"command":"dpkg --list","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Lists installed packages."}),
+    ("hello",                   {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("hi",                      {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("hey",                     {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("good morning",            {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("good evening",            {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("what can you do",         {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Capabilities question."}),
+    ("help me",                 {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Help request."}),
+    ("what is my system status",{"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"System status question."}),
+    ("is my server healthy",    {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Health check question."}),
+    ("what is running",         {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Running services question."}),
+    ("who are you",             {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Identity question."}),
+    ("what are you",            {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Identity question."}),
+    ("how are you",             {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("what is on port 80",          {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Port info question."}),
+    ("what is running on port 80",  {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Port info question."}),
+    ("what is on port 22",          {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Port info question."}),
+    ("what is running on port 22",  {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Port info question."}),
+    ("how do i set up a flask app", {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"How-to question."}),
+    ("how do i install nginx",      {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"How-to question."}),
+    ("how do i set up nginx",       {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"How-to question."}),
+    ("how do i configure nginx",    {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"How-to question."}),
+    ("how do i set up python",      {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"How-to question."}),
+    ("how do i set up a mern stack",{"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"How-to question."}),
+    ("delete all logs",             {"intent":"file_delete","target":"/var/log","pre_conditions":[],"command":"find /var/log -name '*.log' -type f -delete","requires_sudo":True,"risk_level":"high","rollback":"","explanation":"Deletes all log files."}),
 ]
 
 # Never cache inputs containing these — they are context-dependent
 SKIP_CACHE_PATTERNS = [
-    r'\d+',          # contains numbers (PIDs, ports)
-    r'\bit\b',       # pronoun "it"
-    r'\bthat\b',     # pronoun "that"
-    r'\bthis\b',     # pronoun "this"
-    r'\bhim\b',      # pronoun
-    r'\bher\b',      # pronoun
-    r'\bthem\b',     # pronoun
+    r'\b\d{5,}\b',              # 5+ digit numbers only (PIDs like 12345)
+    r'\bkill\s+\d+\b',          # kill followed by number
+    r'\bprocess\s+\d+\b',       # process followed by number
+    r'\bpid\s+\d+\b',           # pid followed by number
+    r'\bit\b',                   # pronoun "it"
+    r'\bthat\b',                 # pronoun "that"
+    r'\bthis\b',                 # pronoun "this"
+    r'\bhim\b',                  # pronoun
+    r'\bher\b',                  # pronoun
+    r'\bthem\b',                 # pronoun
 ]
+
 
 
 class CommandCache:
@@ -87,7 +115,7 @@ class CommandCache:
             normalized = self.normalize(raw_input)
             try:
                 self.conn.execute(
-                    """INSERT OR IGNORE INTO command_cache
+                    """INSERT OR REPLACE INTO command_cache
                        (input_normalized, plan, hit_count, created_at, last_used)
                        VALUES (?, ?, 0, ?, ?)""",
                     (normalized, json.dumps(plan), now, now)
@@ -137,7 +165,7 @@ class CommandCache:
         normalized = self.normalize(user_input)
         if not self.should_cache(normalized):
             return
-        if plan.get("intent") in ("unknown", "chat"):
+        if plan.get("intent") == "unknown":
             return
         try:
             now = datetime.utcnow().isoformat() + "Z"

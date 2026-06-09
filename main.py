@@ -88,6 +88,8 @@ class LINxAIPipeline:
         self.ai       = AIEngine(cache=self.cache)
         from system.state import SystemStateRegistry
         self.state    = SystemStateRegistry()
+        from ai.chat import ChatResponder
+        self.chat     = ChatResponder(state_registry=self.state)
         self.cie      = CommandIntelligenceEngine(timeout_ms=500)
         timeout_s     = self.cfg["execution"]["command_timeout_s"]
         face_auth     = use_face_auth or self.cfg["execution"]["face_auth_enabled"]
@@ -186,6 +188,7 @@ class LINxAIPipeline:
 
         if not quiet:
             print(f"  {green('✓')} System State — port registry, health monitor active")
+            print(f"  {green('✓')} Chat         — conversational AI ready")
 
         if not quiet:
             print()
@@ -258,8 +261,11 @@ class LINxAIPipeline:
 
         if plan.get("intent") == "chat":
             if not self.quiet:
-                print(f"  {dim('│')}  {yellow('[chat]')} {plan.get('explanation', 'How can I help?')}")
-                print(f"  {dim('└─')} {dim('Chat mode coming soon — for now try a Linux command')}")
+                response = self.chat.respond(user_input)
+                print(f"  {dim('│')}")
+                for line in response.split("\n"):
+                    print(f"  {dim('│')}  {line}")
+                print(f"  {dim('└─')} {dim('─────────────────────────────────────────')}")
             self.memory.save(user_input, plan, {"skipped": True})
             return {"input": user_input, "plan": plan, "outcome": "chat"}
 
