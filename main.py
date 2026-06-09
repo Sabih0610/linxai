@@ -90,6 +90,7 @@ class LINxAIPipeline:
         self.state    = SystemStateRegistry()
         from ai.chat import ChatResponder
         self.chat     = ChatResponder(state_registry=self.state)
+        self.last_output = ""
         self.cie      = CommandIntelligenceEngine(timeout_ms=500)
         timeout_s     = self.cfg["execution"]["command_timeout_s"]
         face_auth     = use_face_auth or self.cfg["execution"]["face_auth_enabled"]
@@ -318,6 +319,7 @@ class LINxAIPipeline:
                 print(f"\r  {dim('│')}  {green('[3/3] SUCCESS')}  "
                       f"exit={result.return_code}  {dim(f'{exec_ms}ms')}")
                 if result.stdout:
+                    self.last_output = result.stdout
                     for line in result.stdout.split("\n")[:8]:
                         print(f"  {dim('│')}    {line}")
             else:
@@ -426,6 +428,40 @@ class LINxAIPipeline:
                 if user_input.lower() == "help":
                     print(dim("\n  Commands: any Linux task in plain English"))
                     print(dim("  Special:  logs | stats | status | explain | exit"))
+                    continue
+
+                # ── Output saver ──────────────────────────────────────────────
+                import re as _re
+                _save_match = _re.match(
+                    r'^save\s+(?:that|this|last\s+output|output|it)?\s*to\s+(.+)$',
+                    user_input.lower().strip()
+                )
+                if not _save_match:
+                    _save_match = _re.match(
+                        r'^save\s+to\s+(.+)$',
+                        user_input.lower().strip()
+                    )
+                if _save_match:
+                    raw_path = user_input.strip()
+                    raw_path = _re.sub(
+                        r'^save\s+(?:that|this|last\s+output|output|it)?\s*to\s+',
+                        '', raw_path, flags=_re.IGNORECASE
+                    ).strip()
+                    raw_path = _re.sub(
+                        r'^save\s+to\s+', '', raw_path, flags=_re.IGNORECASE
+                    ).strip()
+                    save_path = os.path.expanduser(raw_path)
+                    if not self.last_output:
+                        print(f"\n  {yellow('⚠')} No output to save yet. Run a command first.")
+                    else:
+                        try:
+                            os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
+                            with open(save_path, 'w') as _f:
+                                _f.write(self.last_output)
+                            size = len(self.last_output.encode())
+                            print(f"\n  {green('✓')} Saved to {save_path} ({size} bytes)")
+                        except Exception as _e:
+                            print(f"\n  {red('✗')} Could not save: {_e}")
                     continue
 
                 # ── Explain mode ──────────────────────────────────────────────
