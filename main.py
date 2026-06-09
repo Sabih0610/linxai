@@ -91,6 +91,13 @@ class LINxAIPipeline:
         from ai.chat import ChatResponder
         self.chat     = ChatResponder(state_registry=self.state)
         self.last_output = ""
+        self._shown_alerts = set()
+        self._alert_thread = threading.Thread(
+            target=self._proactive_alert_loop,
+            daemon=True,
+            name="linxai-alerts"
+        )
+        self._alert_thread.start()
         self.cie      = CommandIntelligenceEngine(timeout_ms=500)
         timeout_s     = self.cfg["execution"]["command_timeout_s"]
         face_auth     = use_face_auth or self.cfg["execution"]["face_auth_enabled"]
@@ -123,10 +130,16 @@ class LINxAIPipeline:
                         # Credential access — always suspicious
                         if event_type == "file_open":
                             fname = payload.get("filename", "")
+                            proc  = payload.get("process", "")
+                            TRUSTED_PROCS = {
+                                "sshd", "sudo", "su", "login",
+                                "systemd", "pam_unix", "passwd",
+                                "polkit", "pkexec"
+                            }
                             if any(s in fname for s in [
                                 "/etc/shadow", "/etc/sudoers", "/root/.ssh",
                                 "/proc/keys", "id_rsa", "authorized_keys"
-                            ]):
+                            ]) and proc not in TRUSTED_PROCS:
                                 is_suspicious = True
 
                         # Outbound connection to unusual port
@@ -197,6 +210,62 @@ class LINxAIPipeline:
                       "Type 'exit' to quit."))
             print(dim("  Special: logs | stats | status | explain | help | exit"))
             print()
+
+    def _proactive_alert_loop(self):
+        import time as _time
+        import hashlib as _hashlib
+        while True:
+            try:
+                alerts = self.memory.get_security_alerts(last_n=10)
+                for alert in alerts:
+                    alert_id = _hashlib.md5(
+                        str(alert).encode()
+                    ).hexdigest()[:8]
+                    if alert_id not in self._shown_alerts:
+                        self._shown_alerts.add(alert_id)
+                        et = alert.get("event_type", "?")
+                        p  = alert.get("payload", {})
+                        if et == "file_open":
+                            fname = p.get("filename", "?")
+                            proc  = p.get("process", "?")
+                            pid   = p.get("pid", "?")
+                            msg = (
+                                f"\n  {chr(27)}[33m⚠ THREAT DETECTED{chr(27)}[0m — "
+                                f"Sensitive file accessed\n"
+                                f"  {chr(27)}[2m→{chr(27)}[0m "
+                                f"{fname} by {proc} (PID {pid})\n"
+                                f"  {chr(27)}[2mClassification: "
+                                f"CREDENTIAL ACCESS ATTEMPT{chr(27)}[0m\n"
+                            )
+                            print(msg, flush=True)
+                        elif et == "network_connect":
+                            dest = f"{p.get('dest_ip','?')}:{p.get('dest_port','?')}"
+                            proc = p.get("process", "?")
+                            pid  = p.get("pid", "?")
+                            msg = (
+                                f"\n  {chr(27)}[33m⚠ THREAT DETECTED{chr(27)}[0m — "
+                                f"Suspicious outbound connection\n"
+                                f"  {chr(27)}[2m→{chr(27)}[0m "
+                                f"{proc} (PID {pid}) → {dest}\n"
+                                f"  {chr(27)}[2mClassification: "
+                                f"SUSPICIOUS NETWORK ACTIVITY{chr(27)}[0m\n"
+                            )
+                            print(msg, flush=True)
+                        elif et == "process_exec":
+                            proc = p.get("process", "?")
+                            pid  = p.get("pid", "?")
+                            msg = (
+                                f"\n  {chr(27)}[33m⚠ THREAT DETECTED{chr(27)}[0m — "
+                                f"Suspicious process launched\n"
+                                f"  {chr(27)}[2m→{chr(27)}[0m "
+                                f"{proc} (PID {pid})\n"
+                                f"  {chr(27)}[2mClassification: "
+                                f"SUSPICIOUS PROCESS EXECUTION{chr(27)}[0m\n"
+                            )
+                            print(msg, flush=True)
+            except Exception:
+                pass
+            _time.sleep(2)
 
     def process(self, user_input: str) -> dict:
         t_start = time.perf_counter()
