@@ -91,6 +91,9 @@ class LINxAIPipeline:
         from ai.chat import ChatResponder
         self.chat     = ChatResponder(state_registry=self.state)
         self.last_output = ""
+        auto_response_enabled = self.cfg.get("auto_response", {}).get("enabled", False)
+        from executor.auto_response import ThreatResponder
+        self.threat_responder = ThreatResponder(enabled=auto_response_enabled)
         self._shown_alerts = set()
         self._alert_thread = threading.Thread(
             target=self._proactive_alert_loop,
@@ -167,6 +170,18 @@ class LINxAIPipeline:
 
                         if is_suspicious:
                             self.memory.save_security_alert(record)
+                            response = self.threat_responder.respond(record)
+                            if response.get("action") == "kill_process":
+                                pid     = response.get("pid")
+                                process = response.get("process", "?")
+                                success = response.get("success", False)
+                                if success and not self.quiet:
+                                    print(
+                                        f"\n  \033[33m⚡ AUTO-RESPONSE\033[0m: "
+                                        f"{process} (PID {pid}) terminated\n"
+                                        f"  \033[2mReason: {response.get('reason','')}\033[0m\n",
+                                        flush=True
+                                    )
 
                     self._ebpf_daemon = eBPFDaemon(
                         log_path=log_path,
@@ -486,6 +501,12 @@ class LINxAIPipeline:
                   f"{len(alerts)} kernel alert(s) this session")
         else:
             print(f"  {green('●')} Security      no alerts this session")
+        if hasattr(self, 'threat_responder'):
+            stats = self.threat_responder.get_stats()
+            if stats["total_responses"] > 0:
+                print(f"  {yellow('⚡')} Auto-Response  "
+                      f"{stats['successful_kills']} process(es) terminated "
+                      f"this session")
         print()
 
     def run_interactive(self):
