@@ -299,6 +299,42 @@ class LINxAIPipeline:
                 print(f"\r  {dim('│')}  {colour(f'[2/3] {label}')}  "
                       f"{validation['reason'][:60]}  {dim(f'{cie_ms}ms')}")
 
+        # ── Sensitive path authentication ─────────────────────────────────────
+        SENSITIVE_PATHS = ("/etc/", "/etc ", "/etc'", "/var/", "/bin/",
+                           "/usr/", "/root/", "/boot/", "/lib/", "/sbin/")
+        cmd_str = plan.get("command", "")
+        is_sensitive = any(p in cmd_str for p in SENSITIVE_PATHS)
+        if is_sensitive and not plan.get("requires_sudo", False):
+            if not self.quiet:
+                print(f"  {dim('│')}")
+                print(f"  {dim('│')}  {yellow('⚠ SENSITIVE PATH DETECTED')}")
+                print(f"  {dim('│')}  This command targets a protected system path.")
+                print(f"  {dim('│')}  Enter sudo password to continue or press Enter to cancel:")
+            import getpass
+            try:
+                pwd = getpass.getpass(f"  {dim('│')}  Password: ")
+            except (KeyboardInterrupt, EOFError):
+                pwd = ""
+            if not pwd.strip():
+                if not self.quiet:
+                    print(f"  {dim('└─')} {yellow('Cancelled — no password provided.')}")
+                self.memory.save(user_input, plan, {"cancelled": True})
+                return {"input": user_input, "plan": plan, "outcome": "cancelled"}
+            import subprocess as _sp
+            check = _sp.run(
+                ["sudo", "-S", "-v"],
+                input=pwd + "\n",
+                capture_output=True,
+                text=True
+            )
+            if check.returncode != 0:
+                if not self.quiet:
+                    print(f"  {dim('└─')} {red('Authentication failed — command blocked.')}")
+                self.memory.save(user_input, plan, {"auth_failed": True})
+                return {"input": user_input, "plan": plan, "outcome": "auth_failed"}
+            if not self.quiet:
+                print(f"  {dim('│')}  {green('✓ Authenticated')}")
+
         # ── Step 3: Execute ───────────────────────────────────────────────────
         t3 = time.perf_counter()
         if not self.quiet:
