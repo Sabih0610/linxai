@@ -14,7 +14,8 @@ echo ""
 echo "Installing LINxAI VPS Module..."
 echo ""
 
-pip3 install -q paramiko pyyaml
+# Replace the pip3 install line with native apt packages:
+apt-get install -y -qq python3-paramiko python3-yaml
 
 # Create default servers config if not exists
 SERVERS_CONF="/etc/linxai/servers.yaml"

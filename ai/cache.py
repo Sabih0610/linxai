@@ -12,6 +12,11 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+STOPWORDS = {
+    "please", "can", "you", "could", "would", "kindly", "for", "me",
+    "the", "a", "an", "just", "now", "hey", "plz", "pls",
+}
+
 # 30 pre-warmed common commands — instant from day one
 PREWARMED = [
     ("check disk space",       {"intent":"disk_usage","target":"","pre_conditions":[],"command":"df -h --exclude-type=fuse.sshfs","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows disk usage."}),
@@ -36,8 +41,17 @@ PREWARMED = [
     ("show firewall rules",    {"intent":"firewall_list","target":"","pre_conditions":[],"command":"ufw status verbose","requires_sudo":True,"risk_level":"low","rollback":"","explanation":"Shows firewall rules."}),
     ("check firewall",         {"intent":"firewall_list","target":"","pre_conditions":[],"command":"ufw status verbose","requires_sudo":True,"risk_level":"low","rollback":"","explanation":"Shows firewall rules."}),
     ("show network interfaces",{"intent":"network_interfaces","target":"","pre_conditions":[],"command":"ip addr show","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows network interfaces."}),
-    ("what is my ip",          {"intent":"network_interfaces","target":"","pre_conditions":[],"command":"ip addr show","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows IP addresses."}),
-    ("show ip address",        {"intent":"network_interfaces","target":"","pre_conditions":[],"command":"ip addr show","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows IP addresses."}),
+    ("what is my ip",          {"intent":"network_info","target":"ip_address","pre_conditions":[],"command":"ip -brief addr","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows IP addresses."}),
+    ("what's my ip",           {"intent":"network_info","target":"ip_address","pre_conditions":[],"command":"ip -brief addr","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows IP addresses."}),
+    ("show ip address",        {"intent":"network_info","target":"ip_address","pre_conditions":[],"command":"ip -brief addr","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows IP addresses."}),
+    ("what's my mac",          {"intent":"network_info","target":"mac_address","pre_conditions":[],"command":"cat /sys/class/net/*/address","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows network interface MAC addresses."}),
+    ("what's my mac address",  {"intent":"network_info","target":"mac_address","pre_conditions":[],"command":"cat /sys/class/net/*/address","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows network interface MAC addresses."}),
+    ("show mac address",       {"intent":"network_info","target":"mac_address","pre_conditions":[],"command":"cat /sys/class/net/*/address","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows network interface MAC addresses."}),
+    ("what's my hostname",     {"intent":"network_info","target":"hostname","pre_conditions":[],"command":"hostnamectl --static","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows the system hostname."}),
+    ("show hostname",          {"intent":"network_info","target":"hostname","pre_conditions":[],"command":"hostnamectl --static","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows the system hostname."}),
+    ("what os am i running",   {"intent":"network_info","target":"os","pre_conditions":[],"command":"lsb_release -d","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows the Linux distribution."}),
+    ("which distro",           {"intent":"network_info","target":"os","pre_conditions":[],"command":"lsb_release -d","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Shows the Linux distribution."}),
+    ("open the windows registry", {"intent":"not_applicable","target":"windows_registry","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"The Windows registry does not exist on Linux.","suggestion":"On Linux, system settings are usually stored in configuration files under /etc or user dotfiles."}),
     ("restart nginx",          {"intent":"service_restart","target":"nginx","pre_conditions":[{"check":"service_exists","service":"nginx"}],"command":"systemctl restart nginx","requires_sudo":True,"risk_level":"medium","rollback":"systemctl stop nginx","explanation":"Restarts nginx."}),
     ("stop nginx",             {"intent":"service_stop","target":"nginx","pre_conditions":[{"check":"service_exists","service":"nginx"}],"command":"systemctl stop nginx","requires_sudo":True,"risk_level":"medium","rollback":"systemctl start nginx","explanation":"Stops nginx."}),
     ("start nginx",            {"intent":"service_start","target":"nginx","pre_conditions":[{"check":"port_free","port":80},{"check":"service_exists","service":"nginx"}],"command":"systemctl start nginx","requires_sudo":True,"risk_level":"medium","rollback":"systemctl stop nginx","explanation":"Starts nginx."}),
@@ -47,8 +61,23 @@ PREWARMED = [
     ("hello",                   {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
     ("hi",                      {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
     ("hey",                     {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("heyy",                    {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("yo",                      {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("hola",                    {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("sup",                     {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("what's up",               {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("whats up",                {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
     ("good morning",            {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
     ("good evening",            {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Greeting."}),
+    ("thanks",                  {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Thanks."}),
+    ("thank you",               {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Thanks."}),
+    ("ok",                      {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Acknowledgement."}),
+    ("okay",                    {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Acknowledgement."}),
+    ("great",                   {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Acknowledgement."}),
+    ("nice",                    {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Acknowledgement."}),
+    ("cool",                    {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Acknowledgement."}),
+    ("bye",                     {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Goodbye."}),
+    ("goodbye",                 {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Goodbye."}),
     ("what can you do",         {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Capabilities question."}),
     ("help me",                 {"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"Help request."}),
     ("what is my system status",{"intent":"chat","target":"","pre_conditions":[],"command":"","requires_sudo":False,"risk_level":"low","rollback":"","explanation":"System status question."}),
@@ -70,6 +99,71 @@ PREWARMED = [
     ("delete all logs",             {"intent":"file_delete","target":"/var/log","pre_conditions":[],"command":"find /var/log -name '*.log' -type f -delete","requires_sudo":True,"risk_level":"high","rollback":"","explanation":"Deletes all log files."}),
 ]
 
+FAST_PATH_PREWARM_INPUTS = [
+    "ip",
+    "my ip",
+    "ip address",
+    "what's my ip",
+    "whats my ip",
+    "mac",
+    "my mac",
+    "mac address",
+    "what's my mac",
+    "hostname",
+    "show ports",
+    "show port",
+    "list ports",
+    "ports",
+    "ss",
+    "netstat",
+    "what's on port 80",
+    "whats on port 80",
+    "what is on port 80",
+    "what is running on port 80",
+    "who is using port 80",
+    "port 80",
+    "80",
+    "start nginx",
+    "stop nginx",
+    "restart nginx",
+    "status nginx",
+    "nginx status",
+    "install git",
+    "install the git package",
+    "install nodejs npm",
+    "create a file test.txt",
+    "create a file test.txt in tmp",
+    "create a folder logs",
+    "create a directory logs",
+    "uptime",
+    "disk",
+    "disk space",
+    "check disk space",
+    "check the disk space please",
+    "memory",
+    "free",
+    "cpu",
+    "os version",
+    "ubuntu version",
+    "git version",
+    "node version",
+    "npm version",
+    "date",
+    "time",
+    "whoami",
+    "who",
+]
+
+try:
+    from ai.fast_path import classify_fast
+
+    for raw_input in FAST_PATH_PREWARM_INPUTS:
+        plan = classify_fast(raw_input, {"expects_port": True})
+        if plan:
+            PREWARMED.append((raw_input, plan))
+except Exception as e:
+    logger.error(f"Fast-path prewarm failed: {e}")
+
 # Never cache inputs containing these — they are context-dependent
 SKIP_CACHE_PATTERNS = [
     r'\b\d{5,}\b',              # 5+ digit numbers only (PIDs like 12345)
@@ -90,7 +184,9 @@ class CommandCache:
 
     def __init__(self, db_path: str = "~/.linxai/context.db"):
         self.db_path = os.path.expanduser(db_path)
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        db_dir = os.path.dirname(self.db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._init_schema()
         self._prewarm()
@@ -127,9 +223,14 @@ class CommandCache:
         logger.info(f"Cache prewarm complete — {inserted} entries ready")
 
     def normalize(self, user_input: str) -> str:
-        text = user_input.lower().strip()
-        text = re.sub(r'\s+', ' ', text)
-        return text
+        text = (user_input or "").lower().strip()
+        text = text.replace("'", "")
+        text = re.sub(r"[^\w\s@+./:-]+", " ", text)
+        tokens = [
+            token for token in re.split(r"\s+", text)
+            if token and token not in STOPWORDS
+        ]
+        return " ".join(tokens)
 
     def should_cache(self, normalized: str) -> bool:
         for pattern in SKIP_CACHE_PATTERNS:
@@ -148,6 +249,9 @@ class CommandCache:
             )
             row = cur.fetchone()
             if row:
+                plan = json.loads(row[0])
+                if plan.get("intent") == "unknown":
+                    return None
                 self.conn.execute(
                     """UPDATE command_cache
                        SET hit_count = hit_count + 1,
@@ -156,7 +260,7 @@ class CommandCache:
                     (datetime.utcnow().isoformat() + "Z", normalized)
                 )
                 self.conn.commit()
-                return json.loads(row[0])
+                return plan
         except Exception as e:
             logger.error(f"Cache get failed: {e}")
         return None

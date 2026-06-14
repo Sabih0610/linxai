@@ -4,10 +4,23 @@
 # - Rule-based fast path for greetings and system status (instant)
 # - Ollama for complex how-to questions and Linux guidance
 
-import requests
 import logging
+import re
+
+import requests
 
 logger = logging.getLogger(__name__)
+
+GREETING_INPUTS = {
+    "hi", "hey", "heyy", "hello", "yo", "hola", "sup", "what's up",
+    "whats up", "good morning", "good evening",
+}
+THANKS_INPUTS = {"thanks", "thank you"}
+ACK_INPUTS = {"ok", "okay", "great", "nice", "cool"}
+GOODBYE_INPUTS = {"bye", "goodbye"}
+SOCIAL_INPUTS = (
+    GREETING_INPUTS | THANKS_INPUTS | ACK_INPUTS | GOODBYE_INPUTS
+)
 
 CAPABILITIES = """I can help you with:
   ● Service management    — start, stop, restart, check status of any service
@@ -37,15 +50,35 @@ class ChatResponder:
         self.host = host
         self.state = state_registry
 
+    @staticmethod
+    def normalize_social(user_input: str) -> str:
+        text = user_input.lower().replace("\u2019", "'").strip()
+        text = re.sub(r"\s+", " ", text)
+        return text.strip(" \t\r\n!?.,")
+
+    @classmethod
+    def is_social(cls, user_input: str) -> bool:
+        return cls.normalize_social(user_input) in SOCIAL_INPUTS
+
+    @classmethod
+    def should_exit(cls, user_input: str) -> bool:
+        return cls.normalize_social(user_input) in GOODBYE_INPUTS
+
     def respond(self, user_input: str) -> str:
-        normalized = user_input.lower().strip()
+        normalized = self.normalize_social(user_input)
 
         # ── Rule-based fast path ──────────────────────────────────────────────
 
-        # Greetings
-        if normalized in ("hello", "hi", "hey", "good morning",
-                          "good evening", "good afternoon", "howdy",
-                          "salaam", "salam", "assalamu alaikum"):
+        if normalized in GOODBYE_INPUTS:
+            return "Goodbye."
+
+        if normalized in THANKS_INPUTS:
+            return "You're welcome!"
+
+        if normalized in ACK_INPUTS:
+            return "Got it."
+
+        if normalized in GREETING_INPUTS:
             return self._greeting()
 
         # How are you
@@ -92,6 +125,14 @@ class ChatResponder:
 
         # ── Ollama path for complex questions ─────────────────────────────────
         return self._ask_ollama(user_input)
+
+    def not_applicable_response(self, explanation: str = "",
+                                suggestion: str = "") -> str:
+        if suggestion:
+            return f"That doesn't map to a Linux operation here. {suggestion}"
+        if explanation:
+            return f"That doesn't map to a Linux operation here. {explanation}"
+        return "That doesn't map to a Linux operation here."
 
     def _greeting(self) -> str:
         if self.state:

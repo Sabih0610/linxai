@@ -1,6 +1,6 @@
 # resource/monitor.py
 # System resource monitor for LINxAI.
-# Polls CPU, RAM, and per-process metrics every second.
+# Polls CPU, RAM, and per-process metrics every few seconds.
 # Auto-renices background processes when CPU exceeds threshold.
 #
 # Run standalone: python3 resource/monitor.py
@@ -24,7 +24,7 @@ BACKGROUND_NICE     = 10    # applied to background procs under load
 FOREGROUND_NICE     = 0     # restored when load drops
 
 # Poll interval in seconds
-POLL_INTERVAL_S     = 1.0
+POLL_INTERVAL_S     = 5.0
 
 # Processes classified as foreground — never renice these
 FOREGROUND_NAMES = {
@@ -99,10 +99,15 @@ class ResourceManager:
     def __init__(self,
                  cpu_threshold: float = CPU_THRESHOLD_PCT,
                  poll_interval: float = POLL_INTERVAL_S,
-                 log_callback: Optional[Callable] = None):
+                 log_callback: Optional[Callable] = None,
+                 pause_callback: Optional[Callable[[], bool]] = None):
         self.cpu_threshold  = cpu_threshold
-        self.poll_interval  = poll_interval
+        try:
+            self.poll_interval = max(float(poll_interval), POLL_INTERVAL_S)
+        except (TypeError, ValueError):
+            self.poll_interval = POLL_INTERVAL_S
         self.log_callback   = log_callback
+        self.pause_callback = pause_callback
         self.running        = False
         self._thread        = None
         self._reniced_pids  = {}   # pid → original_nice
@@ -256,6 +261,14 @@ class ResourceManager:
             # CPU dropped — restore priorities
             self._restore_priorities()
 
+    def _paused(self) -> bool:
+        if not self.pause_callback:
+            return False
+        try:
+            return bool(self.pause_callback())
+        except Exception:
+            return False
+
     def _run(self):
         """Main monitoring loop."""
         logger.info(
@@ -263,7 +276,7 @@ class ResourceManager:
             f"threshold={self.cpu_threshold}%, "
             f"poll={self.poll_interval}s"
         )
-        print(
+        logger.info(
             f"[Resource] Monitor running — "
             f"CPU threshold: {self.cpu_threshold}%"
         )
@@ -274,7 +287,8 @@ class ResourceManager:
 
         while self.running:
             try:
-                self._poll_once()
+                if not self._paused():
+                    self._poll_once()
             except Exception as e:
                 logger.error(f"ResourceManager poll error: {e}")
             time.sleep(self.poll_interval)
@@ -300,7 +314,7 @@ class ResourceManager:
             self._restore_priorities()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=3.0)
-        print("[Resource] Monitor stopped.")
+        logger.info("[Resource] Monitor stopped.")
 
     def get_stats(self) -> dict:
         """Return current resource snapshot."""

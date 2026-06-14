@@ -45,7 +45,14 @@ logger = logging.getLogger(__name__)
 SOCKET_PATH      = "/tmp/linxai_pam.sock"
 FACE_DATA_DIR    = os.path.expanduser("~/.linxai/face")
 TEMPLATE_PATH    = os.path.join(FACE_DATA_DIR, "face_template.yml")
-CASCADE_PATH     = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+# executor/face_auth.py (Line ~33)
+
+# Update the CASCADE_PATH resolution to check system paths first:
+SYSTEM_CASCADE = "/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml"
+if os.path.exists(SYSTEM_CASCADE):
+    CASCADE_PATH = SYSTEM_CASCADE
+else:
+    CASCADE_PATH = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 
 NUM_FRAMES       = 5          # frames to capture per auth attempt
 FRAME_DELAY_S    = 0.12       # seconds between frames (total ~600ms)

@@ -11,11 +11,12 @@ echo ""
 echo "Installing LINxAI Voice Module..."
 echo ""
 
-# Install system audio deps
-apt-get install -y -qq portaudio19-dev ffmpeg
+# Install system audio dependencies and native Python bindings
+apt-get update -y -qq
+apt-get install -y -qq portaudio19-dev ffmpeg python3-pyaudio
 
-# Install Python packages
-pip3 install -q faster-whisper webrtcvad pyaudio
+# Install Python packages (bypassing Ubuntu 24.04 PEP 668 restriction for the system service)
+pip3 install -q faster-whisper webrtcvad --break-system-packages
 
 # Download Whisper model
 echo "Downloading Whisper large-v3 model (~1.5GB)..."

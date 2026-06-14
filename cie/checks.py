@@ -21,12 +21,40 @@ import struct
 import logging
 from typing import Optional
 
+from system.destructive_guard import check_destructive_command
+
 logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+def check_destructive_protected_path(command: str) -> dict:
+    """
+    Block destructive commands that target critical system paths.
+    This check is command-derived and ignores user claims such as "I'm root".
+    """
+    finding = check_destructive_command(command)
+    if finding:
+        return {
+            "check": "destructive_protected_path",
+            "status": "conflict",
+            "found": {
+                "path": finding["path"],
+                "action": finding["action"],
+            },
+            "reason": finding["reason"],
+            "detail": {"command": command, "finding": finding},
+        }
+
+    return {
+        "check": "destructive_protected_path",
+        "status": "ok",
+        "found": None,
+        "reason": "Command does not destructively target a protected system path.",
+        "detail": {"command": command},
+    }
 
 def _run(cmd: list, timeout: int = 5) -> tuple:
     """

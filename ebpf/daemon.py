@@ -19,6 +19,7 @@ import json
 import time
 import signal
 import socket
+import struct
 import logging
 import threading
 import ctypes
@@ -36,8 +37,14 @@ logger = logging.getLogger(__name__)
 # Path to probe C source files
 PROBE_DIR = os.path.join(os.path.dirname(__file__), "probes")
 
-# Default audit log path — overridden by AuditLogger when integrated
-DEFAULT_LOG_PATH = os.path.expanduser("~/.linxai/audit.jsonl")
+
+# ebpf/daemon.py (Line ~28)
+
+# Update this line to match Phase 11 logging:
+DEFAULT_LOG_PATH = os.environ.get(
+    "LINXAI_LOG_PATH", 
+    "/var/log/linxai/audit.jsonl"
+)
 
 # Security-relevant paths — openat events for these are always logged
 # regardless of filtering. Everything else is sampled.
@@ -57,6 +64,10 @@ NOISE_PROCESSES = {
 # Extensions to always skip in openat — shared libraries, not interesting
 NOISE_EXTENSIONS = (".so", ".so.1", ".so.2", ".cache", ".conf")
 
+# Yield briefly after draining perf buffers so Ollama inference keeps CPU time
+# during event bursts.
+POLL_YIELD_S = 0.005
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -65,7 +76,7 @@ def _now() -> str:
 def _ip_to_str(ip_int: int) -> str:
     """Convert packed uint32 IP (network byte order) to dotted decimal."""
     try:
-        return socket.inet_ntoa(ip_int.to_bytes(4, 'big'))
+        return socket.inet_ntoa(struct.pack("<I", ip_int))
     except Exception:
         return str(ip_int)
 
@@ -117,6 +128,7 @@ class eBPFDaemon:
         self._bpf_openat    = None
         self._lock          = threading.Lock()
         self._event_count   = {"execve": 0, "connect": 0, "openat": 0}
+        self._lost_samples  = 0
 
         os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
 
@@ -154,6 +166,9 @@ class eBPFDaemon:
 
     # ── BPF program loaders ───────────────────────────────────────────────────
 
+    def _on_lost(self, lost: int):
+        self._lost_samples += lost
+
     def _load_execve(self):
         """Load execve kprobe BPF program."""
         src_path = os.path.join(PROBE_DIR, "execve.c")
@@ -175,7 +190,11 @@ class eBPFDaemon:
             self._event_count["execve"] += 1
             self._write_event("process_exec", payload)
 
-        bpf["execve_events"].open_perf_buffer(handle_execve, page_cnt=64)
+        bpf["execve_events"].open_perf_buffer(
+            handle_execve,
+            page_cnt=64,
+            lost_cb=self._on_lost,
+        )
         logger.info("eBPF execve kprobe loaded")
         return bpf
 
@@ -204,7 +223,11 @@ class eBPFDaemon:
             self._event_count["connect"] += 1
             self._write_event("network_connect", payload)
 
-        bpf["connect_events"].open_perf_buffer(handle_connect, page_cnt=64)
+        bpf["connect_events"].open_perf_buffer(
+            handle_connect,
+            page_cnt=64,
+            lost_cb=self._on_lost,
+        )
         logger.info("eBPF connect kprobe loaded")
         return bpf
 
@@ -244,7 +267,11 @@ class eBPFDaemon:
             self._event_count["openat"] += 1
             self._write_event("file_open", payload)
 
-        bpf["openat_events"].open_perf_buffer(handle_openat, page_cnt=64)
+        bpf["openat_events"].open_perf_buffer(
+            handle_openat,
+            page_cnt=128,
+            lost_cb=self._on_lost,
+        )
         logger.info("eBPF openat tracepoint loaded")
         return bpf
 
@@ -277,6 +304,8 @@ class eBPFDaemon:
                         f"total:{total}"
                     )
                     last_stats = now
+
+                time.sleep(POLL_YIELD_S)
 
             except Exception as e:
                 if self.running:
@@ -317,6 +346,9 @@ class eBPFDaemon:
     def get_stats(self) -> dict:
         """Return event counts since daemon started."""
         return dict(self._event_count)
+
+    def lost_sample_count(self) -> int:
+        return self._lost_samples
 
 
 # ── Standalone run ────────────────────────────────────────────────────────────

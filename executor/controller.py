@@ -21,27 +21,24 @@ import shlex
 import signal
 import logging
 import subprocess
+import sys
+import threading
+import queue
 from typing import Optional
 
+from executor.command_builder import build as build_command
 from executor.result import (
     ExecutionResult,
     make_blocked_result,
     make_auth_failed_result,
-    make_timeout_result,
 )
+from system.destructive_guard import check_destructive_command
 
 logger = logging.getLogger(__name__)
 
 # Commands that must NEVER be executed regardless of what the AI says.
 # This is a hard safety list — belt-and-suspenders after CIE approval.
 FORBIDDEN_COMMANDS = {
-    "rm -rf /",
-    "rm -rf /*",
-    "dd if=/dev/zero of=/dev/sda",
-    "mkfs",
-    "> /dev/sda",
-    "chmod -R 777 /",
-    "chown -R",
     ":(){ :|:& };:",   # fork bomb
     "shutdown",
     "reboot",
@@ -52,6 +49,15 @@ FORBIDDEN_COMMANDS = {
 }
 
 COMMAND_TIMEOUT_S = 30   # maximum seconds any single command may run
+TIMEOUTS = {
+    "package_install": 1200,
+    "package_remove": 600,
+    "package_update": 1200,
+    "env_setup": 1800,
+    "default": 30,
+}
+LONG_RUNNING_INTENTS = {"package_install", "package_remove", "package_update", "env_setup"}
+QUERY_PARTIAL_SUCCESS_INTENTS = {"file_find", "grep", "diff"}
 
 
 class ExecutionController:
@@ -94,6 +100,20 @@ class ExecutionController:
         Hard safety check — rejects commands that must never run.
         This runs even if CIE approved the command.
         """
+        return self._forbidden_reason(command) is not None
+
+    def _forbidden_reason(self, command: str) -> str | None:
+        """
+        Returns the reason a command is forbidden, or None if it is allowed.
+        """
+        finding = check_destructive_command(command)
+        if finding:
+            logger.critical(
+                f"FORBIDDEN COMMAND intercepted: '{command}' "
+                f"targets protected path '{finding['path']}'"
+            )
+            return finding["reason"]
+
         cmd_lower = command.lower().strip()
         for forbidden in FORBIDDEN_COMMANDS:
             if forbidden in cmd_lower:
@@ -101,8 +121,11 @@ class ExecutionController:
                     f"FORBIDDEN COMMAND intercepted: '{command}' "
                     f"matches pattern '{forbidden}'"
                 )
-                return True
-        return False
+                return (
+                    f"Command '{command}' is in the forbidden list and "
+                    f"was intercepted by the safety guard."
+                )
+        return None
 
     def _build_command(self, plan: dict) -> str:
         """
@@ -159,30 +182,188 @@ class ExecutionController:
                 f"Face auth server error — falling back to sudo."
             )
 
+    def _intent_timeout(self, intent: str, command: str = "") -> int:
+        timeout = TIMEOUTS.get(intent, TIMEOUTS["default"])
+        if timeout == TIMEOUTS["default"] and "git clone" in command.lower():
+            return TIMEOUTS["env_setup"]
+        return timeout
+
+    def _is_long_running(self, intent: str, command: str) -> bool:
+        if intent in LONG_RUNNING_INTENTS:
+            return True
+        lowered = command.lower()
+        return (
+            "git clone" in lowered
+            or "apt install" in lowered
+            or "apt-get install" in lowered
+            or "apt update" in lowered
+            or "apt-get update" in lowered
+        )
+
+    def _progress_notice(self, intent: str, command: str):
+        if not self._is_long_running(intent, command):
+            return
+        print(
+            "This may take several minutes (downloading/installing). "
+            "Please wait…",
+            flush=True,
+        )
+
+    def _reader_thread(self, stream, name: str, output_queue):
+        try:
+            for line in iter(stream.readline, ""):
+                output_queue.put((name, line))
+        finally:
+            try:
+                stream.close()
+            except Exception:
+                pass
+
+    def _capture_output_line(self, name: str, line: str, stdout_lines: list,
+                             stderr_lines: list, echo: bool):
+        if name == "stdout":
+            stdout_lines.append(line)
+        else:
+            stderr_lines.append(line)
+        if echo:
+            stream = sys.stderr if name == "stderr" else sys.stdout
+            print(line, end="", file=stream, flush=True)
+
+    def _drain_output_queue(self, output_queue, stdout_lines: list,
+                            stderr_lines: list, echo: bool):
+        while True:
+            try:
+                name, line = output_queue.get_nowait()
+            except queue.Empty:
+                break
+            self._capture_output_line(
+                name, line, stdout_lines, stderr_lines, echo
+            )
+
+    def _recover_package_timeout_hint(self, intent: str, message: str) -> str:
+        if intent in {"package_install", "package_remove", "package_update"}:
+            return (
+                f"{message} Package operations can leave dpkg half-configured; "
+                f"run `sudo dpkg --configure -a` before retrying."
+            )
+        return message
+
     def _run_subprocess(self, command: str, intent: str,
-                         plan: dict, auth_method: str) -> ExecutionResult:
+                         plan: dict, auth_method: str,
+                         timeout_s: int) -> ExecutionResult:
         """
         Executes the command string as a subprocess.
         Captures stdout, stderr, return code, and duration.
         Kills the process if it exceeds timeout_s.
         """
         t_start = time.perf_counter()
+        self._progress_notice(intent, command)
 
         try:
-            proc = subprocess.Popen(
-                command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                preexec_fn=os.setsid   # create new process group for clean kill
+            popen_kwargs = {
+                "shell": True,
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "text": True,
+            }
+            if hasattr(os, "setsid"):
+                # Linux/POSIX: create a process group for clean timeout kills.
+                popen_kwargs["preexec_fn"] = os.setsid
+            proc = subprocess.Popen(command, **popen_kwargs)
+
+            stdout_lines = []
+            stderr_lines = []
+            output_queue = queue.Queue()
+            threads = [
+                threading.Thread(
+                    target=self._reader_thread,
+                    args=(proc.stdout, "stdout", output_queue),
+                    daemon=True,
+                ),
+                threading.Thread(
+                    target=self._reader_thread,
+                    args=(proc.stderr, "stderr", output_queue),
+                    daemon=True,
+                ),
+            ]
+            for thread in threads:
+                thread.start()
+
+            timed_out = False
+            echo_output = self._is_long_running(intent, command)
+            while True:
+                try:
+                    name, line = output_queue.get(timeout=0.1)
+                    self._capture_output_line(
+                        name, line, stdout_lines, stderr_lines, echo_output
+                    )
+                except queue.Empty:
+                    pass
+
+                if proc.poll() is not None:
+                    break
+                if time.perf_counter() - t_start > timeout_s:
+                    timed_out = True
+                    break
+
+            self._drain_output_queue(
+                output_queue, stdout_lines, stderr_lines, echo_output
             )
 
-            try:
-                stdout, stderr = proc.communicate(timeout=self.timeout_s)
-                duration_ms = int((time.perf_counter() - t_start) * 1000)
+            if timed_out:
+                if intent in {"package_install", "package_remove", "package_update"}:
+                    try:
+                        proc.terminate()
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        pass
+                else:
+                    self._kill_process(proc)
+                    proc.wait()
+                for thread in threads:
+                    thread.join(timeout=1)
+                self._drain_output_queue(
+                    output_queue, stdout_lines, stderr_lines, echo_output
+                )
 
+                duration_ms = int((time.perf_counter() - t_start) * 1000)
+                message = f"Command timed out after {timeout_s} seconds."
+                message = self._recover_package_timeout_hint(intent, message)
+                logger.error(f"{message} Command: '{command}'")
+                return ExecutionResult(
+                    status="timeout",
+                    return_code=-3,
+                    stdout="".join(stdout_lines).strip(),
+                    stderr=message,
+                    command=command,
+                    intent=intent,
+                    duration_ms=duration_ms,
+                    requires_sudo=plan.get("requires_sudo", False),
+                    auth_method=auth_method,
+                    plan=plan,
+                )
+
+            for thread in threads:
+                thread.join(timeout=1)
+            self._drain_output_queue(
+                output_queue, stdout_lines, stderr_lines, echo_output
+            )
+
+            stdout = "".join(stdout_lines)
+            stderr = "".join(stderr_lines)
+            duration_ms = int((time.perf_counter() - t_start) * 1000)
+
+            try:
                 status = "success" if proc.returncode == 0 else "error"
+                return_code = proc.returncode
+                if intent in QUERY_PARTIAL_SUCCESS_INTENTS and proc.returncode == 1:
+                    status = "success"
+                    return_code = 0
+                    note = "No results or partial results."
+                    stderr = f"{stderr.strip()}\n{note}".strip()
 
                 logger.info(
                     f"Executed: '{command}' → "
@@ -191,7 +372,7 @@ class ExecutionController:
 
                 return ExecutionResult(
                     status=status,
-                    return_code=proc.returncode,
+                    return_code=return_code,
                     stdout=stdout.strip(),
                     stderr=stderr.strip(),
                     command=command,
@@ -202,18 +383,19 @@ class ExecutionController:
                     plan=plan,
                 )
 
-            except subprocess.TimeoutExpired:
-                # Kill the entire process group
-                try:
-                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                proc.wait()
+            except Exception as e:
                 duration_ms = int((time.perf_counter() - t_start) * 1000)
-                logger.error(
-                    f"Command timed out after {self.timeout_s}s: '{command}'"
+                logger.error(f"Subprocess result error for '{command}': {e}")
+                return ExecutionResult(
+                    status="error",
+                    return_code=-99,
+                    stdout="".join(stdout_lines).strip(),
+                    stderr=str(e),
+                    command=command,
+                    intent=intent,
+                    duration_ms=duration_ms,
+                    plan=plan,
                 )
-                return make_timeout_result(intent, command, self.timeout_s, plan)
 
         except Exception as e:
             duration_ms = int((time.perf_counter() - t_start) * 1000)
@@ -228,6 +410,20 @@ class ExecutionController:
                 duration_ms=duration_ms,
                 plan=plan,
             )
+
+    def _kill_process(self, proc):
+        try:
+            if hasattr(os, "killpg") and hasattr(os, "getpgid"):
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            else:
+                proc.kill()
+        except ProcessLookupError:
+            pass
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
 
     def _execute_rollback(self, plan: dict):
         """
@@ -269,7 +465,9 @@ class ExecutionController:
             ExecutionResult with status, stdout, stderr, duration_ms, etc.
         """
         intent  = plan.get("intent", "unknown")
-        command = plan.get("command", "").strip()
+        command = build_command(intent, plan).strip()
+        if command:
+            plan["command"] = command
         requires_sudo = plan.get("requires_sudo", False)
 
         if command.startswith("df -h") and "--exclude-type" not in command:
@@ -289,11 +487,11 @@ class ExecutionController:
             )
 
         # Hard safety check — even after CIE approval
-        if self._is_forbidden(command):
+        forbidden_reason = self._forbidden_reason(command)
+        if forbidden_reason:
             return make_blocked_result(
                 intent, command,
-                f"Command '{command}' is in the forbidden list and "
-                f"was intercepted by the safety guard.",
+                forbidden_reason,
                 plan
             )
 
@@ -314,6 +512,8 @@ class ExecutionController:
         # Build final command string
         final_command = self._build_command(plan)
 
+        timeout_s = self._intent_timeout(intent, final_command)
+
         logger.info(
             f"Executing: intent='{intent}', "
             f"command='{final_command}', "
@@ -321,7 +521,13 @@ class ExecutionController:
         )
 
         # Run the command
-        result = self._run_subprocess(final_command, intent, plan, auth_method)
+        result = self._run_subprocess(
+            final_command,
+            intent,
+            plan,
+            auth_method,
+            timeout_s,
+        )
 
         # Rollback on error for medium/high risk commands
         risk = plan.get("risk_level", "low")

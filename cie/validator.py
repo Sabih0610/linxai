@@ -23,6 +23,7 @@ from cie.checks import (
     check_memory_available, check_cpu_load,
     check_user_exists, check_running_as_root,
     check_package_installed,
+    check_destructive_protected_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ CHECK_REGISTRY = {
     "user_exists":           check_user_exists,
     "running_as_root":       check_running_as_root,
     "package_installed":     check_package_installed,
+    "destructive_protected_path": check_destructive_protected_path,
 }
 
 # Status priority: conflict > warning > error > ok
@@ -177,6 +179,21 @@ class CommandIntelligenceEngine:
             f"command='{command}', "
             f"checks={len(pre_conditions)}"
         )
+
+        guard_result = check_destructive_protected_path(command)
+        if guard_result["status"] == "conflict":
+            duration_ms = int((time.perf_counter() - t_start) * 1000)
+            logger.warning(
+                f"CIE blocked destructive protected-path command: {command}"
+            )
+            return {
+                "decision":    "block",
+                "reason":      guard_result["reason"],
+                "checks_run":  1,
+                "duration_ms": duration_ms,
+                "results":     [guard_result],
+                "plan":        plan,
+            }
 
         # No pre-conditions = always approve
         if not pre_conditions:
