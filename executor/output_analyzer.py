@@ -14,6 +14,9 @@ def analyze(
         if intent == "service_status":
             return _analyze_service_status(command, stdout)
         if intent == "process_list":
+            service_count = _analyze_service_process_count(stdout)
+            if service_count:
+                return service_count
             return _analyze_process_list(command, stdout)
         if intent == "system_uptime":
             return _analyze_system_uptime(stdout)
@@ -326,6 +329,61 @@ def _analyze_elapsed_processes(stdout: str) -> str | None:
         f"Longest-running processes: {', '.join(rendered)}. "
         "Full list is available via 'details'."
     )
+
+
+def _parse_key_values(stdout: str) -> dict[str, str]:
+    values = {}
+    for line in stdout.splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip().upper()
+        if key:
+            values[key] = value.strip()
+    return values
+
+
+def _as_int(value: str | None) -> int:
+    try:
+        return int((value or "").strip())
+    except ValueError:
+        return 0
+
+
+def _analyze_service_process_count(stdout: str) -> str | None:
+    values = _parse_key_values(stdout)
+    if "SERVICE" not in values or "COUNT" not in values:
+        return None
+
+    service = values.get("SERVICE", "").strip()
+    if not service:
+        return None
+
+    count = _as_int(values.get("COUNT"))
+    master = _as_int(values.get("MASTER"))
+    worker = _as_int(values.get("WORKER"))
+    ports = []
+    for port in values.get("PORTS", "").split(","):
+        port = port.strip()
+        if re.fullmatch(r"\d{1,5}", port):
+            ports.append(port)
+    port_text = (
+        f"listening on ports {', '.join(ports)}"
+        if ports else "no listening TCP ports found"
+    )
+
+    if count == 0:
+        return f"{service}: no running processes; {port_text}."
+
+    if service == "nginx" and (master or worker):
+        return (
+            f"{service}: {master} master + {worker} worker processes, "
+            f"{port_text} (one instance with multiple listeners, not "
+            "multiple servers)."
+        )
+
+    noun = "process" if count == 1 else "processes"
+    return f"{service}: {count} running {noun}; {port_text}."
 
 
 def _analyze_process_list(command: str, stdout: str) -> str | None:

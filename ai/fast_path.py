@@ -1,4 +1,5 @@
 import re
+import shlex
 
 from executor.command_builder import build as build_command
 
@@ -27,9 +28,11 @@ def classify_fast(user_input: str, context: dict | None = None) -> dict | None:
     plan = None
     for candidate in candidates:
         plan = (
-            _network_info(candidate)
+            _identity_info(candidate)
+            or _network_info(candidate)
             or _port_list(candidate)
             or _listener_without_service(candidate)
+            or _service_count(candidate)
             or _service(candidate)
             or _port_check(candidate, context)
             or _package_install(candidate)
@@ -89,6 +92,25 @@ def _base(intent: str, target: str = "", **slots) -> dict:
     }
     plan.update(slots)
     return plan
+
+
+def _identity_info(text: str) -> dict | None:
+    if text in {
+        "whats my name",
+        "what is my name",
+        "who am i",
+        "whoami",
+        "my user",
+        "my username",
+        "whos am i",
+        "whos i",
+    }:
+        return _base(
+            "system_info",
+            "whoami",
+            explanation="Shows the current Linux user.",
+        )
+    return None
 
 
 def _network_info(text: str) -> dict | None:
@@ -189,6 +211,51 @@ def _listener_without_service(text: str) -> dict | None:
     return None
 
 
+def _service_count(text: str) -> dict | None:
+    patterns = (
+        r"^how many\s+(?P<service>[a-z0-9@_.-]+)"
+        r"(?:\s+(?:server|servers|process|processes|worker|workers))?"
+        r"(?:\s+(?:are|is))?"
+        r"(?:\s+(?:running|active|up))?$",
+        r"^(?P<service>[a-z0-9@_.-]+)\s+(?:worker|workers|process|processes)\s+count$",
+        r"^count\s+(?P<service>[a-z0-9@_.-]+)\s+(?:workers|processes|servers?)$",
+    )
+    for pattern in patterns:
+        match = re.match(pattern, text)
+        if not match:
+            continue
+        service = match.group("service")
+        if service in {"many", "service", "services", "process", "processes"}:
+            return None
+        return _base(
+            "process_list",
+            service,
+            query="service_count",
+            command=_service_count_command(service),
+            explanation=(
+                f"Counts {service} processes and lists the ports it is "
+                "listening on."
+            ),
+        )
+    return None
+
+
+def _service_count_command(service: str) -> str:
+    quoted = shlex.quote(service)
+    return (
+        f"svc={quoted}; "
+        "count=$(pgrep -c -x \"$svc\" 2>/dev/null || true); "
+        "details=$(pgrep -a -x \"$svc\" 2>/dev/null || true); "
+        "master=$(printf '%s\\n' \"$details\" | grep -c 'master process' || true); "
+        "worker=$(printf '%s\\n' \"$details\" | grep -c 'worker process' || true); "
+        "ports=$(ss -tlnp 2>/dev/null | "
+        "awk -v svc=\"$svc\" '$0 ~ svc {print $4}' | "
+        "sed -nE 's/.*:([0-9]+)$/\\1/p' | sort -n -u | paste -sd, -); "
+        "printf 'SERVICE=%s\\nCOUNT=%s\\nMASTER=%s\\nWORKER=%s\\nPORTS=%s\\n' "
+        "\"$svc\" \"$count\" \"$master\" \"$worker\" \"$ports\""
+    )
+
+
 def _service(text: str) -> dict | None:
     match = re.match(
         r"^(?P<action>start|stop|restart|status)\s+"
@@ -274,16 +341,36 @@ def _package_install(text: str) -> dict | None:
 def _file_create(text: str) -> dict | None:
     match = re.match(
         r"^create\s+(?:a\s+)?(?P<kind>file|folder|directory)\s+"
-        r"(?P<target>\S+)(?:\s+in\s+(?P<location>.+))?$",
+        r"(?:(?:named|called)\s+)?(?P<target>\S+)"
+        r"(?:\s+in\s+(?P<location>.+))?$",
         text,
         re.IGNORECASE,
     )
-    if not match:
-        return None
+    if match:
+        return _file_create_plan(
+            match.group("kind"),
+            match.group("target"),
+            match.group("location") or "",
+        )
 
-    kind = match.group("kind").lower()
-    target = match.group("target")
-    location = match.group("location") or ""
+    match = re.match(
+        r"^create\s+(?:a\s+)?(?P<kind>file|folder|directory)\s+"
+        r"in\s+(?P<location>.+)\s+(?P<target>\S+)$",
+        text,
+        re.IGNORECASE,
+    )
+    if match:
+        return _file_create_plan(
+            match.group("kind"),
+            match.group("target"),
+            match.group("location") or "",
+        )
+
+    return None
+
+
+def _file_create_plan(kind: str, target: str, location: str) -> dict:
+    kind = kind.lower()
     is_dir = kind in {"folder", "directory"}
     return _base(
         "file_create",

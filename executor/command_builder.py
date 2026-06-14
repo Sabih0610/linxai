@@ -3,11 +3,28 @@ import posixpath
 import re
 import shlex
 
+from ui.safe_paths import safe_cwd
+
 
 PRUNE_PATHS = ("/proc", "/sys", "/dev", "/run")
 DEFAULT_ROOTS = ("/etc", "/opt", "/var")
 LOCATION_FILLERS = {"the", "folder", "directory", "dir"}
 LOCATION_SEARCH_BASES = ("/home", "/opt", "/var")
+KNOWN_ROOT_DIRS = {
+    "home": "/home",
+    "tmp": "/tmp",
+    "opt": "/opt",
+    "var": "/var",
+    "etc": "/etc",
+    "root": "/root",
+    "usr": "/usr",
+    "mnt": "/mnt",
+    "srv": "/srv",
+}
+SERVICE_ALIASES = {
+    "apache": "apache2",
+    "httpd": "apache2",
+}
 
 
 def build(intent: str, slots) -> str:
@@ -112,7 +129,7 @@ def _extract_roots(slots: dict) -> list[str]:
 
 
 def _default_roots() -> list[str]:
-    roots = [_user_home(), *DEFAULT_ROOTS, os.getcwd()]
+    roots = [_user_home(), *DEFAULT_ROOTS, safe_cwd()]
     cleaned = []
     for root in roots:
         if root and root != "/" and root not in cleaned:
@@ -286,6 +303,21 @@ def _normalize_location(value: str) -> str:
     if not parts:
         return ""
 
+    first_segment = parts[0].split("/", 1)[0].lower()
+    if first_segment in KNOWN_ROOT_DIRS:
+        mapped_root = KNOWN_ROOT_DIRS[first_segment]
+        cwd_relative = os.path.join(safe_cwd(), first_segment)
+        if not os.path.isdir(cwd_relative):
+            suffix_parts = []
+            if "/" in parts[0]:
+                suffix_parts.append(parts[0].split("/", 1)[1])
+            suffix_parts.extend(parts[1:])
+            current = mapped_root
+            for part in suffix_parts:
+                if part:
+                    current = posixpath.join(current, part)
+            return current
+
     if len(parts) > 1 and _is_root_path(parts[0]):
         current = parts[0]
         for part in parts[1:]:
@@ -313,6 +345,14 @@ def _is_bare_location(value: str) -> bool:
     )
 
 
+def _is_known_root_location(value: str) -> bool:
+    normalized = _expand_create_path(value)
+    return any(
+        normalized == root or normalized.startswith(root + "/")
+        for root in KNOWN_ROOT_DIRS.values()
+    )
+
+
 def _dedupe_paths(paths: list[str]) -> list[str]:
     seen = set()
     cleaned = []
@@ -329,7 +369,7 @@ def _dedupe_paths(paths: list[str]) -> list[str]:
 
 
 def _location_search_bases() -> list[str]:
-    return _dedupe_paths([os.getcwd(), _user_home(), *LOCATION_SEARCH_BASES])
+    return _dedupe_paths([safe_cwd(), _user_home(), *LOCATION_SEARCH_BASES])
 
 
 def _existing_location_matches(name: str) -> list[str]:
@@ -352,11 +392,11 @@ def resolve_file_create_location(slots: dict) -> dict:
         slots.pop("file_create_location_note", None)
         return {"status": "ok", "location": ""}
 
-    if not _is_bare_location(location):
+    if _is_known_root_location(location) or not _is_bare_location(location):
         slots["location"] = _expand_create_path(location)
         return {"status": "ok", "location": slots["location"]}
 
-    cwd_candidate = os.path.abspath(os.path.join(os.getcwd(), location))
+    cwd_candidate = os.path.abspath(os.path.join(safe_cwd(), location))
     if os.path.isdir(cwd_candidate):
         slots["location"] = cwd_candidate
         slots["file_create_location_note"] = (
@@ -378,7 +418,7 @@ def resolve_file_create_location(slots: dict) -> dict:
         slots["file_create_location_choices"] = matches
         return {"status": "ambiguous", "location": location, "choices": matches}
 
-    new_location = os.path.abspath(os.path.join(os.getcwd(), location))
+    new_location = os.path.abspath(os.path.join(safe_cwd(), location))
     slots["location"] = new_location
     slots["file_create_location_note"] = (
         f"Creating new folder {new_location}."
@@ -468,7 +508,16 @@ def _full_create_path(slots: dict) -> str:
     command_path = _path_from_create_command(str(slots.get("command", "")))
 
     if location:
-        base = posixpath.basename(target.rstrip("/")) if target else command_path
+        base_source = target or command_path
+        base = posixpath.basename(str(base_source).rstrip("/"))
+        if (
+            not target
+            and base
+            and posixpath.basename(location.rstrip("/")) == base
+            and _has_file_extension(base)
+        ):
+            location = posixpath.dirname(location.rstrip("/")) or "."
+            slots["location"] = location
         return _expand_create_path(posixpath.join(location, base))
 
     if command_path and (
@@ -528,9 +577,19 @@ def _strip_systemctl_user(command: str) -> str:
 def _clean_service_target(target: str) -> str:
     parts = _shell_parts(target)
     if not parts:
-        return target.strip()
+        cleaned_target = target.strip()
+        suffix = ".service" if cleaned_target.endswith(".service") else ""
+        base = cleaned_target[:-8] if suffix else cleaned_target
+        mapped = SERVICE_ALIASES.get(base.lower(), base)
+        return f"{mapped}{suffix}" if suffix else mapped
     cleaned = [part for part in parts if part and part != "--user"]
-    return cleaned[0] if cleaned else ""
+    if not cleaned:
+        return ""
+    target = cleaned[0]
+    suffix = ".service" if target.endswith(".service") else ""
+    base = target[:-8] if suffix else target
+    mapped = SERVICE_ALIASES.get(base.lower(), base)
+    return f"{mapped}{suffix}" if suffix else mapped
 
 
 def _service_target_from_command(command: str, action: str) -> str:

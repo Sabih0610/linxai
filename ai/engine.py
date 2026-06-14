@@ -104,6 +104,33 @@ class AIEngine:
         if match:
             return match.group(0)
         raise ValueError(f"No valid JSON found in model output: {raw[:200]}")
+
+    def _repair_truncated_json(self, json_str: str) -> str:
+        repaired = (json_str or "").strip()
+        if not repaired:
+            return repaired
+
+        if repaired.count('"') % 2 == 1:
+            repaired += '"'
+
+        open_braces = repaired.count("{")
+        close_braces = repaired.count("}")
+        if close_braces < open_braces:
+            repaired += "}" * (open_braces - close_braces)
+
+        return repaired
+
+    def _unknown_parse_plan(self) -> dict:
+        return self._validate_plan({
+            "intent": "unknown",
+            "target": "",
+            "pre_conditions": [],
+            "command": "",
+            "requires_sudo": False,
+            "risk_level": "low",
+            "rollback": "",
+            "explanation": "I couldn't parse that — could you rephrase?",
+        })
  
     def _validate_plan(self, plan: dict) -> dict:
         required = ["intent", "target", "command"]
@@ -495,7 +522,7 @@ class AIEngine:
                         "options": {
                             "temperature": 0,
                             "top_p": 1,
-                            "num_predict": 64,
+                            "num_predict": 256,
                         }
                     },
                     timeout=self.timeout
@@ -505,7 +532,13 @@ class AIEngine:
                 logger.debug(f"Raw model output: {raw_content}")
                 json_str = self._extract_json(raw_content)
                 json_str = json_str.replace("\\", "\\\\") if "\\u" not in json_str and "\\" in json_str else json_str
-                plan = json.loads(json_str)
+                try:
+                    plan = json.loads(json_str)
+                except json.JSONDecodeError:
+                    repaired_json = self._repair_truncated_json(json_str)
+                    if repaired_json == json_str:
+                        raise
+                    plan = json.loads(repaired_json)
                 plan = self._validate_plan(plan)
                 logger.info(f"Classified '{user_input}' → intent: {plan['intent']}")
                 # Store in cache for next time
@@ -529,9 +562,12 @@ class AIEngine:
             except requests.RequestException as e:
                 raise RuntimeError(f"Ollama request failed: {e}")
  
-        raise RuntimeError(
-            f"Failed to get valid JSON after {max_retries + 1} attempts. Last error: {last_error}"
+        logger.error(
+            "Failed to parse model JSON after %s attempts: %s",
+            max_retries + 1,
+            last_error,
         )
+        return self._unknown_parse_plan()
 
     def explain_audit_log(self, records: list) -> str:
         """

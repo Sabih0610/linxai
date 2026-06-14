@@ -32,6 +32,12 @@ SAFE_REDIRECT_TARGETS = {
     "/dev/stderr",
 }
 
+CRITICAL_FILE_TARGETS = {
+    "/etc/passwd",
+    "/etc/shadow",
+    "/etc/sudoers",
+}
+
 SHELL_SEPARATORS = {";", "&&", "||", "|"}
 
 
@@ -126,7 +132,7 @@ def _check_redirects(tokens: list[str]) -> dict | None:
         if _is_fd_redirect(target) or _is_safe_redirect_target(target):
             continue
 
-        protected = protected_target(target)
+        protected = protected_target(target) or _critical_file_target(target)
         if protected:
             return _finding(protected, "Overwriting")
 
@@ -168,7 +174,7 @@ def _check_dd(tokens: list[str]) -> dict | None:
         if not token.startswith("of="):
             continue
         target = token[3:]
-        protected = protected_target(target)
+        protected = protected_target(target) or _device_target(target)
         if protected:
             return _finding(protected, "Overwriting")
     return None
@@ -177,7 +183,7 @@ def _check_dd(tokens: list[str]) -> dict | None:
 def _check_mkfs(tokens: list[str]) -> dict | None:
     targets = _target_args(tokens[1:], skip_options=True)
     for target in targets:
-        protected = protected_target(target)
+        protected = protected_target(target) or _device_target(target)
         if protected:
             return _finding(protected, "Formatting")
     return None
@@ -257,6 +263,30 @@ def protected_target(path: str) -> str | None:
     return _match_protected(resolved)
 
 
+def _critical_file_target(path: str) -> str | None:
+    raw_normalized = _normalize_path(path, resolve=False)
+    if raw_normalized in CRITICAL_FILE_TARGETS:
+        return raw_normalized
+
+    resolved = _normalize_path(path, resolve=True)
+    if resolved in CRITICAL_FILE_TARGETS:
+        return resolved
+
+    return None
+
+
+def _device_target(path: str) -> str | None:
+    raw_normalized = _normalize_path(path, resolve=False)
+    if raw_normalized.startswith("/dev/") and not _is_safe_redirect_target(raw_normalized):
+        return raw_normalized
+
+    resolved = _normalize_path(path, resolve=True)
+    if resolved.startswith("/dev/") and not _is_safe_redirect_target(resolved):
+        return resolved
+
+    return None
+
+
 def _match_protected(normalized: str) -> str | None:
     if normalized in {"/*", "/"}:
         return "/"
@@ -265,8 +295,6 @@ def _match_protected(normalized: str) -> str | None:
         if protected == "/":
             continue
         if normalized == protected or normalized == f"{protected}/*":
-            return protected
-        if normalized.startswith(protected + "/"):
             return protected
         if protected.startswith(normalized.rstrip("/") + "/"):
             return normalized
@@ -327,6 +355,19 @@ if __name__ == "__main__":
         "which node >/dev/null 2>&1 && which npm >/dev/null 2>&1 || apt install -y nodejs npm"
     ) is None
     assert check_destructive_command("rm -rf /bin") is not None
+    assert check_destructive_command("rm -rf /home") is not None
+    assert check_destructive_command("rm -rf /var") is not None
+    assert check_destructive_command("rm -rf /") is not None
+    assert check_destructive_command("rm -rf /usr") is not None
+    assert check_destructive_command("rm -rf /etc") is not None
     assert check_destructive_command("echo hi >/dev/null") is None
     assert check_destructive_command("dd if=/tmp/image of=/dev/sda") is not None
+    assert check_destructive_command("dd if=/tmp/x of=/dev/sda") is not None
+    assert check_destructive_command("echo hi > /etc/passwd") is not None
     assert check_destructive_command("cat /proc/cpuinfo") is None
+    assert check_destructive_command("rm -rf /home/linxai/oldproject") is None
+    assert check_destructive_command("rm -rf /var/www/site") is None
+    assert check_destructive_command("chown -R u /home/u/app") is None
+    assert check_destructive_command(
+        "rm -rf /home/linxai/development/node_modules"
+    ) is None

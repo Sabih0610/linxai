@@ -11,11 +11,19 @@ import logging
 import argparse
 import signal
 import threading
+import traceback
+
+from ui.safe_paths import safe_cwd
 
 logging.basicConfig(level=logging.ERROR,
                     format="%(levelname)s [%(name)s] %(message)s")
 
 logger = logging.getLogger(__name__)
+
+SERVICE_ALIASES = {
+    "apache": "apache2",
+    "httpd": "apache2",
+}
 
 
 def _c(code, text):
@@ -60,6 +68,7 @@ class LINxAIPipeline:
 
     def __init__(self, use_face_auth: bool = False, quiet: bool = False,
                  enable_ebpf: bool = True, enable_resource: bool = True):
+        safe_cwd()
         self.quiet = quiet
         self.cfg   = _read_config()
         self._ebpf_daemon    = None
@@ -436,7 +445,7 @@ class LINxAIPipeline:
     def _service_name_from_plan(self, plan: dict) -> str:
         target = str(plan.get("target", "")).strip()
         if target:
-            return target
+            return self._normalize_service_name(target)
 
         import re
         command = str(plan.get("command", ""))
@@ -444,7 +453,107 @@ class LINxAIPipeline:
             r"\bsystemctl\s+(?:start|restart|stop)\s+(?P<service>[\w@.-]+)",
             command,
         )
-        return match.group("service") if match else ""
+        return self._normalize_service_name(match.group("service")) if match else ""
+
+    def _normalize_service_name(self, service: str) -> str:
+        service = (service or "").strip()
+        if not service:
+            return ""
+        suffix = ".service" if service.endswith(".service") else ""
+        base = service[:-8] if suffix else service
+        mapped = SERVICE_ALIASES.get(base.lower(), base)
+        return f"{mapped}{suffix}" if suffix else mapped
+
+    def _package_for_service(self, service: str) -> str:
+        base = self._normalize_service_name(service)
+        if base.endswith(".service"):
+            base = base[:-8]
+        return {
+            "apache2": "apache2",
+            "nginx": "nginx",
+        }.get(base.lower(), base)
+
+    def _service_unit_exists(self, service: str) -> bool:
+        import subprocess
+
+        unit = self._normalize_service_name(service)
+        if not unit:
+            return False
+        candidates = [unit]
+        if not unit.endswith(".service"):
+            candidates.append(f"{unit}.service")
+
+        for candidate in candidates:
+            try:
+                result = subprocess.run(
+                    ["systemctl", "cat", candidate],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=8,
+                )
+            except Exception:
+                continue
+            if result.returncode == 0:
+                return True
+        return False
+
+    def _handle_missing_service_install(
+        self,
+        user_input: str,
+        plan: dict,
+        service: str,
+        t_start: float,
+    ) -> dict:
+        unit = self._normalize_service_name(service)
+        package = self._package_for_service(unit)
+        if not self.quiet:
+            print(f"  {dim('│')}  {yellow(f'{unit} is not installed.')} "
+                  "Install it? [y/N]")
+
+        stdin = getattr(sys, "stdin", None)
+        if (
+            not getattr(self, "_interactive", True)
+            or not stdin
+            or not stdin.isatty()
+        ):
+            if not self.quiet:
+                print(f"  {dim('└─')} {dim('No command was run.')}")
+            self.memory.save(
+                user_input,
+                plan,
+                {"skipped": True, "missing_service": unit},
+            )
+            return {
+                "input": user_input,
+                "plan": plan,
+                "outcome": "missing_service",
+                "total_ms": int((time.perf_counter() - t_start) * 1000),
+            }
+
+        if not self.quiet and hasattr(self, "alert_queue"):
+            self.alert_queue.flush()
+
+        try:
+            answer = input("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            answer = ""
+
+        if answer not in {"y", "yes"}:
+            if not self.quiet:
+                print(f"  {dim('└─')} {yellow('Cancelled - nothing changed.')}")
+            self.memory.save(
+                user_input,
+                plan,
+                {"cancelled": True, "missing_service": unit},
+            )
+            return {
+                "input": user_input,
+                "plan": plan,
+                "outcome": "cancelled",
+                "total_ms": int((time.perf_counter() - t_start) * 1000),
+            }
+
+        return self.process(f"install {package}")
 
     def _port_from_plan(self, plan: dict) -> int | None:
         raw = str(plan.get("port", "")).strip()
@@ -818,7 +927,7 @@ class LINxAIPipeline:
                     ).lower()
             except Exception:
                 cmdline = ""
-            cwd = os.getcwd().replace("\\", "/").lower()
+            cwd = safe_cwd().replace("\\", "/").lower()
             if "linxai" in cmdline or (cwd and cwd in cmdline):
                 return "that process appears to belong to LINxAI; stopping it would interrupt this session."
 
@@ -892,6 +1001,7 @@ class LINxAIPipeline:
         t_start: float,
     ) -> dict:
         start_plan = dict(plan)
+        service = self._normalize_service_name(service)
         start_plan["intent"] = "service_start"
         start_plan["target"] = service
         start_plan["port"] = str(port)
@@ -923,6 +1033,178 @@ class LINxAIPipeline:
             "total_ms": int((time.perf_counter() - t_start) * 1000),
         }
 
+    def _service_key(self, service: str) -> str:
+        service_key = self._normalize_service_name(service).lower()
+        if service_key.endswith(".service"):
+            service_key = service_key[:-8]
+        return service_key
+
+    def _execute_service_start_default(
+        self,
+        user_input: str,
+        plan: dict,
+        service: str,
+        t_start: float,
+    ) -> dict:
+        service = self._normalize_service_name(service)
+        start_plan = dict(plan)
+        start_plan["intent"] = "service_start"
+        start_plan["target"] = service
+        start_plan["port"] = ""
+        import shlex
+        start_plan["command"] = f"systemctl start {shlex.quote(service)}"
+        start_plan["requires_sudo"] = True
+
+        result = self.executor.execute(start_plan)
+        self.hub.execution(result.to_dict() if hasattr(result, "to_dict") else result)
+        self._record_successful_service_context(start_plan, result)
+        self.memory.save(
+            user_input,
+            start_plan,
+            result.to_dict() if hasattr(result, "to_dict") else result,
+        )
+
+        if not self.quiet:
+            if hasattr(result, "is_success") and result.is_success():
+                print(
+                    f"  {dim('│')}  "
+                    f"{green(f'Started {service} on its default configured port.')}"
+                )
+            else:
+                self._print_failure_result(start_plan, result)
+            print(f"  {dim('└─')} {dim('service start finished.')}")
+
+        return {
+            "input": user_input,
+            "plan": start_plan,
+            "result": result.to_dict() if hasattr(result, "to_dict") else result,
+            "outcome": getattr(result, "status", "unknown"),
+            "total_ms": int((time.perf_counter() - t_start) * 1000),
+        }
+
+    def _handle_non_nginx_port_options(
+        self,
+        user_input: str,
+        plan: dict,
+        service: str,
+        port: int,
+        t_start: float,
+        conflict: dict | None = None,
+    ) -> dict:
+        service = self._normalize_service_name(service)
+        found = (conflict or {}).get("found") or {}
+        owner_name = found.get("name") or "unknown"
+        owner_pid = found.get("pid")
+
+        if not self.quiet:
+            print(
+                f"  {dim('│')}  I can only auto-configure nginx's port. "
+                f"For {service} I can:"
+            )
+            print(f"  {dim('│')}    [1] start it on its default port")
+            print(f"  {dim('│')}    [2] stop the conflicting service")
+            print(f"  {dim('│')}    [3] cancel")
+
+        stdin = getattr(sys, "stdin", None)
+        if (
+            not getattr(self, "_interactive", True)
+            or not stdin
+            or not stdin.isatty()
+        ):
+            if not self.quiet:
+                print(f"  {dim('└─')} {dim('No command was run.')}")
+            self.memory.save(
+                user_input,
+                plan,
+                {"skipped": True, "port": port, "service": service},
+            )
+            return {
+                "input": user_input,
+                "plan": plan,
+                "outcome": "cancelled",
+                "total_ms": int((time.perf_counter() - t_start) * 1000),
+            }
+
+        if not self.quiet and hasattr(self, "alert_queue"):
+            self.alert_queue.flush()
+
+        try:
+            choice = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            choice = "3"
+
+        if choice == "1":
+            return self._execute_service_start_default(
+                user_input, plan, service, t_start
+            )
+
+        if choice == "2":
+            if not conflict:
+                if not self.quiet:
+                    print(
+                        f"  {dim('└─')} "
+                        f"{yellow('No conflicting service was identified.')}"
+                    )
+                self.memory.save(
+                    user_input,
+                    plan,
+                    {"skipped": True, "port": port, "service": service},
+                )
+                return {
+                    "input": user_input,
+                    "plan": plan,
+                    "outcome": "cancelled",
+                    "total_ms": int((time.perf_counter() - t_start) * 1000),
+                }
+
+            reason = self._protected_owner_reason(owner_name, owner_pid)
+            if reason:
+                if not self.quiet:
+                    print(f"  {dim('└─')} {yellow(reason)}")
+                self.memory.save(
+                    user_input,
+                    plan,
+                    {"skipped": True, "protected_owner": owner_name},
+                )
+                return {
+                    "input": user_input,
+                    "plan": plan,
+                    "outcome": "cancelled",
+                    "total_ms": int((time.perf_counter() - t_start) * 1000),
+                }
+
+            stopped, message = self._stop_port_owner(owner_name, owner_pid)
+            if not self.quiet:
+                colour = green if stopped else red
+                print(f"  {dim('│')}  {colour(message)}")
+                print(f"  {dim('└─')} {dim('conflicting service handling finished.')}")
+            self.memory.save(
+                user_input,
+                plan,
+                {
+                    "stopped_conflict": stopped,
+                    "owner": owner_name,
+                    "pid": owner_pid,
+                    "message": message,
+                },
+            )
+            return {
+                "input": user_input,
+                "plan": plan,
+                "outcome": "success" if stopped else "error",
+                "total_ms": int((time.perf_counter() - t_start) * 1000),
+            }
+
+        if not self.quiet:
+            print(f"  {dim('└─')} {yellow('Cancelled - nothing changed.')}")
+        self.memory.save(user_input, plan, {"cancelled": True})
+        return {
+            "input": user_input,
+            "plan": plan,
+            "outcome": "cancelled",
+            "total_ms": int((time.perf_counter() - t_start) * 1000),
+        }
+
     def _start_service_on_checked_port(
         self,
         user_input: str,
@@ -931,28 +1213,16 @@ class LINxAIPipeline:
         port: int,
         t_start: float,
     ) -> dict:
-        service_key = (service or "").lower()
-        if service_key.endswith(".service"):
-            service_key = service_key[:-8]
+        service = self._normalize_service_name(service)
+        service_key = self._service_key(service)
         selected_plan = dict(plan)
         selected_plan["target"] = service
         selected_plan["port"] = str(port)
 
         if service_key != "nginx":
-            if not self.quiet:
-                print(
-                    f"  {dim('│')}  {yellow('[service port]')} "
-                    f"{service}'s port is set in that service's config, "
-                    f"not via systemctl."
-                )
-                print(f"  {dim('└─')} {dim('No command was run.')}")
-            self.memory.save(user_input, selected_plan, {"skipped": True, "port": port})
-            return {
-                "input": user_input,
-                "plan": selected_plan,
-                "outcome": "not_applicable",
-                "total_ms": int((time.perf_counter() - t_start) * 1000),
-            }
+            return self._handle_non_nginx_port_options(
+                user_input, selected_plan, service, port, t_start
+            )
 
         configured_ports = self._nginx_configured_ports()
         if port in configured_ports:
@@ -1109,6 +1379,10 @@ class LINxAIPipeline:
 
                 recheck = self._port_free_check(port)
                 if recheck.get("status") == "ok":
+                    if self._service_key(service) != "nginx":
+                        return self._execute_service_start_default(
+                            user_input, plan, service, t_start
+                        )
                     return self._start_service_on_checked_port(
                         user_input, plan, service, port, t_start
                     )
@@ -1339,10 +1613,10 @@ class LINxAIPipeline:
         if port is None:
             return None
 
-        service = self._service_name_from_plan(plan)
-        service_key = service.lower()
-        if service_key.endswith(".service"):
-            service_key = service_key[:-8]
+        service = self._normalize_service_name(self._service_name_from_plan(plan))
+        service_key = self._service_key(service)
+        if service:
+            plan["target"] = service
 
         if (
             not service
@@ -1355,9 +1629,18 @@ class LINxAIPipeline:
                 user_input, plan, port, t_start
             )
 
+        if not self._service_unit_exists(service):
+            return self._handle_missing_service_install(
+                user_input, plan, service, t_start
+            )
+
         if plan.get("intent") == "service_start":
             port_check = self._port_free_check(port)
             if port_check.get("status") == "conflict":
+                if service_key != "nginx":
+                    return self._handle_non_nginx_port_options(
+                        user_input, plan, service, port, t_start, port_check
+                    )
                 return self._handle_port_conflict(
                     user_input, plan, service, port, port_check, t_start
                 )
@@ -1402,25 +1685,9 @@ class LINxAIPipeline:
             }
 
         if service_key != "nginx":
-            if not self.quiet:
-                print(
-                    f"  {dim('│')}  {yellow('[service port]')} "
-                    f"{service}'s port is set in that service's config, "
-                    f"not via systemctl."
-                )
-                print(
-                    f"  {dim('│')}  I do not know how to change "
-                    f"{service}'s port generically, so I will not pretend "
-                    f"`systemctl start {service}` can bind port {port}."
-                )
-                print(f"  {dim('└─')} {dim('No command was run.')}")
-            self.memory.save(user_input, plan, {"skipped": True})
-            return {
-                "input": user_input,
-                "plan": plan,
-                "outcome": "not_applicable",
-                "total_ms": int((time.perf_counter() - t_start) * 1000),
-            }
+            return self._handle_non_nginx_port_options(
+                user_input, plan, service, port, t_start
+            )
 
         configured_ports = self._nginx_configured_ports()
         if port in configured_ports:
@@ -2860,7 +3127,34 @@ class LINxAIPipeline:
                     print()
                     continue
 
-                result = self.process(user_input)
+                try:
+                    result = self.process(user_input)
+                except Exception as e:
+                    tb = traceback.format_exc()
+                    if hasattr(self, "audit"):
+                        try:
+                            self.audit.log(
+                                "ui",
+                                "process_exception",
+                                {
+                                    "input": user_input,
+                                    "error": str(e),
+                                    "traceback": tb,
+                                },
+                                level="ERROR",
+                            )
+                        except Exception:
+                            logger.error(
+                                "Unhandled interactive command error: %s",
+                                e,
+                            )
+                    else:
+                        logger.error("Unhandled interactive command error: %s", e)
+                    print(
+                        "Something went wrong handling that command — "
+                        "I'm still running. Try again or rephrase."
+                    )
+                    continue
                 if result.get("should_exit"):
                     break
 
