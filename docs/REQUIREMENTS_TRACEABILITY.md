@@ -120,3 +120,15 @@ The project target remains a Linux desktop; standalone monitoring and enforcemen
 must continue without desktop/model. A passive capability probe proves neither
 that independence nor kernel control. Test evidence for each future gate must
 separate Cloud, native lab and hardware/device results with exact pending commands.
+
+
+## Gate B implementation checkpoint — 2 November 2026
+
+Implemented production broker transport, OS peer identity, root allowlist, polkit
+exact-operation authorization, persistent replay admission, service/TCP checks,
+verified state, private root audit, bounded supervision and protected packaging.
+See BROKER.md. Default OperationService administrative refusal remains intact.
+Original IDs 15–26, 29, 58–59 and 63–70 advance partially; no source IDs removed.
+Windows broker contracts: 10 run, 9 passed/1 Linux peer skip; real Linux/native
+checks follow. Real polkit/service acceptance remains pending without systemd.
+This pending target acceptance does not block C–H independent implementation.

@@ -1,0 +1,25 @@
+[Unit]
+Description=LINxAI bounded service mechanism
+After=dbus.service polkit.service
+Requires=polkit.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -I -B /usr/lib/linxai-trusted/broker_entry.py
+User=root
+Group=root
+RuntimeDirectory=linxai
+RuntimeDirectoryMode=0755
+StateDirectory=linxai-broker
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

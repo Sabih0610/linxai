@@ -199,8 +199,11 @@ class OperationService:
             observations.append(observed)
         return tuple(observations)
 
+    def _new_operation_id(self):
+        return str(uuid4())
+
     def prepare(self, request: dict) -> Approval | OperationResult:
-        op_id = str(uuid4())
+        op_id = self._new_operation_id()
         digest = ""
         try:
             self._emit(op_id, "received", "pending")

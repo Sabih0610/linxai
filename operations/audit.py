@@ -9,12 +9,15 @@ import threading
 class JsonlAudit:
     def __init__(self, path):
         self.path = Path(path).expanduser().absolute()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
-    def append(self, record):
+    def _writer_uid(self):
         if not hasattr(os, "getuid") or os.getuid() == 0 or os.geteuid() != os.getuid():
             raise PermissionError("Audit writer requires an ordinary Linux identity")
-        uid = os.getuid()
+        return os.getuid()
+
+    def append(self, record):
+        uid = self._writer_uid()
         import fcntl
         # Do not chmod/chown existing paths. Fail closed on unsafe log ownership.
         parent = self.path.parent

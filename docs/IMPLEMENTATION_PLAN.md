@@ -15,7 +15,7 @@ A gate is PASS only with all required acceptance evidence; code plus mocks is no
 | Gate | Implementation | Automated verification | Target acceptance |
 | --- | --- | --- | --- |
 | A | Typed app installation implemented | Windows 125 run/2 skips; WSL combined 142 run/7 skips (historical prior turn) | systemd success, Cloud/new CI pending; does not block B–H |
-| B | In progress: authenticated bounded broker and OS authorization | Pending new tests | Real polkit/service lab pending |
+| B | Bounded service broker production path implemented | Windows contracts and WSL 155-test combined run passed (7 skips); final failure-case addition verified separately | Real polkit/service lab pending |
 | C | Planned: existing planner/service + durable agent and desktop | Pending | Native desktop/auth workflow pending |
 | D | Planned: independent sensor, detection/incidents and Security view | Pending | Native BCC/lifecycle/loss lab pending |
 | E | Planned: response, verified containment and validated policies | Pending | Actual recurring enforcement/benign/expiry/revoke lab pending |
@@ -323,3 +323,15 @@ Next concrete task: run the documented six-action installed lab on Ubuntu/system
 capture root refusal plus zero skips, then review/publish and run hosted/Cloud
 checks where accessible. Gate B's trusted broker follows Gate A acceptance; do not
 begin privileged dispatch on the basis of mocked or WSL-only evidence.
+
+
+## Gate B implementation checkpoint — 2 November 2026
+
+Implemented production broker transport, OS peer identity, root allowlist, polkit
+exact-operation authorization, persistent replay admission, service/TCP checks,
+verified state, private root audit, bounded supervision and protected packaging.
+See BROKER.md. Default OperationService administrative refusal remains intact.
+Original IDs 15–26, 29, 58–59 and 63–70 advance partially; no source IDs removed.
+Windows broker contracts: 10 run, 9 passed/1 Linux peer skip; real Linux/native
+checks follow. Real polkit/service acceptance remains pending without systemd.
+This pending target acceptance does not block C–H independent implementation.

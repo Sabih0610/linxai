@@ -232,3 +232,21 @@ Final combined native explicit groups: scripts/test.py all ran 142 tests in
 28.652 s, with 135 passed and 7 skipped (absent systemd plus six opt-in kernel/
 desktop/hardware/model tests). Zero failures/errors. No opt-ins were enabled.
 Sanitized run artifacts: docs/evidence/gate-a/{wsl-probe,installed-lab,root-denial-and-os}.json.
+
+
+## Gate B implementation checkpoint — 2 November 2026
+
+Implemented production broker transport, OS peer identity, root allowlist, polkit
+exact-operation authorization, persistent replay admission, service/TCP checks,
+verified state, private root audit, bounded supervision and protected packaging.
+See BROKER.md. Default OperationService administrative refusal remains intact.
+Original IDs 15–26, 29, 58–59 and 63–70 advance partially; no source IDs removed.
+Windows broker contracts: 10 run, 9 passed/1 Linux peer skip; real Linux/native
+checks follow. Real polkit/service acceptance remains pending without systemd.
+This pending target acceptance does not block C–H independent implementation.
+
+Gate B actual current native combined run: 155 run, 148 passed, 7 skipped in
+7.714 s. Includes real socket peer credentials, bounded output/time processes,
+private SQLite persistence and symlink denial. No actual auth/service mutations.
+Windows combined: 135 run, 132 passed, 3 skipped in 1.391 s before the added
+post-dispatch storage-failure regression. Deployment tar built, never installed.
