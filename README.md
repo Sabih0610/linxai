@@ -1,3 +1,5 @@
+> **Current development entry (2 November 2026):** Read [docs/CLOUD_HANDOFF.md](docs/CLOUD_HANDOFF.md) for agreed scope, gates A–H, current source, locked setup and test commands. The older README content below is retained as historical context; its completion and sudo-installer instructions are not current Cloud setup. Do not run the legacy installer for routine development.
+
 # LINxAI — Intelligent Linux Administration Layer
 
 An autonomous AI-driven system layer for Linux that sits between user commands

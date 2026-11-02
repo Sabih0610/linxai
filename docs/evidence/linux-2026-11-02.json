@@ -1,0 +1,105 @@
+{
+  "actions": [
+    "directory.create",
+    "disk.usage",
+    "file.create",
+    "memory.usage",
+    "ports.listen",
+    "service.restart",
+    "service.start",
+    "service.status",
+    "service.stop"
+  ],
+  "camera_nodes": [],
+  "environment_kind": "WSL",
+  "euid": 1000,
+  "gui": {
+    "display_configured": true,
+    "usable": "not tested by passive inventory",
+    "wayland_configured": true,
+    "wayland_socket_present": true,
+    "x11_socket_present": true
+  },
+  "installed_distributions": {
+    "PySide6": null,
+    "PyYAML": "6.0.3",
+    "linxai": "0.1.0",
+    "psutil": "7.1.3",
+    "requests": null,
+    "uv": "0.13.3"
+  },
+  "kernel": {
+    "attach_or_enforcement": "NOT TESTED; root/capabilities/config flags do not prove dedicated-kernel control",
+    "btf_vmlinux": true,
+    "flags": {
+      "CONFIG_BPF": "y",
+      "CONFIG_BPF_EVENTS": "y",
+      "CONFIG_BPF_LSM": "y",
+      "CONFIG_BPF_SYSCALL": "y",
+      "CONFIG_KPROBES": "y",
+      "source": "/proc/config.gz"
+    },
+    "process_status": {
+      "CapEff": "0000000000000000",
+      "NoNewPrivs": "0"
+    },
+    "securityfs_lsm": null
+  },
+  "operations_sha256": {
+    "operations/__init__.py": "ca1da33b1330fb8a2e627633f1e0a353b4ab486040c298569bdc64ae4751ef5c",
+    "operations/_create_program.py": "0d2528e76c636cc98bc7441b79acd405c808c6065635502eb16ccaff4c7d68f6",
+    "operations/audit.py": "aaa312114e141e6169f7762a189ae3c7b60f4ab46afb07b2fe9fad27d247a2d2",
+    "operations/cli.py": "3c0e1ab5553a4dcaa5915340f617d49976cc5d08c5e413f6ed8ab153dca9cdad",
+    "operations/plans.py": "ba6a5ca991130297c5ff50a6d25295ddde018d805f264ac02b31982c6a318415",
+    "operations/registry.py": "a6e4cc6955ca390d3938eefe5f777e946dded540f63fb3d5444c821fc1bad019",
+    "operations/service.py": "28ab970b2ece4ddcdfd348845ece7cc923c2e98887d403a4e2117a4119dffa69",
+    "operations/system.py": "f34aea041cf9927b1ea1063b0f89daa42e7568e53c4313bb58ed77a9dd64f140"
+  },
+  "optional_imports": {
+    "PySide6": false,
+    "bcc": false,
+    "cv2": false,
+    "faster_whisper": false,
+    "requests": false,
+    "sounddevice": false
+  },
+  "os": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "os_release": "PRETTY_NAME=\"Ubuntu 24.04.3 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.3 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo\n",
+  "pid1": "init(Ubuntu-24.",
+  "python": {
+    "executable": "/home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python",
+    "isolated": true,
+    "version": "3.12.3 (main, Aug 14 2025, 17:47:21) [GCC 13.3.0]"
+  },
+  "recorded_utc": "2026-11-02T06:46:02.532912+00:00",
+  "release": "6.6.87.2-microsoft-standard-WSL2",
+  "revision": {
+    "returncode": 128,
+    "stderr": "fatal: not a git repository (or any of the parent directories): .git",
+    "stdout": ""
+  },
+  "systemd_runtime": false,
+  "tools": {
+    "bpftool": null,
+    "df": "/usr/bin/df",
+    "free": "/usr/bin/free",
+    "git": "/usr/bin/git",
+    "ollama": null,
+    "pip": "/usr/bin/pip",
+    "ss": "/usr/bin/ss",
+    "systemctl": "/usr/bin/systemctl",
+    "uv": null
+  },
+  "uid": 1000,
+  "working_source_snapshot": {
+    "files_checked": 93,
+    "mismatches": [],
+    "parent_commit": "51e54c6888bddcfec07cd544acc295b3ce833e45",
+    "source": "E:\\FYP\\code 2\\linxai"
+  },
+  "worktree": {
+    "returncode": 128,
+    "stderr": "fatal: not a git repository (or any of the parent directories): .git",
+    "stdout": ""
+  }
+}

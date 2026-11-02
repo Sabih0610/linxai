@@ -1,0 +1,83 @@
+{
+  "actions": [
+    "directory.create",
+    "disk.usage",
+    "file.create",
+    "memory.usage",
+    "ports.listen",
+    "service.restart",
+    "service.start",
+    "service.status",
+    "service.stop"
+  ],
+  "camera_nodes": [],
+  "environment_kind": "local_or_hosted_unclassified",
+  "euid": null,
+  "gui": {
+    "display_configured": false,
+    "usable": "not tested by passive inventory",
+    "wayland_configured": false,
+    "wayland_socket_present": false,
+    "x11_socket_present": false
+  },
+  "kernel": {
+    "attach_or_enforcement": "NOT TESTED; root/capabilities/config flags do not prove dedicated-kernel control",
+    "btf_vmlinux": false,
+    "flags": {
+      "status": "unavailable; no kernel support inferred"
+    },
+    "process_status": {},
+    "securityfs_lsm": null
+  },
+  "operations_sha256": {
+    "operations/__init__.py": "ca1da33b1330fb8a2e627633f1e0a353b4ab486040c298569bdc64ae4751ef5c",
+    "operations/_create_program.py": "0d2528e76c636cc98bc7441b79acd405c808c6065635502eb16ccaff4c7d68f6",
+    "operations/audit.py": "aaa312114e141e6169f7762a189ae3c7b60f4ab46afb07b2fe9fad27d247a2d2",
+    "operations/cli.py": "3c0e1ab5553a4dcaa5915340f617d49976cc5d08c5e413f6ed8ab153dca9cdad",
+    "operations/plans.py": "ba6a5ca991130297c5ff50a6d25295ddde018d805f264ac02b31982c6a318415",
+    "operations/registry.py": "a6e4cc6955ca390d3938eefe5f777e946dded540f63fb3d5444c821fc1bad019",
+    "operations/service.py": "28ab970b2ece4ddcdfd348845ece7cc923c2e98887d403a4e2117a4119dffa69",
+    "operations/system.py": "f34aea041cf9927b1ea1063b0f89daa42e7568e53c4313bb58ed77a9dd64f140"
+  },
+  "optional_imports": {
+    "PySide6": false,
+    "bcc": false,
+    "cv2": false,
+    "faster_whisper": false,
+    "requests": false,
+    "sounddevice": false
+  },
+  "os": "Windows-11-10.0.26200-SP0",
+  "os_release": null,
+  "pid1": null,
+  "python": {
+    "executable": "E:\\FYP\\code 2\\linxai\\.venv-windows\\Scripts\\python.exe",
+    "isolated": true,
+    "version": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "recorded_utc": "2026-11-02T00:35:37.980764+00:00",
+  "release": "11",
+  "revision": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "51e54c6888bddcfec07cd544acc295b3ce833e45"
+  },
+  "systemd_runtime": false,
+  "tools": {
+    "bpftool": null,
+    "df": null,
+    "free": null,
+    "git": "C:\\Program Files\\Git\\cmd\\git.EXE",
+    "ollama": "C:\\Users\\sabih\\AppData\\Local\\Programs\\Ollama\\ollama.EXE",
+    "pip": "C:\\Users\\sabih\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\pip.EXE",
+    "ss": null,
+    "systemctl": null,
+    "uv": "C:\\Users\\sabih\\AppData\\Local\\Microsoft\\WinGet\\Packages\\astral-sh.uv_Microsoft.Winget.Source_8wekyb3d8bbwe\\uv.EXE"
+  },
+  "uid": null,
+  "worktree": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "M .gitignore\n M ai/__init__.py\n M ai/engine.py\n M ai/fast_path.py\n M ai/prompts.py\n M cie/validator.py\n M executor/controller.py\n M main.py\n?? .github/\n?? AGENTS.md\n?? ai/plan_schema.py\n?? docs/ACTION_CONTRACTS.md\n?? docs/ARCHITECTURE_REVIEW_2026-11-02.md\n?? docs/ENVIRONMENT_BASELINE.md\n?? docs/IMPLEMENTATION_PLAN.md\n?? docs/OPERATIONS_SERVICE.md\n?? docs/REQUIREMENTS_INVENTORY.md\n?? docs/VERIFICATION.md\n?? operations/\n?? pyproject.toml\n?? scripts/\n?? test_action_registry.py\n?? test_dev_environment.py\n?? test_operations_service.py\n?? test_safety_regressions.py\n?? tests/\n?? uv.lock"
+  }
+}

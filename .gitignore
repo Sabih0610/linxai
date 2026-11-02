@@ -29,3 +29,27 @@ face_template.yml
 # OS
 .DS_Store
 Thumbs.db
+
+# Isolated development environments, caches and generated capability evidence
+.venv*/
+venv/
+node_modules/
+.uv-cache/
+.pytest_cache/
+capabilities*.json
+*.capabilities.json
+wheelhouse/
+
+# Never publish secrets, biometric material or downloaded models
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+biometric_samples/
+enrollments/
+models/
+*.safetensors
+
+.handoff-work/

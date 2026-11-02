@@ -5,6 +5,7 @@ import re
 import logging
 from ai.prompts import SYSTEM_PROMPT
 from ai.fast_path import classify_fast
+from ai.plan_schema import validate_plan
  
 logger = logging.getLogger(__name__)
  
@@ -133,25 +134,12 @@ class AIEngine:
         })
  
     def _validate_plan(self, plan: dict) -> dict:
-        required = ["intent", "target", "command"]
-        for field in required:
-            if field not in plan:
-                raise ValueError(f"Plan missing required field: '{field}'")
-        plan.setdefault("pre_conditions", [])
-        plan.setdefault("requires_sudo", False)
-        plan.setdefault("risk_level", "low")
-        plan.setdefault("rollback", "")
-        plan.setdefault("explanation", "No explanation provided.")
-        plan.setdefault("suggestion", "")
-        plan.setdefault("port", "")
-        plan.setdefault("goal", "")
-        plan.setdefault("path", "")
-        plan.setdefault("stack", "")
-        plan.setdefault("repo_url", "")
-        return plan
+        return validate_plan(plan)
 
     def _fast_plan(self, user_input: str) -> dict | None:
         text = re.sub(r"\s+", " ", user_input.lower().strip())
+        if re.search(r"\b(if|unless|when|provided|and|then|or)\b", text):
+            return None
         requested_port = self._extract_requested_port(text)
 
         env_setup = self._extract_env_setup_request(user_input, text)
@@ -492,6 +480,14 @@ class AIEngine:
                 self.cache.store(user_input, fast_path_plan)
             return fast_path_plan
 
+        if re.search(r"\b(if|unless|when|provided)\b", user_input.lower()):
+            plan = self._unknown_parse_plan()
+            plan["explanation"] = (
+                "That conditional request is not supported yet. No command was run. "
+                "Supported form: restart nginx only if port 80 is free."
+            )
+            return plan
+
         fast_plan = self._fast_plan(user_input)
         if fast_plan:
             fast_plan["source"] = "engine_fast_path"
@@ -503,8 +499,13 @@ class AIEngine:
         if self.cache:
             cached = self.cache.get(user_input)
             if cached:
-                logger.info(f"Cache HIT: '{user_input}' → {cached.get('intent')}")
-                return cached
+                try:
+                    cached = self._validate_plan(cached)
+                except ValueError as exc:
+                    logger.warning("Ignoring invalid cached plan: %s", exc)
+                else:
+                    logger.info(f"Cache HIT: '{user_input}' → {cached.get('intent')}")
+                    return cached
 
         messages = self._build_messages(user_input, context)
         last_error = None

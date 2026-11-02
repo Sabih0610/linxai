@@ -1,7 +1,7 @@
 import re
 import shlex
 
-from executor.command_builder import build as build_command
+from executor.command_builder import SERVICE_ALIASES, build as build_command
 
 STOPWORDS = {
     "please", "can", "you", "could", "would", "kindly", "for", "me",
@@ -12,6 +12,15 @@ STOPWORDS = {
 def classify_fast(user_input: str, context: dict | None = None) -> dict | None:
     text = _normalize(user_input)
     if not text:
+        return None
+
+    conditional = _conditional_service(text)
+    if conditional:
+        conditional["source"] = "fast_path"
+        conditional["command"] = build_command(conditional["intent"], conditional).strip()
+        return conditional
+    # Partial matches must not discard conditions or additional operations.
+    if re.search(r"\b(if|unless|when|provided|and|then|or)\b", text):
         return None
 
     file_plan = _file_create(_normalize_file_create(user_input))
@@ -160,11 +169,37 @@ def _context_expects_port(context: dict | None) -> bool:
     return False
 
 
+def _conditional_service(text: str) -> dict | None:
+    match = re.fullmatch(
+        r"(?P<action>start|stop|restart)\s+(?:the\s+)?"
+        r"(?P<service>[a-z0-9@_.-]+)(?:\s+service)?\s+"
+        r"(?:only\s+)?if\s+port\s+(?P<port>\d{1,5})\s+"
+        r"(?:is\s+)?(?:currently\s+)?(?P<state>free|unused|available|not (?:currently )?in use|occupied|in use)$",
+        text,
+    )
+    if not match or not 1 <= int(match.group("port")) <= 65535:
+        return None
+    action, service = match.group("action"), match.group("service")
+    service = service.removesuffix(".service")
+    service = SERVICE_ALIASES.get(service, service)
+    state = match.group("state")
+    check = "port_occupied" if state in {"occupied", "in use"} else "port_free"
+    return _base(
+        "service_" + action, service,
+        # This port is a precondition, not a listener configuration request.
+        port="",
+        pre_conditions=[{"check": "service_exists", "service": service},
+                        {"check": check, "port": int(match.group("port"))}],
+        requires_sudo=True, risk_level="medium", rollback="",
+        explanation=f"{action.capitalize()}s {service} only if port {match.group('port')} is {state}.",
+    )
+
+
 def _port_check(text: str, context: dict | None) -> dict | None:
     port = None
-    match = re.search(
-        r"\b(?:whats|what is|who is using|what is running on|show|check)?\s*"
-        r"port\s+(?P<port>\d{1,5})\b",
+    match = re.fullmatch(
+        r"(?:whats(?: running on)?|what is(?: running on)?|who is using|what is running on|show|check)?\s*"
+        r"port\s+(?P<port>\d{1,5})",
         text,
     )
     if match:

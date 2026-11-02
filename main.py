@@ -1,6 +1,6 @@
 # main.py
 # LINxAI — Main pipeline entry point.
-# Terminal interface only. No web app. No GUI.
+# Legacy terminal entry point; shared desktop services are planned.
 # AI Engine → CIE → Executor → Audit Logger
 # Optional: eBPF daemon, Resource Manager, VPS Manager
 
@@ -2693,10 +2693,10 @@ class LINxAIPipeline:
 
         validation = self.cie.validate(retry_plan)
         self.hub.validation(retry_plan, validation)
-        decision = validation.get("decision") or validation.get("result", "approve")
-        if decision == "block":
+        decision = validation.get("decision") or validation.get("result", "block")
+        if decision not in {"approve", "warn"}:
             print(f"\r  {dim('│')}    {red('[retry] BLOCKED')}  "
-                  f"{validation['reason'][:80]}")
+                  f"{validation.get('reason', 'Validation did not approve this operation.')[:80]}")
             self.memory.save(suggested_command, retry_plan, {"blocked": True})
             return
 
@@ -2868,12 +2868,12 @@ class LINxAIPipeline:
         validation = self.cie.validate(plan)
         cie_ms     = int((time.perf_counter() - t2) * 1000)
         self.hub.validation(plan, validation)
-        decision   = validation.get("decision") or validation.get("result", "approve")
+        decision   = validation.get("decision") or validation.get("result", "block")
 
-        if decision == "block":
+        if decision not in {"approve", "warn"}:
             if not self.quiet:
                 print(f"\r  {dim('│')}  {red('[2/3] BLOCKED')}  "
-                      f"{validation['reason'][:80]}  {dim(f'{cie_ms}ms')}")
+                      f"{validation.get('reason', 'Validation did not approve this operation.')[:80]}  {dim(f'{cie_ms}ms')}")
                 print(f"  {dim('└─')} {red('BLOCKED — command will not execute')}")
             self.memory.save(user_input, plan, {"blocked": True})
             return {"input": user_input, "plan": plan,
@@ -3177,7 +3177,7 @@ class LINxAIPipeline:
                   f"{self.audit.log_path}\n")
 
 
-def parse_args():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="LINxAI — Intelligent Linux Administration Layer")
     parser.add_argument("--daemon",       action="store_true")
@@ -3185,11 +3185,28 @@ def parse_args():
     parser.add_argument("--quiet",        action="store_true")
     parser.add_argument("--no-ebpf",      action="store_true")
     parser.add_argument("--no-resource",  action="store_true")
-    return parser.parse_args()
+    parser.add_argument("--operation", type=str, help="Typed action through the shared operations service")
+    parser.add_argument("--operation-params", type=str, help="JSON parameter object (default {})")
+    parser.add_argument("--operations-workspace", type=str, help="Explicit permitted POSIX workspace")
+    parser.add_argument("--operations-audit", type=str, help="Audit JSONL in an owned private directory")
+    args = parser.parse_args(argv)
+    if args.operation is not None and (args.command is not None or args.daemon):
+        parser.error("--operation cannot be combined with --command or --daemon")
+    if args.operation is None and any(value is not None for value in
+            (args.operation_params, args.operations_workspace, args.operations_audit)):
+        parser.error("operation options require --operation")
+    return args
 
 
-if __name__ == "__main__":
-    args     = parse_args()
+def main(argv=None):
+    args = parse_args(argv)
+    if args.operation is not None:
+        from operations.cli import run_request
+        return run_request(args.operation, args.operation_params if args.operation_params is not None else "{}",
+                           args.operations_workspace, args.operations_audit)
+    if sys.platform == "linux" and (os.getuid() == 0 or os.geteuid() != os.getuid()):
+        print("Run LINxAI as an ordinary user without sudo or setuid identity.", file=sys.stderr)
+        return 2
     pipeline = LINxAIPipeline(
         use_face_auth=False,
         quiet=args.quiet or args.daemon,
@@ -3205,7 +3222,7 @@ if __name__ == "__main__":
 
     elif args.daemon:
         print(f"[LINxAI] Daemon running. PID={os.getpid()}")
-        print("[LINxAI] For interactive use: sudo python3 main.py")
+        print("[LINxAI] For interactive use: python3 main.py")
         try:
             signal.pause()
         except KeyboardInterrupt:
@@ -3213,3 +3230,8 @@ if __name__ == "__main__":
 
     else:
         pipeline.run_interactive()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -3,11 +3,11 @@
 #
 # Receives the execution plan dict from the AI Engine.
 # Reads the pre_conditions array.
-# Runs every check in under 500ms total.
+# Tracks a validation budget; slow checks are rejected after returning.
 # Returns a final decision: approve / block / warn.
 #
-# This is the module that makes LINxAI different from every other tool.
-# Nothing executes until this says approve.
+# Evaluates declared checks for callers using the validation pipeline.
+# Mandatory action checks and alternate execution paths still need consolidation.
 
 import time
 import logging
@@ -32,12 +32,14 @@ logger = logging.getLogger(__name__)
 CHECK_REGISTRY = {
     "port_free":             check_port_free,
     "port_occupied":         check_port_occupied,
+    "port_range":            check_port_range,
     "service_exists":        check_service_exists,
     "service_running":       check_service_running,
     "service_stopped":       check_service_stopped,
     "service_enabled":       check_service_enabled,
     "process_running":       check_process_running,
     "process_not_running":   check_process_not_running,
+    "process_count":         check_process_count,
     "file_exists":           check_file_exists,
     "file_not_exists":       check_file_not_exists,
     "disk_space":            check_disk_space,
@@ -52,8 +54,8 @@ CHECK_REGISTRY = {
     "destructive_protected_path": check_destructive_protected_path,
 }
 
-# Status priority: conflict > warning > error > ok
-STATUS_PRIORITY = {"conflict": 3, "warning": 2, "error": 1, "ok": 0}
+# Status priority: conflict > error > warning > ok
+STATUS_PRIORITY = {"conflict": 3, "error": 2, "warning": 1, "ok": 0}
 
 
 def _extract_args(condition: dict) -> dict:
@@ -64,48 +66,37 @@ def _extract_args(condition: dict) -> dict:
     return {k: v for k, v in condition.items() if k != "check"}
 
 
+def _check_error(check_type: str, reason: str) -> dict:
+    return {"check": check_type, "status": "error", "found": None,
+            "reason": reason, "detail": {}}
+
+
 def _run_single_check(condition: dict) -> dict:
-    """
-    Dispatches one pre_condition dict to the correct check function.
-    Returns the check result dict.
-
-    If the check type is unknown or fails to run, returns an error result.
-    """
-    check_type = condition.get("check", "")
+    """Reject malformed, unavailable and failed required checks."""
+    if not isinstance(condition, dict):
+        return _check_error("invalid_condition", "A precondition must be an object.")
+    check_type = condition.get("check")
+    if not isinstance(check_type, str) or not check_type.strip():
+        return _check_error("invalid_condition", "A precondition needs a check name.")
     fn = CHECK_REGISTRY.get(check_type)
-
     if fn is None:
-        logger.warning(f"Unknown check type: '{check_type}' — skipping")
-        return {
-            "check": check_type,
-            "status": "ok",  # Unknown checks do not block — log only
-            "found": None,
-            "reason": f"Check type '{check_type}' is not registered — skipped.",
-            "detail": {}
-        }
-
-    kwargs = _extract_args(condition)
+        return _check_error(check_type, f"Check type '{check_type}' is not registered.")
     try:
-        result = fn(**kwargs)
+        result = fn(**_extract_args(condition))
+        if not isinstance(result, dict):
+            return _check_error(check_type, "Check returned an invalid result object.")
+        if result.get("status") not in STATUS_PRIORITY:
+            return _check_error(check_type, "Check returned an invalid status.")
+        if not isinstance(result.get("reason"), str):
+            return _check_error(check_type, "Check returned an invalid reason.")
+        result = dict(result)
+        result["check"] = check_type
+        result.setdefault("found", None)
+        result.setdefault("detail", {})
         return result
-    except TypeError as e:
-        logger.error(f"Check '{check_type}' called with wrong args {kwargs}: {e}")
-        return {
-            "check": check_type,
-            "status": "error",
-            "found": None,
-            "reason": f"Check '{check_type}' configuration error: {e}",
-            "detail": {"condition": condition, "error": str(e)}
-        }
-    except Exception as e:
-        logger.error(f"Check '{check_type}' raised unexpected error: {e}")
-        return {
-            "check": check_type,
-            "status": "error",
-            "found": None,
-            "reason": f"Check '{check_type}' failed unexpectedly: {e}",
-            "detail": {"error": str(e)}
-        }
+    except Exception as exc:
+        logger.error("Check '%s' failed: %s", check_type, exc)
+        return _check_error(check_type, f"Check '{check_type}' failed: {exc}")
 
 
 class CommandIntelligenceEngine:
@@ -131,7 +122,7 @@ class CommandIntelligenceEngine:
 
     Decision logic:
         - Any "conflict" check → decision = "block"
-        - Any "error" check   → decision = "warn"  (system read error, not command error)
+        - Any "error" check   → decision = "block" (required state is unverified)
         - Any "warning" check → decision = "warn"
         - All "ok"            → decision = "approve"
     """
@@ -150,99 +141,51 @@ class CommandIntelligenceEngine:
         )
 
     def validate(self, plan: dict) -> dict:
-        """
-        Main validation entry point.
+        """Run all declared checks; incomplete verification never approves.
 
-        Args:
-            plan: execution plan dict from AIEngine.classify()
-                  Must contain at minimum: intent, command
-                  pre_conditions is optional — empty list = no checks needed
-
-        Returns:
-            {
-                "decision":    "approve" | "block" | "warn"
-                "reason":      str — human-readable explanation
-                "checks_run":  int — number of checks executed
-                "duration_ms": int — total time taken
-                "results":     list — all individual check results
-                "plan":        dict — the original plan unchanged
-            }
+        The budget is checked before and after each synchronous check. It does
+        not interrupt an in-flight OS query. Operation-derived mandatory checks
+        still need to be introduced by the future action registry.
         """
         t_start = time.perf_counter()
-
-        pre_conditions = plan.get("pre_conditions", [])
-        intent = plan.get("intent", "unknown")
-        command = plan.get("command", "")
-
-        logger.info(
-            f"CIE validating: intent='{intent}', "
-            f"command='{command}', "
-            f"checks={len(pre_conditions)}"
-        )
-
-        guard_result = check_destructive_protected_path(command)
-        if guard_result["status"] == "conflict":
-            duration_ms = int((time.perf_counter() - t_start) * 1000)
-            logger.warning(
-                f"CIE blocked destructive protected-path command: {command}"
-            )
-            return {
-                "decision":    "block",
-                "reason":      guard_result["reason"],
-                "checks_run":  1,
-                "duration_ms": duration_ms,
-                "results":     [guard_result],
-                "plan":        plan,
-            }
-
-        # No pre-conditions = always approve
-        if not pre_conditions:
-            duration_ms = int((time.perf_counter() - t_start) * 1000)
-            logger.info(f"CIE: no checks required → approve ({duration_ms}ms)")
-            return {
-                "decision":    "approve",
-                "reason":      "No pre-execution checks required for this command.",
-                "checks_run":  0,
-                "duration_ms": duration_ms,
-                "results":     [],
-                "plan":        plan,
-            }
-
-        # Run all checks
         results = []
+        checks_run = 0
+
+        def finish(decision, reason):
+            return {"decision": decision, "reason": reason,
+                    "checks_run": checks_run,
+                    "duration_ms": int((time.perf_counter() - t_start) * 1000),
+                    "results": results, "plan": plan}
+
+        if not isinstance(plan, dict) or not isinstance(plan.get("command"), str):
+            results.append(_check_error("invalid_plan", "Plan needs a string command."))
+            return finish("block", "BLOCKED: Invalid execution plan.")
+        pre_conditions = plan.get("pre_conditions", [])
+        if not isinstance(pre_conditions, list) or len(pre_conditions) > 64:
+            results.append(_check_error("invalid_plan", "Preconditions must be a list of at most 64 checks."))
+            return finish("block", "BLOCKED: Invalid preconditions.")
+
+        guard_result = _run_single_check({"check": "destructive_protected_path",
+                                          "command": plan["command"]})
+        if guard_result["status"] != "ok":
+            results.append(guard_result)
+            return finish("block", "BLOCKED: " + guard_result["reason"])
+
+        if not pre_conditions:
+            return finish("approve", "No pre-execution checks declared for this command.")
+
         for condition in pre_conditions:
-            elapsed_ms = int((time.perf_counter() - t_start) * 1000)
-            if elapsed_ms >= self.timeout_ms:
-                logger.warning(
-                    f"CIE timeout after {elapsed_ms}ms — "
-                    f"{len(results)}/{len(pre_conditions)} checks completed"
-                )
+            if (time.perf_counter() - t_start) * 1000 >= self.timeout_ms:
+                results.append(_check_error("validation_timeout", "Required checks were not completed before the deadline."))
+                break
+            results.append(_run_single_check(condition))
+            checks_run += 1
+            if (time.perf_counter() - t_start) * 1000 >= self.timeout_ms:
+                results.append(_check_error("validation_timeout", "A check exceeded the validation deadline."))
                 break
 
-            result = _run_single_check(condition)
-            results.append(result)
-            logger.debug(
-                f"  Check '{result['check']}': {result['status']} — {result['reason']}"
-            )
-
-        duration_ms = int((time.perf_counter() - t_start) * 1000)
-
-        # Determine final decision
         decision, reason = self._decide(results, plan)
-
-        logger.info(
-            f"CIE decision: {decision.upper()} — "
-            f"{len(results)} checks in {duration_ms}ms"
-        )
-
-        return {
-            "decision":    decision,
-            "reason":      reason,
-            "checks_run":  len(results),
-            "duration_ms": duration_ms,
-            "results":     results,
-            "plan":        plan,
-        }
+        return finish(decision, reason)
 
     def _decide(self, results: List[dict], plan: dict) -> tuple:
         """
@@ -253,7 +196,7 @@ class CommandIntelligenceEngine:
         Returns (decision_str, reason_str).
         """
         if not results:
-            return "approve", "No checks ran."
+            return "block", "BLOCKED: No required checks ran."
 
         # Collect by status
         conflicts = [r for r in results if r["status"] == "conflict"]
@@ -272,10 +215,10 @@ class CommandIntelligenceEngine:
 
         if errors:
             reasons = [r["reason"] for r in errors]
-            return "warn", (
-                "Could not verify system state: "
+            return "block", (
+                "BLOCKED: Could not verify system state: "
                 + " | ".join(reasons)
-                + " — proceeding with caution."
+                + " — command will not execute."
             )
 
         if warnings:

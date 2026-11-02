@@ -91,7 +91,7 @@ EXAMPLES:
 {"intent":"cpu_usage","target":"","pre_conditions":[],"command":"top -bn1 | grep Cpu","requires_sudo":false,"risk_level":"low","rollback":"","explanation":"Shows CPU usage."}
 {"intent":"system_uptime","target":"","pre_conditions":[],"command":"uptime -p","requires_sudo":false,"risk_level":"low","rollback":"","explanation":"Shows system uptime."}
 {"intent":"process_list","target":"elapsed","pre_conditions":[],"command":"ps -eo comm,etime,pid --sort=start_time","requires_sudo":false,"risk_level":"low","rollback":"","explanation":"Lists processes with elapsed runtime."}
-{"intent":"port_check","target":"80","port":"80","pre_conditions":[],"command":"ss -tlnp \"sport = :80\"","requires_sudo":false,"risk_level":"low","rollback":"","explanation":"Checks what is listening on port 80."}
+{"intent":"port_check","target":"80","port":"80","pre_conditions":[],"command":"ss -tlnp 'sport = :80'","requires_sudo":false,"risk_level":"low","rollback":"","explanation":"Checks what is listening on port 80."}
 {"intent":"kernel_info","target":"","pre_conditions":[],"command":"uname -r","requires_sudo":false,"risk_level":"low","rollback":"","explanation":"Shows kernel version."}
 {"intent":"port_list","target":"","pre_conditions":[],"command":"ss -tlnp","requires_sudo":false,"risk_level":"low","rollback":"","explanation":"Lists all listening ports."}
 {"intent":"firewall_list","target":"","pre_conditions":[],"command":"ufw status verbose","requires_sudo":true,"risk_level":"low","rollback":"","explanation":"Shows firewall rules."}

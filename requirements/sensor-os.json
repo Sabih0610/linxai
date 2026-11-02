@@ -1,0 +1,13 @@
+{
+  "profile": "sensor",
+  "status": "declared prerequisites; provisioning and native enforcement acceptance pending",
+  "candidate_os": "Ubuntu 24.04 LTS",
+  "interpreter": "/usr/bin/python3 (OS Python 3.12 on Ubuntu 24.04)",
+  "os_packages": ["python3-bpfcc", "bpfcc-tools", "libbpfcc-dev", "matching supported kernel headers/tools"],
+  "python_import": "bcc.BPF",
+  "forbidden_substitute": "PyPI package named bcc",
+  "application_system_site_packages": false,
+  "version_recording": "Capture installed distro package versions, kernel build/configuration, BCC interpreter and actual attach/enforcement results on the selected lab host before acceptance",
+  "routine_setup_installs_os_packages": false,
+  "root_proves_dedicated_kernel_control": false
+}

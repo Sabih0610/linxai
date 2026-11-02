@@ -7,7 +7,7 @@
 #   - 30-second timeout guard
 #   - sudo escalation with face authentication gate
 #   - structured ExecutionResult output
-#   - rollback execution on failure (if plan provides one)
+#   - explicit reporting when generated rollback needs review
 #
 # The complete pipeline is:
 #   AIEngine → CIE → ExecutionController → ExecutionResult
@@ -268,7 +268,7 @@ class ExecutionController:
             }
             if hasattr(os, "setsid"):
                 # Linux/POSIX: create a process group for clean timeout kills.
-                popen_kwargs["preexec_fn"] = os.setsid
+                popen_kwargs["start_new_session"] = True
             proc = subprocess.Popen(command, **popen_kwargs)
 
             stdout_lines = []
@@ -426,32 +426,17 @@ class ExecutionController:
                 pass
 
     def _execute_rollback(self, plan: dict):
-        """
-        Runs the rollback command if a command failed and a rollback exists.
-        Rollback errors are logged but never raised — best effort only.
-        """
-        rollback = plan.get("rollback", "").strip()
-        if not rollback:
-            return
+        """Do not implicitly execute a model-generated recovery command.
 
-        logger.warning(f"Executing rollback: '{rollback}'")
-        try:
-            result = subprocess.run(
-                rollback,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=15
-            )
-            if result.returncode == 0:
-                logger.info(f"Rollback succeeded: '{rollback}'")
-            else:
-                logger.error(
-                    f"Rollback failed (exit {result.returncode}): "
-                    f"{result.stderr.strip()}"
-                )
-        except Exception as e:
-            logger.error(f"Rollback exception for '{rollback}': {e}")
+        Safe restoration requires captured prior state and the same operation
+        authorization/validation path as forward execution. Until that service
+        exists, preserve the suggestion for explicit review without running it.
+        """
+        rollback = plan.get("rollback", "")
+        if rollback:
+            logger.warning("Automatic rollback was not executed: recovery requires a validated state-based operation.")
+        return {"status": "requires_review" if rollback else "not_required",
+                "executed": False}
 
     def execute(self, plan: dict) -> ExecutionResult:
         """
@@ -529,10 +514,12 @@ class ExecutionController:
             timeout_s,
         )
 
-        # Rollback on error for medium/high risk commands
+        # Report recovery needs without executing a model-provided rollback.
         risk = plan.get("risk_level", "low")
         if not result.is_success() and risk in ("medium", "high"):
-            self._execute_rollback(plan)
+            recovery = self._execute_rollback(plan)
+            if recovery["status"] == "requires_review":
+                result.stderr = (result.stderr + "\nAutomatic rollback was not run; recovery requires a validated state-based operation.").strip()
 
         return result
 
