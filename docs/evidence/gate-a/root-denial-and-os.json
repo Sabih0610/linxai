@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-02",
+  "environment": "existing Ubuntu-24.04 WSL2",
+  "method": "separate actual WSL root invocation, not a mock",
+  "installed_launcher": {
+    "argv": [
+      "/home/sabih/.cache/linxai-development/gate-a-root-check-20261102/bin/linxai",
+      "memory.usage"
+    ],
+    "uid": 0,
+    "exit": 2,
+    "stderr": "LINxAI requires an ordinary user; sudo/set-ID startup is refused."
+  },
+  "installer": {
+    "argv": [
+      "/bin/sh",
+      "install.sh"
+    ],
+    "uid": 0,
+    "exit": 2,
+    "stderr": "Run LINxAI installation as an ordinary user, without sudo/set-ID."
+  },
+  "cleanup": "managed uninstall.sh as UID 1000 succeeded; no host services/packages changed",
+  "cloud": {
+    "saved_environments": [],
+    "executed": false
+  },
+  "os_packages": {
+    "coreutils": "9.4-3ubuntu6",
+    "iproute2": "6.1.0-1ubuntu6.2",
+    "procps": "2:4.0.4-4ubuntu3.2",
+    "python3": "3.12.3-0ubuntu2",
+    "systemd": "255.4-1ubuntu8.10",
+    "python3-bpfcc": null
+  },
+  "os_packages_command": [
+    "/usr/bin/dpkg-query",
+    "-W",
+    "coreutils",
+    "procps",
+    "iproute2",
+    "systemd",
+    "python3",
+    "python3-bpfcc"
+  ]
+}

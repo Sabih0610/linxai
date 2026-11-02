@@ -248,3 +248,13 @@ and unprivileged integration were exercised there; see
 checks and retained environment/timing failures. No mounts or host security settings
 were changed. This adds WSL evidence; it does not verify or replace the recorded
 Multipass guest, historical mount, `/opt/linxai` revision or final Linux desktop lab.
+
+
+## Gate A development evidence — 2 November 2026
+
+GATE_A_BASELINE.md records the ordinary-user installed application, current source
+identity, native WSL checks and passive capability evidence. Historical Multipass
+access/mount/source findings above remain unresolved and were not altered or
+replaced by WSL evidence. The new installer never touches /opt/linxai, existing
+services, PAM, mounts or OS packages. Gate A remains IMPLEMENTED—LAB ACCEPTANCE
+PENDING until the documented real systemd and accessible Cloud/hosted checks run.

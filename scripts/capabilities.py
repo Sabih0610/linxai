@@ -1,5 +1,6 @@
 """Passive capability inventory; flags/UID are evidence, never proof of BPF control."""
 import argparse
+import ctypes.util
 from datetime import datetime, timezone
 import gzip
 import hashlib
@@ -37,6 +38,38 @@ def kernel_flags():
     return {"status": "unavailable; no kernel support inferred"}
 
 
+def bounded_text(path, limit=8192):
+    try:
+        with Path(path).open(errors="replace") as stream:
+            return stream.read(limit)
+    except OSError:
+        return None
+
+
+def integration_capabilities():
+    return {
+        "os_authentication": {
+            "tools": {name: shutil.which(name) for name in ("pkexec", "pkaction", "loginctl")},
+            "pam_library": ctypes.util.find_library("pam"),
+            "pam_configuration_present": Path("/etc/pam.d").is_dir(),
+            "system_bus_socket_present": Path("/run/dbus/system_bus_socket").exists(),
+            "authorization": "NOT TESTED; no broker installed by this probe",
+        },
+        "microphone": {
+            "alsa_cards": bounded_text("/proc/asound/cards"),
+            "alsa_pcm": bounded_text("/proc/asound/pcm"),
+            "sound_nodes": [str(p) for p in sorted(Path("/dev/snd").glob("*"))][:64],
+            "tools": {name: shutil.which(name) for name in ("arecord", "wpctl", "pactl")},
+            "capture": "NOT TESTED; devices are not opened",
+        },
+        "camera": {"capture": "NOT TESTED; nodes do not prove camera usability"},
+        "sensor": {"os_interpreter": "/usr/bin/python3", "bcc_in_app_is_not_os_bcc": True,
+                   "requirements": "requirements/sensor-os.json", "provisioning": "separate explicit lab task",
+                   "os_python_version": command(["/usr/bin/python3", "--version"]),
+                   "os_bcc_spec": command(["/usr/bin/python3", "-I", "-c", "import importlib.util; print(importlib.util.find_spec('bcc') is not None)"])},
+    }
+
+
 def report():
     from operations.registry import ACTIONS
     proc = Path("/proc/self/status")
@@ -58,6 +91,8 @@ def report():
         snapshot["mismatches"] = [name for name, expected in files.items()
                                   if not (ROOT / name).is_file() or hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != expected]
     return {
+        "schema": 2,
+        "integration": integration_capabilities(),
         "recorded_utc": datetime.now(timezone.utc).isoformat(),
         "environment_kind": "WSL" if "microsoft" in platform.release().lower() else "local_or_hosted_unclassified",
         "os": platform.platform(), "release": platform.release(),

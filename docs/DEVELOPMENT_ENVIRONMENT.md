@@ -1,6 +1,6 @@
 # Reproducible application development environment
 
-Updated 2 November 2026. This repository setup is lightweight and does not run
+Updated 2 November 2026. Gate A application deployment is documented in INSTALLATION.md; development setup stays separate. Gate A application deployment is documented in INSTALLATION.md; development setup stays separate. This repository setup is lightweight and does not run
 the inherited system installer. Final deployment is an ordinary-user Linux desktop
 application with separately supervised privileged components. Cloud/WSL/hosted CI
 are development environments, not proof of desktop, hardware or kernel acceptance.

@@ -49,5 +49,5 @@ Fast offline checks: .venv/bin/python -B scripts/test.py offline.
 Unprivileged Linux integration: .venv/bin/python -B scripts/test.py linux.
 Capability report: .venv/bin/python -B scripts/capabilities.py.
 Optional privileged, desktop, hardware and model groups require their separate LINXAI_TEST_* opt-ins; report missing capabilities as skipped/pending. Root in Cloud does not prove kernel control.
-Never run install.sh, install PAM, change host security, enable services, pull models or open hardware as routine setup. BCC uses its OS interpreter separately from the app venv.
+Routine development uses setup_dev.py. Gate A ordinary-user application installation uses sh install.sh (docs/INSTALLATION.md); never use sudo for it. Never install PAM, change host security, enable services, pull models or open hardware as routine setup. BCC uses its OS interpreter separately from the app venv.
 Continue operations/registry.py and operations/service.py; do not create a competing backend. The supported isolated linxai launcher is the typed CLI, with administrative dispatch still broker-required.

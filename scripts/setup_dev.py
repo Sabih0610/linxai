@@ -16,6 +16,7 @@ def main(argv=None):
     parser.add_argument("--venv", default=".venv")
     parser.add_argument("--extra", action="append", choices=["ai", "desktop", "remote", "hardware", "voice", "sensor"], default=[])
     parser.add_argument("--offline", action="store_true", help="Require already cached tooling and packages")
+    parser.add_argument("--no-editable", action="store_true", help="Install a wheel independent of the checkout")
     args = parser.parse_args(argv)
     if not (3, 11) <= sys.version_info[:2] < (3, 14):
         parser.error("Use CPython 3.11–3.13; primary tested Linux version is 3.12")
@@ -48,13 +49,17 @@ def main(argv=None):
         parser.error(f"Use uv {UV_VERSION}; found {' '.join(version)}")
     env = dict(os.environ, UV_PROJECT_ENVIRONMENT=str(target), UV_PYTHON_DOWNLOADS="never")
     command = [*uv_command, "sync", "--locked", "--group", "test", "--python", sys.executable]
+    if args.no_editable:
+        command.append("--no-editable")
     for extra in args.extra:
         command += ["--extra", extra]
     if args.offline:
         command.append("--offline")
     subprocess.run(command, cwd=ROOT, env=env, check=True)
-    subprocess.run([str(binary), "-B", "-m", "operations.cli", "--help"], cwd=ROOT, check=True)
-    print(f"Ready: {binary}\nOffline tests: {binary} -B scripts/test.py offline")
+    subprocess.run([str(binary), "-I", "-B", "-m", "operations.cli", "--help"], cwd=ROOT, check=True)
+    print(f"Ready: {binary}")
+    if not args.no_editable:
+        print(f"Offline tests: {binary} -B scripts/test.py offline")
     return 0
 
 

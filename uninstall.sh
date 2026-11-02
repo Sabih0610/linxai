@@ -1,13 +1,9 @@
-#!/bin/bash
-echo "Removing LINxAI..."
-sudo systemctl stop linxai-ebpf linxai-core 2>/dev/null
-sudo systemctl disable linxai-ebpf linxai-core 2>/dev/null
-sudo rm -f /etc/systemd/system/linxai-ebpf.service
-sudo rm -f /etc/systemd/system/linxai-core.service
-sudo rm -f /usr/local/bin/linxai
-sudo rm -f /usr/local/bin/linxai-logs
-sudo rm -f /usr/local/bin/linxai-status
-sudo rm -f /lib/x86_64-linux-gnu/security/pam_linxai_face.so
-sudo rm -rf /etc/linxai
-sudo systemctl daemon-reload
-echo "LINxAI removed. Code at /opt/linxai, logs at /var/log/linxai"
+#!/bin/sh
+# Remove only a managed user application prefix; retain audit/configuration.
+set -eu
+if [ "$(/usr/bin/id -u)" = 0 ] || [ "$(/usr/bin/id -u)" != "$(/usr/bin/id -ur)" ] || [ "$(/usr/bin/id -g)" != "$(/usr/bin/id -gr)" ]; then
+    echo 'Run LINxAI removal as an ordinary user, without sudo/set-ID.' >&2
+    exit 2
+fi
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+exec "${LINXAI_PYTHON:-python3}" -I "$script_dir/scripts/install_app.py" --uninstall "$@"

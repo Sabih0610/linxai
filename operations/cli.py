@@ -47,6 +47,15 @@ def main(argv=None):
     parser.add_argument("--workspace", help="Explicit permitted POSIX workspace for create actions")
     parser.add_argument("--audit-path", help="JSONL path in an owned private directory")
     args = parser.parse_args(argv)
+    # Installed entry points refuse elevated startup before opening a user ledger.
+    try:
+        identity = LinuxSystemAdapter().resolve_identity()
+        if not identity.ordinary():
+            raise PermissionError("Run as an ordinary Linux account without sudo/root/set-ID")
+    except Exception as exc:
+        result = OperationResult(str(uuid4()), "identity_denied", str(exc), audit_complete=False)
+        print(json.dumps(asdict(result), sort_keys=True))
+        return 2
     return run_request(args.action, args.parameters, args.workspace, args.audit_path)
 
 

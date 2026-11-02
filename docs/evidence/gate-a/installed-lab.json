@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "kind": "native Linux application installation; no kernel/hardware acceptance",
+  "uid": 1000,
+  "install": {
+    "schema": 1,
+    "prefix": "/home/sabih/.linxai-gate-a-34ib62mh/app with spaces",
+    "uid": 1000,
+    "state": "installed",
+    "lock_sha256": "9ec3a41952eb017934bfc51a16ebdb48f24bece5b626eade7f6b2127ae5c9164",
+    "operations_module": "/home/sabih/.linxai-gate-a-34ib62mh/app with spaces/venv/lib/python3.12/site-packages/operations/__init__.py"
+  },
+  "uninstall": "passed",
+  "root_rejection": "pending; run explicit lab check",
+  "operations_sha256": {
+    "__init__.py": "ca1da33b1330fb8a2e627633f1e0a353b4ab486040c298569bdc64ae4751ef5c",
+    "_create_program.py": "0d2528e76c636cc98bc7441b79acd405c808c6065635502eb16ccaff4c7d68f6",
+    "audit.py": "aaa312114e141e6169f7762a189ae3c7b60f4ab46afb07b2fe9fad27d247a2d2",
+    "cli.py": "b02bdf0f42f57015d959cb9327d4f00aa149a46c829b985ea84acb976e00484c",
+    "plans.py": "ba6a5ca991130297c5ff50a6d25295ddde018d805f264ac02b31982c6a318415",
+    "registry.py": "a6e4cc6955ca390d3938eefe5f777e946dded540f63fb3d5444c821fc1bad019",
+    "service.py": "28ab970b2ece4ddcdfd348845ece7cc923c2e98887d403a4e2117a4119dffa69",
+    "system.py": "f34aea041cf9927b1ea1063b0f89daa42e7568e53c4313bb58ed77a9dd64f140"
+  },
+  "tests_run": 11,
+  "failures": 0,
+  "errors": 0,
+  "skipped": [
+    {
+      "test": "test_service_status_read_only (__main__.main.<locals>.InstalledTests.test_service_status_read_only)",
+      "reason": "systemd is not running; a systemctl binary alone is insufficient"
+    }
+  ],
+  "status": "PARTIAL"
+}

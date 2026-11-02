@@ -21,6 +21,8 @@ jobs:
         run: .venv/bin/python -B scripts/test.py offline
       - name: Native ordinary-user integration
         run: .venv/bin/python -B scripts/test.py linux
+      - name: Installed application and explicit root-refusal lab
+        run: .venv/bin/python -B scripts/run_gate_a_lab.py --check-root-rejection --report gate-a-lab.json
       - name: Optional groups report skipped unless explicitly opted in
         run: |
           .venv/bin/python -B scripts/test.py privileged
@@ -30,6 +32,9 @@ jobs:
       - name: Passive capability report
         run: .venv/bin/python -B scripts/capabilities.py --output capabilities.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
           name: capabilities-python-${{ matrix.python }}
-          path: capabilities.json
+          path: |
+            capabilities.json
+            gate-a-lab.json

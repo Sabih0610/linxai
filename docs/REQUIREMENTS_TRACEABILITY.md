@@ -78,3 +78,45 @@ Gate IDs A–H refer to the architecture acceptance roadmap. Test evidence must 
 | 70 | Native Linux Compatibility Testing | A/C/D | Ordinary-user WSL smoke evidence is separate from final desktop/hardware/platform acceptance | FR-12; NFR-06–07 |
 | 71 | Comprehensive Testing and Stabilization | H | Offline test-method count is not requirement acceptance coverage | FR-12; NFR-05–06 |
 | 72 | 24-Hour System Stress Testing | H | 24-hour/99-percent availability acceptance not demonstrated | FR-12; NFR-05–06 |
+
+
+## Gate A evidence overlay — 2 November 2026
+
+Status: IMPLEMENTED—LAB ACCEPTANCE PENDING. Original 1–72 identifiers and source
+labels above are unchanged. See GATE_A_BASELINE.md, INSTALLATION.md and sanitized
+docs/evidence/gate-a records. Cloud: none executed; current hosted CI: pending.
+Native WSL: offline 125 passed; backend and installed lab each 10 passed/1 skipped;
+actual root installer/launcher refused. Hardware/device/enforcement: none executed.
+
+| Original IDs | Current evidence advance | Still pending |
+| --- | --- | --- |
+| 15–20 | Typed validation, real resource/port/filesystem checks and missing-manager denial | Full validation breadth, real systemd success/missing-unit checks, desktop migration |
+| 22–25 | Preserved exact approved execution and bounded deadlines/results; isolated launcher forwarding | Trusted broker, all legacy paths, durable supervision/recovery |
+| 58–59 | Native file operation ID/fingerprint correlation across checks/execution/verification/audit | Full cross-module durable audit/retention |
+| 63–64, 66–68, 70 | Locked ordinary-user wheel install/remove, platform/dependency matrix, native installed CLI and safety negatives | Full six-action lab/Cloud evidence and final desktop integration |
+| 65, 69 | Sensor packaging inspected; historical templates documented; OS interpreter separated | Independent secure sensor deployment, readiness/transport and full integration |
+
+## Complete agreed scope beyond recovered inventory labels
+
+These are scope descriptions, not invented original requirement IDs. Source IDs
+not recoverable from the inventory/PDF remain **unknown**. Gates map the work;
+no row claims acceptance merely because prototype source or a mock exists.
+
+| Agreed scope | Gate / current evidence | Remaining acceptance |
+| --- | --- | --- |
+| Linux desktop natural-language administration | A/C; typed local backend and isolated installation tested | Desktop, AI-to-action workflow, durable jobs/API, complete legacy migration |
+| Development environment provisioning and DevOps | F; existing prototypes only | Typed provisioning/deployment contracts, authorization, verification and isolated lab |
+| Remote Linux operations | F; inherited SSH module retained | Trusted peer/host identity, shared service routing and multi-host lab |
+| Router, switch and port management | F; local port inspection tested in A | Device-specific typed adapters, transport/policy and actual device lab |
+| SOC workflows and independent monitoring/deterministic detection | D/F; inherited sensor/detection prototypes retained | Model/UI-independent supervision, transport, bounded queues/data and deterministic lab evidence |
+| AI incident analysis, bounded response and verified containment | C/E; typed action constraints preserved | Incident boundary, broker/enforcement integration and real containment tests |
+| Validated response-policy memory and owner-configured automatic response | E; auto-response remains disabled | Scoped/versioned/expiring policies, deterministic matching, independent owner limits, replay/expiry/containment tests |
+| Trusted OS authorization outside model/UI | B; privileged actions explicitly blocked | Trusted broker/protocol, real OS auth, independent identity/policy and lab service operation |
+| Account-bound face authentication with password fallback | B/G; prototype retained | Protected enrollment, trusted account binding, spoof/liveness testing and OS password fallback |
+| Voice input | G; candidate dependencies separated | Runtime implementation, real microphone/VAD/offline recognition and measured language tests |
+| Resources, audit, recovery and release quality | C/F/H; typed audit and refusal of unsupported restoration tested | Stable identity, measured resource benefit, validated state restoration, durable audit, long-run/load/release tests |
+
+The project target remains a Linux desktop; standalone monitoring and enforcement
+must continue without desktop/model. A passive capability probe proves neither
+that independence nor kernel control. Test evidence for each future gate must
+separate Cloud, native lab and hardware/device results with exact pending commands.

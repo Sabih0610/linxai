@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from uuid import uuid4
 
 from operations import ActionRegistry
 from operations.registry import normalize_service
@@ -83,9 +84,9 @@ class LinuxIntegrationTests(unittest.TestCase):
 
     def test_file_create_content_and_audit_correlation(self):
         self.require_binary("python3")
-        result = self.run_action("file.create", {"path": "example.txt", "content": "native integration\n"})
+        result = self.run_action("file.create", {"path": "example with spaces.txt", "content": "native $(touch NEVER); 'quoted' integration\n"})
         self.assertEqual(result.status, "succeeded", result)
-        self.assertEqual((self.workspace / "example.txt").read_bytes(), b"native integration\n")
+        self.assertEqual((self.workspace / "example with spaces.txt").read_bytes(), b"native $(touch NEVER); 'quoted' integration\n")
         records = [json.loads(line) for line in self.ledger.read_text().splitlines()]
         self.assertEqual({r["operation_id"] for r in records}, {result.operation_id})
         for phase in ("validation", "execution", "verification", "result"):
@@ -121,3 +122,22 @@ class LinuxIntegrationTests(unittest.TestCase):
         result = self.run_action("service.restart", {"service": "dbus"})
         self.assertEqual(result.status, "authentication_authorization_required", result)
         self.assertFalse(result.executed)
+
+    def test_foreign_owned_workspace_rejected_before_dispatch(self):
+        # /usr is an existing root-owned directory: no chown or attempted writes.
+        self.assertEqual(Path("/usr").stat().st_uid, 0)
+        from unittest.mock import patch
+        self.service.registry = ActionRegistry("/usr")
+        path = "linxai-denied-" + uuid4().hex
+        with patch.object(self.adapter, "execute", wraps=self.adapter.execute) as execute:
+            result = self.run_action("file.create", {"path": path})
+            self.assertEqual(result.status, "validation_failed", result)
+            self.assertFalse(result.executed)
+            execute.assert_not_called()
+        self.assertFalse((Path("/usr") / path).exists())
+
+    def test_unavailable_service_or_manager_explicitly_fails(self):
+        result = self.run_action("service.status", {"service": "linxai-absent-" + uuid4().hex})
+        self.assertEqual(result.status, "validation_failed", result)
+        self.assertFalse(result.executed)
+        self.assertIn("systemd_available" if not Path("/run/systemd/system").is_dir() else "service_exists", result.reason)

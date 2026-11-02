@@ -1,4 +1,4 @@
-> **Current development entry (2 November 2026):** Read [docs/CLOUD_HANDOFF.md](docs/CLOUD_HANDOFF.md) for agreed scope, gates A–H, current source, locked setup and test commands. The older README content below is retained as historical context; its completion and sudo-installer instructions are not current Cloud setup. Do not run the legacy installer for routine development.
+> **Current development entry (2 November 2026):** Read [docs/CLOUD_HANDOFF.md](docs/CLOUD_HANDOFF.md) for agreed scope, gates A–H, current source, locked setup and test commands. The older README content below is retained as historical context; its completion and sudo-installer instructions are not current Cloud setup. Gate A replaces the legacy installer with an ordinary-user typed CLI install: `sh install.sh`. See [docs/INSTALLATION.md](docs/INSTALLATION.md) for supported platforms and current commands; the historical sudo/model/service instructions below do not apply.
 
 # LINxAI — Intelligent Linux Administration Layer
 

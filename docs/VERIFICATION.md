@@ -192,3 +192,43 @@ operations hashes equal to the selected E: tree. It had no Git metadata; its old
 parent SHA plus file manifest identifies the pre-commit working source. The handoff
 commit identifies the final source. Actual Cloud, systemd/privileged actions, desktop,
 camera/voice, BCC/enforcement, model and full release acceptance remain pending.
+
+
+## Gate A candidate verification (2 November 2026)
+
+Status: IMPLEMENTED—LAB ACCEPTANCE PENDING, not PASS. Detailed source identity,
+commands, environment matrix, negative cases, failures/corrections and pending
+procedures are in GATE_A_BASELINE.md and INSTALLATION.md. Starting revision:
+33fc8a9b5ea2ffb4b38db91d1a940bfa1110fb79, branch
+codex/cloud-handoff-2026-11-02; Gate A is uncommitted reviewable working changes.
+
+Actual Windows command: .venv-windows\Scripts\python.exe -B scripts/test.py offline:
+125 run, 123 passed, 2 POSIX-only skips, 1.573 s. Native Ubuntu 24.04 WSL2 ordinary
+UID/EUID 1000, CPython 3.12.3: scripts/test.py offline 125 passed (0.744 s);
+scripts/test.py linux 11 run, 10 passed, 1 skipped (6.850 s). The cached/offline
+scripts/run_gate_a_lab.py installed a non-editable wheel under a private prefix
+containing spaces, tested installed CLI calls outside source and removed it:
+11 run, 10 passed, 1 skipped (6.322 s), report PARTIAL. service.status success
+requires real systemd and remains pending. Real unavailable-manager requests
+failed validation. Mandatory unavailable-tool/service tests use adapter doubles;
+these are not native package-removal or service-state evidence.
+
+Separately executed actual installed launcher and installer as WSL root: both
+exit 2 before application imports/provisioning; ordinary-user managed removal
+passed afterward. No real service mutation, OS package install, PAM edit, host
+permission/mount/security change, model startup/download, device capture or BPF
+attach occurred. New files/directories were private disposable user fixtures.
+
+Current passive capability inventory is not authentication, GUI, camera,
+microphone, monitoring or target-kernel enforcement acceptance. Codex Cloud saved
+environments query returned []: no actual Cloud checks executed. Updated hosted
+Linux CI is pending publication/run; previous green handoff CI is historical.
+Review git diff (including untracked inputs) and git diff --check before committing.
+Native source snapshots use working-tree manifests; operation hashes are retained
+in sanitized docs/evidence/gate-a artifacts. Full systemd-lab commands and explicit
+root-refusal opt-in are in INSTALLATION.md. Never change a skip to a fake success.
+
+Final combined native explicit groups: scripts/test.py all ran 142 tests in
+28.652 s, with 135 passed and 7 skipped (absent systemd plus six opt-in kernel/
+desktop/hardware/model tests). Zero failures/errors. No opt-ins were enabled.
+Sanitized run artifacts: docs/evidence/gate-a/{wsl-probe,installed-lab,root-denial-and-os}.json.

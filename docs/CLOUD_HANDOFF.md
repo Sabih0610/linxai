@@ -20,8 +20,7 @@ inputs. Do not use the old SHA alone to claim that the current service is deploy
 No history rewrite, destructive reset or new public repository is required.
 
 Required reproduction inputs are all checked-in Python/C/PAM/probe source,
-`config/` examples, deployment scripts/unit files (historical, unsafe for routine
-setup), the three original regression modules, new setup/integration tests,
+`config/` examples, ordinary-user deployment scripts and historical unit templates (not provisioned by routine setup), the three original regression modules, new setup/integration tests,
 `pyproject.toml`, `uv.lock`, `scripts/`, `.github/workflows/linux.yml`, `AGENTS.md`
 and repository documentation. Source imports/runtime C probes are retained; empty
 `voice/` is not a missing Git artifact—its runtime implementation has not been recovered.
@@ -152,3 +151,8 @@ For each change define behavior/acceptance, reproduce the defect, implement one
 coherent slice, test supported and negative cases, inspect the diff and update
 requirement-linked evidence. No commit, setup script or local-root privilege is
 proof that an application feature or acceptance gate is complete.
+
+
+## Gate A continuation
+
+Read INSTALLATION.md and GATE_A_BASELINE.md for the replaced ordinary-user installer, actual current evidence and pending systemd/Cloud acceptance. The original handoff results above remain historical. Continue the registry/service, not a second backend. New Gate A working changes must be committed/published explicitly before Cloud can load them; the checked-out SHA alone does not include uncommitted work.

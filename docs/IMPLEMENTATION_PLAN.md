@@ -1,3 +1,32 @@
+# Current execution status — integrated candidate (2 November 2026)
+
+This section governs continued implementation; older entries below are historical.
+Owner acceptance will occur after an integrated candidate exists. Unavailable
+Gate A checks do not block independent B–H development. Continue autonomously with
+focused local commits; do not publish/deploy or modify host security as a test side effect.
+
+Track three independent dimensions for every area:
+1. Implementation complete: production path and error handling exist end to end.
+2. Automated verification complete: applicable deterministic/native tests actually ran.
+3. Target-system/hardware acceptance pending: unrun real authentication, kernel,
+   device, desktop, model or deployment tests remain explicit acceptance gaps.
+A gate is PASS only with all required acceptance evidence; code plus mocks is not PASS.
+
+| Gate | Implementation | Automated verification | Target acceptance |
+| --- | --- | --- | --- |
+| A | Typed app installation implemented | Windows 125 run/2 skips; WSL combined 142 run/7 skips (historical prior turn) | systemd success, Cloud/new CI pending; does not block B–H |
+| B | In progress: authenticated bounded broker and OS authorization | Pending new tests | Real polkit/service lab pending |
+| C | Planned: existing planner/service + durable agent and desktop | Pending | Native desktop/auth workflow pending |
+| D | Planned: independent sensor, detection/incidents and Security view | Pending | Native BCC/lifecycle/loss lab pending |
+| E | Planned: response, verified containment and validated policies | Pending | Actual recurring enforcement/benign/expiry/revoke lab pending |
+| F | Planned: typed recipes, remote/device development adapter | Pending | Chosen platform/remote/device lab pending |
+| G | Planned: account-bound face provider/fallback and voice | Pending | Biometric spoof/camera/microphone/WER pending |
+| H | Planned: packaged integrated candidate and full evidence matrix | Pending | Fresh target, sustained load and owner acceptance pending |
+
+Current checkpoint: preserve and commit Gate A; implement B using the existing
+registry/OperationService, trusted peer identity and a root-owned deployment path.
+Keep the full original 1–72 inventory and expanded desktop/network/adaptive scope.
+
 # LINxAI implementation plan
 
 Updated 1 November 2026 after the owner clarified the complete product scope.
@@ -269,3 +298,28 @@ Do not close gate A or implement a competing backend based on the new test count
 
 Next Cloud task: verify its actual commit/capabilities, run locked setup and eligible
 tests, then finish remaining gate A deployment/sensor contracts before gate B.
+
+
+## Gate A — reproducible ordinary-user application baseline (2 November 2026)
+
+Status: IMPLEMENTED—LAB ACCEPTANCE PENDING. See INSTALLATION.md and
+GATE_A_BASELINE.md for contracts, environment matrix, actual checks and pending
+acceptance. Replaced the root/global-pip/model/PAM/service installer with an
+ordinary-user, locked non-editable application install and guarded typed launchers.
+Added safe managed removal, isolated-import verification, installed-wheel lab,
+root/argv/missing-tool/service/ownership regressions and passive auth/audio/sensor
+capabilities. Reused the registry, OperationService, mandatory checks and exact
+approval binding; privileged actions remain broker-required and recovery unsupported.
+
+Current Windows offline: 125 run, 123 passed, 2 POSIX skips. Native WSL offline:
+125 passed. Backend and installed-wheel native groups each ran 11 tests: 10 passed,
+service.status success skipped for absent systemd. Actual installed root launcher
+and root installer both refused startup with exit 2. Neither Cloud nor the updated
+hosted workflow was executed for this candidate. Historical 109/116/131 counts
+above do not establish current full acceptance. Sensor unit templates are documented as
+historical and are not installed; BCC stays on its OS interpreter.
+
+Next concrete task: run the documented six-action installed lab on Ubuntu/systemd,
+capture root refusal plus zero skips, then review/publish and run hosted/Cloud
+checks where accessible. Gate B's trusted broker follows Gate A acceptance; do not
+begin privileged dispatch on the basis of mocked or WSL-only evidence.
