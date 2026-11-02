@@ -8,8 +8,9 @@ Branch: codex/cloud-handoff-2026-11-02. Local commits only; no deployment or pus
   E scoped response/policy/native-provider path with independent root enforcement.
 - Actual automated results: latest Windows 162 run/3 skips; native WSL 186 run/8
   skips. Agent IPC and real unprivileged operations passed. B target auth is mocked.
-- Current work: F typed environment/DevOps recipes, strict remote operations and
-  a development network-device adapter. C offscreen Qt workflow passed (1 test).
+- Current work: G account-bound face provider/OS password fallback and voice;
+  F Python/dev-device/local remote-peer native workflows passed (4 tests).
+  F broader recipes/resources and real vendor/SSH acceptance remain partial.
 - Acceptance pending: A systemd/Cloud/new CI; B real polkit fixture; C physical
   desktop/auth/fresh install; D–H target kernel/device/model/load/owner tests.
 - Continue without owner testing. Existing 1–72 requirements plus expanded scope

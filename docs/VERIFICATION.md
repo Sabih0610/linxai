@@ -304,3 +304,16 @@ directory in WSL; no active BPF LSM acceptance can be inferred from config flags
 TCP-specific kernel provenance and bounded model retry refinements were added
 after that combined run and pass the 15 focused policy/detector tests; their actual
 BCC compilation remains pending. No privileged service/hook was installed.
+
+
+## Gate F selected workflows checkpoint
+
+See WORKFLOWS.md. The existing registry/service now covers Python environment/
+project recipes, strict SSH typed peer and persistent development-device interface
+inspect/diff/apply/verify/validated restoration. Reused VPS endpoint fields; no raw
+recipe/shell fallback. Windows 166 run, 163 passed/3 skipped (1.537 s). Four real
+isolated native workflow tests passed (25.851 s), including actual managed Python,
+transactional development files and the remote peer protocol over local pipes.
+This is not physical router or SSH-login evidence. Original 15–25, 52–62, 63–70
+advance partially; Node/MERN/deployment breadth, resources and vendor/multi-host
+acceptance remain pending and all original requirements remain present.

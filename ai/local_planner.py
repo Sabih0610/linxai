@@ -1,6 +1,7 @@
 """No-warmup local planner. Existing fast paths, schema and typed bridge are reused."""
 from dataclasses import asdict
 import json
+import re
 from .local_http import chat
 
 from .fast_path import classify_fast
@@ -50,6 +51,19 @@ class Planner:
     def propose(self, text, context=()):
         if not isinstance(text, str) or not text.strip() or len(text.encode()) > 8192 or "\x00" in text:
             raise ValueError("Request must be bounded nonempty text")
+        scoped=re.fullmatch(r"on ([A-Za-z][A-Za-z0-9_-]{0,31}) (.+)",text.strip(),re.IGNORECASE)
+        if scoped:
+            if scoped.group(1) not in json.loads(self.registry.assets_json):raise ValueError("Unknown configured remote asset")
+            request,plan=Planner(self.registry,self.model).propose(scoped.group(2),context)
+            if request["action"]=="remote.operation":raise ValueError("Nested remote operation refused")
+            remote={"action":"remote.operation","parameters":{"asset":scoped.group(1),**request}}
+            self.registry.prepare(remote["action"],remote["parameters"])
+            return remote,plan
+        recipe=re.fullmatch(r"(?:create|provision) (?:a )?python (environment|project) (?:at|in) (.+)",text.strip(),re.IGNORECASE)
+        if recipe:
+            request={"action":"environment.python" if recipe.group(1).lower()=="environment" else "project.scaffold","parameters":{"path":recipe.group(2)}}
+            self.registry.prepare(request["action"],request["parameters"])
+            return request,{"intent":"env_setup","target":recipe.group(2),"command":"","stack":"python"}
         plan = classify_fast(text)
         if plan is None:
             plan = self.model.generate(text, context)

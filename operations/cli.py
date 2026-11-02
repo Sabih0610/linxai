@@ -13,10 +13,11 @@ from .system import LinuxSystemAdapter
 
 
 def build_service(workspace=None, audit_path=None):
-    system = LinuxSystemAdapter()
+    from .workflows import WorkflowSystem, assets
+    system = WorkflowSystem()
     uid = os.getuid() if hasattr(os, "getuid") else -1
     ledger = audit_path or str(Path.home() / ".linxai" / "operations.jsonl")
-    return OperationService(ActionRegistry(workspace), system, LocalPolicy(uid), JsonlAudit(ledger))
+    return OperationService(ActionRegistry(workspace, actor_uid=uid if uid>0 else None, assets_json=assets(Path.home()/".linxai/assets.json",uid) if uid>0 else "{}"), system, LocalPolicy(uid), JsonlAudit(ledger))
 
 
 def run_request(action, parameters_json="{}", workspace=None, audit_path=None, *, service_factory=build_service):

@@ -9,6 +9,7 @@ import time
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from .workflow_contracts import WORKFLOWS, TYPES as WORKFLOW_TYPES
 from .registry import ActionError, ActionRegistry, PreparedAction, Privilege, Requirement
 
 
@@ -85,6 +86,7 @@ class OperationResult:
     stderr: str = ""
     recovery: str = "unsupported"
     audit_complete: bool = True
+    restoration: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -93,7 +95,7 @@ class LocalPolicy:
     owner_uid: int
     allowed_actions: frozenset[str] = frozenset({
         "disk.usage", "memory.usage", "ports.listen", "service.status",
-        "file.create", "directory.create",
+        "file.create", "directory.create", *WORKFLOWS,
     })
 
     def allows(self, identity: Identity, action: str) -> bool:
@@ -142,6 +144,18 @@ class OperationService:
                                  execution.started if execution else False, verified,
                                  execution.stdout if execution else "", execution.stderr if execution else "",
                                  audit_complete=status != "audit_failed")
+        if verified and execution and getattr(self, "_current_prepared", None) and self._current_prepared.contract.recovery_supported:
+            try:
+                from dataclasses import replace
+                proposal = self.system.recovery_request(self._current_prepared, execution)
+                restore = self.registry.prepare(proposal["action"], proposal["parameters"])
+                identity = self._identity()
+                if not self.policy.allows(identity, restore.contract.identifier): raise PermissionError("Restoration policy denied")
+                if not all(self.system.check(op_id, check, identity).ok for check in restore.mandatory_checks): raise ValueError("Restoration current checks failed")
+                result = replace(result, recovery="available_for_review", restoration=proposal)
+            except Exception:
+                from dataclasses import replace
+                result = replace(result, recovery="requires_review")
         try:
             self._emit(op_id, "result", status, digest, reason=reason, executed=result.executed,
                        verified=verified, recovery=result.recovery)
@@ -202,7 +216,7 @@ class OperationService:
     def _prepare_final(self, request, op_id):
         prepared = self.registry.prepare(request["action"], request["parameters"])
         from .response_contracts import NetworkResponse, RevokeResponse
-        if isinstance(prepared.parameters, (NetworkResponse, RevokeResponse)):
+        if isinstance(prepared.parameters, (NetworkResponse, RevokeResponse, *WORKFLOW_TYPES)):
             from dataclasses import replace
             payload = json.loads(prepared.stdin)
             payload["operation_id"] = op_id
@@ -228,6 +242,7 @@ class OperationService:
             self._authorize(identity, preliminary)
             self._emit(op_id, "authorization", "allowed", action=preliminary.contract.identifier, uid=identity.uid)
             final = self._prepare_final(snapshot, op_id)
+            self._current_prepared = final
             operation = Operation(op_id, identity, request_json, final)
             digest = fingerprint(operation)
             self._emit(op_id, "constructed", "ready", digest, action=final.contract.identifier)

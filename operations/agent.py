@@ -17,6 +17,7 @@ from .registry import ActionRegistry
 from .service import LocalPolicy, OperationService
 from .store import Store
 from .supervised import SupervisedLinuxAdapter
+from .workflows import WorkflowSystem, assets
 
 
 class Agent:
@@ -27,11 +28,11 @@ class Agent:
             raise PermissionError("Agent requires an ordinary Linux account")
         self.uid, self.state = identity.uid, Path(state).absolute()
         self.store = Store(self.state / "application.sqlite")
-        self.registry = ActionRegistry(workspace, actor_uid=self.uid)
+        self.registry = ActionRegistry(workspace, actor_uid=self.uid, assets_json=assets(self.state / "assets.json", self.uid))
         self.planner = Planner(self.registry, model)
         self.audit = JsonlAudit(self.state / "operations.jsonl")
         def service(event):
-            adapter = SupervisedLinuxAdapter()
+            adapter = WorkflowSystem()
             adapter.cancel_event = event
             return OperationService(self.registry, adapter, LocalPolicy(self.uid), self.audit)
         self.jobs = Jobs(self.store, self.registry, self.uid, service, broker or BrokerClient())
@@ -46,9 +47,27 @@ class Agent:
             raise ValueError("API version 1 required")
         method = request.get("method")
         fields = {"preview": {"text"}, "confirm": {"id", "digest"}, "cancel": {"id"}, "reconcile": {"id"},
-                  "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set(), "propose_response": {"incident_id"}, "revoke_policy": {"policy_id"}}
+                  "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set(), "propose_response": {"incident_id"}, "revoke_policy": {"policy_id"}, "typed_preview": {"request"}, "restore_job": {"id"}, "device_inspect": {"asset"}, "device_preview": {"asset","interface","enabled"}}
         if method not in fields or set(request) != {"version", "method"} | fields[method]:
             raise ValueError("Unsupported API request or authority fields")
+        if method in {"device_inspect","device_preview"}:
+            service=self.jobs.service_factory(threading.Event())
+            inspected=service.run({"action":"device.inspect","parameters":{"asset":request["asset"]}})
+            if inspected.status!="succeeded" or not inspected.verified:raise ValueError("Device inspection failed: "+inspected.reason)
+            if method=="device_inspect":return asdict(inspected)
+            from uuid import uuid4
+            typed={"action":"device.interface.set","parameters":{"asset":request["asset"],"interface":request["interface"],"enabled":request["enabled"],
+                   "expected_revision":json.loads(inspected.stdout)["revision"],"transaction_id":str(uuid4())}}
+            return self.jobs.preview(typed,text="Configured device interface change")
+        if method == "typed_preview":
+            typed=request["request"]
+            if not isinstance(typed,dict) or set(typed)!={"action","parameters"}:raise ValueError("Only typed action and parameters")
+            return self.jobs.preview(typed)
+        if method == "restore_job":
+            row=self.store.get("job",request["id"])
+            proposal=(row or {}).get("result",{}).get("restoration")
+            if not proposal:raise ValueError("No captured validated restoration is available")
+            return self.jobs.preview(proposal,text="Restoration of job "+request["id"])
         if method == "propose_response":
             security = Store(self.state / "security.sqlite")
             try: incident = security.get("incident", request["incident_id"])
@@ -93,6 +112,7 @@ class Agent:
             finally:
                 security.close()
         return {"uid": self.uid, "worker_degraded": self.jobs.degraded, "response": self.response_worker.health, "workspace": self.registry.permitted_workspace, "queue": self.jobs.queue.qsize(),
+                "assets": {name:{"platform":asset["platform"]} for name,asset in json.loads(self.registry.assets_json).items()},
                 "broker": "OS authorization required for administrative requests", "model": "local; contacted only on a planning request"}
 
 

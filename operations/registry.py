@@ -6,6 +6,7 @@ PreparedAction is a specification, never an approval or an execution capability.
 from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
+import json
 from pathlib import PurePosixPath
 import re
 from types import MappingProxyType
@@ -13,6 +14,7 @@ from typing import Mapping
 
 from ._create_program import CREATE_PROGRAM
 from .response_contracts import NetworkResponse, RevokeResponse
+from .workflow_contracts import Project, Device, Interface, Restore, Remote, TYPES as WORKFLOW_TYPES
 
 
 class ActionError(ValueError):
@@ -61,7 +63,7 @@ class DirectoryParameters:
     relative_path: str
 
 
-Parameters = NoParameters | PortParameters | ServiceParameters | FileParameters | DirectoryParameters | NetworkResponse | RevokeResponse
+Parameters = NoParameters | PortParameters | ServiceParameters | FileParameters | DirectoryParameters | NetworkResponse | RevokeResponse | Project | Device | Interface | Restore | Remote
 
 
 @dataclass(frozen=True)
@@ -100,6 +102,13 @@ _UNPRIVILEGED = Privilege.UNPRIVILEGED
 _ADMIN = Privilege.AUTHENTICATED_ADMIN
 ACTIONS: Mapping[str, ActionContract] = MappingProxyType({
     c.identifier: c for c in (
+        ActionContract("environment.python", Project, _UNPRIVILEGED, 30),
+        ActionContract("project.scaffold", Project, _UNPRIVILEGED, 30),
+        ActionContract("device.initialize", Device, _UNPRIVILEGED, 10),
+        ActionContract("device.inspect", Device, _UNPRIVILEGED, 10),
+        ActionContract("device.interface.set", Interface, _UNPRIVILEGED, 10, recovery_supported=True),
+        ActionContract("device.interface.restore", Restore, _UNPRIVILEGED, 10),
+        ActionContract("remote.operation", Remote, _UNPRIVILEGED, 30),
         ActionContract("response.network.block", NetworkResponse, _ADMIN, 15),
         ActionContract("response.policy.revoke", RevokeResponse, _ADMIN, 15),
         ActionContract("disk.usage", NoParameters, _UNPRIVILEGED, 10),
@@ -158,8 +167,11 @@ class ActionRegistry:
     """
     permitted_workspace: str | None = None
     actor_uid: int | None = None
+    assets_json: str = "{}"
 
     def __post_init__(self):
+        if not isinstance(self.assets_json,str) or len(self.assets_json.encode())>65536 or not isinstance(json.loads(self.assets_json),dict):
+            raise InvalidParameters("Bounded backend assets object required")
         if self.actor_uid is not None and (type(self.actor_uid) is not int or self.actor_uid <= 0):
             raise InvalidParameters("Backend actor must be an ordinary OS UID")
         if self.permitted_workspace is not None:
@@ -193,6 +205,9 @@ class ActionRegistry:
         parameters = dict(parameters)
         contract = ACTIONS[identifier]
         parameter_type = contract.parameter_type
+        if parameter_type in WORKFLOW_TYPES:
+            from .workflow_contracts import prepare
+            return prepare(self, identifier, parameters, contract)
         if parameter_type in {NetworkResponse, RevokeResponse}:
             from .response_contracts import prepare
             return prepare(self, identifier, parameters, contract)

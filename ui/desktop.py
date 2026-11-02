@@ -60,6 +60,9 @@ def build_window(client):
             self.table.setHorizontalHeaderLabels(["Job", "Action", "State", "Operation ID"])
             self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
             operations.addWidget(self.table)
+            restore=QPushButton("Preview available restoration")
+            operations.addWidget(restore)
+            restore.clicked.connect(self.restore_job)
             self.detail = QPlainTextEdit()
             self.detail.setReadOnly(True)
             operations.addWidget(self.detail)
@@ -71,6 +74,13 @@ def build_window(client):
                 view.setReadOnly(True)
                 pane.addWidget(view)
                 self.views[name] = view
+            assets_layout = self.tabs.widget(2).layout()
+            self.asset_name = QLineEdit(); self.asset_name.setPlaceholderText("Configured asset name (development_file or Linux SSH)")
+            self.interface_name = QLineEdit(); self.interface_name.setPlaceholderText("Configured interface, e.g. port1")
+            assets_layout.addWidget(self.asset_name); assets_layout.addWidget(self.interface_name)
+            for label,method in (("Preview development device initialization","init"),("Inspect device","inspect"),("Preview interface up","up"),("Preview interface down","down")):
+                button=QPushButton(label);assets_layout.addWidget(button)
+                button.clicked.connect(lambda checked=False,mode=method:self.device_action(mode))
             security_layout = self.tabs.widget(3).layout()
             self.incident_id = QLineEdit()
             self.incident_id.setPlaceholderText("Incident UUID for response, or policy UUID to revoke")
@@ -111,6 +121,20 @@ def build_window(client):
             work.signals.failed.connect(failed)
             self.pool.start(work)
 
+        def show_preview(self,row):
+            self.preview=row
+            self.preview_text.setPlainText(json.dumps(row,indent=2)[:65536])
+            self.confirm_button.setEnabled(True);self.tabs.setCurrentIndex(0)
+
+        def device_action(self,mode):
+            asset=self.asset_name.text();interface=self.interface_name.text()
+            if mode=="inspect":
+                self.call(lambda:client.call("device_inspect",asset=asset),lambda row:self.views["Assets"].setPlainText(json.dumps(row,indent=2)[:65536]))
+            elif mode=="init":
+                self.call(lambda:client.call("typed_preview",request={"action":"device.initialize","parameters":{"asset":asset}}),self.show_preview)
+            else:
+                self.call(lambda:client.call("device_preview",asset=asset,interface=interface,enabled=mode=="up"),self.show_preview)
+
         def security_preview(self, method, field):
             key = self.incident_id.text()
             def show(row):
@@ -147,6 +171,10 @@ def build_window(client):
             key = self.preview["id"] if self.preview else self.selected_id()
             if key:
                 self.call(lambda: client.call("cancel", id=key), lambda row: self.status.setText("Cancellation state: " + row["state"]))
+
+        def restore_job(self):
+            key=self.selected_id()
+            if key:self.call(lambda:client.call("restore_job",id=key),self.show_preview)
 
         def reconcile(self):
             key = self.selected_id()

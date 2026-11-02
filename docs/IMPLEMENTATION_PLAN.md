@@ -19,7 +19,7 @@ A gate is PASS only with all required acceptance evidence; code plus mocks is no
 | C | Planner → preview → durable job → service/broker → result implemented; Qt client and guarded launchers | Windows 144/3 skips; WSL 168/8 skips; Qt offscreen workflow passed separately (1 test, 4.717 s) | Physical desktop, real OS-auth and installed target acceptance pending |
 | D | Protected independent capture, normalized identity/loss, deterministic monitor/incidents and Security view implemented | Windows 151 run/3 skips; WSL 175 run/8 skips passed | Actual BCC compilation/capture/loss/lifecycle and target privilege hardening pending |
 | E | Scoped response → broker → independent policy authority/native adapter → verified policy → recurrence/expiry/revoke implemented | Windows 162 run/3 skips; WSL 186 run/8 skips passed; all enforcement effects simulated | Actual BPF LSM qualification, response/recurrence/benign/revoke and OS auth acceptance pending |
-| F | Planned: typed recipes, remote/device development adapter | Pending | Chosen platform/remote/device lab pending |
+| F | Python provisioning, strict SSH typed peer and development-device diff/apply/restore integrated; broader recipes/resources remain PARTIAL | Windows 166/3 skips; four actual isolated native workflow tests passed | Real SSH auth/multi-host/vendor device and broader provisioning acceptance pending |
 | G | Planned: account-bound face provider/fallback and voice | Pending | Biometric spoof/camera/microphone/WER pending |
 | H | Planned: packaged integrated candidate and full evidence matrix | Pending | Fresh target, sustained load and owner acceptance pending |
 

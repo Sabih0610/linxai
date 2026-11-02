@@ -55,15 +55,10 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-@dataclass
-class VPSServer:
-    name: str
-    host: str
-    port: int
-    username: str
-    key_path: str
-    description: str = ""
-    tags: Optional[List[str]] = None
+try:
+    from .server_types import VPSServer
+except ImportError:
+    from server_types import VPSServer
 
 
 class VPSManager:

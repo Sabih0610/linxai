@@ -2,6 +2,7 @@
 from dataclasses import FrozenInstanceError
 import hashlib
 import io
+import json
 import sys
 import types
 import unittest
@@ -14,7 +15,10 @@ from operations._create_program import CREATE_PROGRAM
 
 class OfflineRegistryTest(unittest.TestCase):
     def setUp(self):
-        self.registry = ActionRegistry("/srv/linxai-work", actor_uid=1000)
+        self.registry = ActionRegistry("/srv/linxai-work", actor_uid=1000, assets_json=json.dumps({
+            "switch":{"platform":"development_file","path":"/srv/linxai-work/switch.json","ports":["port1"]},
+            "lab":{"platform":"linux_ssh","host":"example.invalid","username":"owner","port":22,"expected_uid":1000,
+                   "python":"/home/owner/.local/share/linxai/venv/bin/python","key_path":"/home/owner/.ssh/key","known_hosts":"/home/owner/.ssh/known_hosts"}}))
         for target in ("subprocess.run", "subprocess.Popen", "socket.create_connection",
                        "os.system", "os.open", "os.mkdir"):
             self.enterContext(patch(target, side_effect=AssertionError("Live operation forbidden in registry tests")))
@@ -26,6 +30,11 @@ class OfflineRegistryTest(unittest.TestCase):
 class RegistryContractTests(OfflineRegistryTest):
     def test_all_actions_have_bounded_complete_contracts(self):
         requests = {
+            "environment.python":{"path":"project"},"project.scaffold":{"path":"project"},
+            "device.initialize":{"asset":"switch"},"device.inspect":{"asset":"switch"},
+            "device.interface.set":{"asset":"switch","interface":"port1","enabled":True,"expected_revision":"0"*64,"transaction_id":"00000000-0000-4000-8000-000000000003"},
+            "device.interface.restore":{"asset":"switch","expected_revision":"0"*64,"transaction_id":"00000000-0000-4000-8000-000000000003"},
+            "remote.operation":{"asset":"lab","action":"memory.usage","parameters":{}},
             "response.network.block": {"policy_id": "00000000-0000-4000-8000-000000000001", "event_id": "00000000-0000-4000-8000-000000000002", "address": "127.0.0.1", "port": 4444, "duration": 60},
             "response.policy.revoke": {"policy_id": "00000000-0000-4000-8000-000000000001"},
             "disk.usage": {}, "memory.usage": {}, "ports.listen": {},
@@ -43,7 +52,7 @@ class RegistryContractTests(OfflineRegistryTest):
                 self.assertIsInstance(prepared.parameters, prepared.contract.parameter_type)
                 self.assertGreater(prepared.contract.timeout_s, 0)
                 self.assertLessEqual(prepared.contract.timeout_s, 30)
-                self.assertFalse(prepared.contract.recovery_supported)
+                self.assertEqual(prepared.contract.recovery_supported, identifier == "device.interface.set")
                 self.assertFalse(prepared.execution_supported)
                 self.assertIsInstance(prepared.argv, tuple)
                 self.assertTrue(prepared.argv[0].startswith("/usr/bin/"))
