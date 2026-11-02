@@ -26,5 +26,10 @@ if __name__ == "__main__":
     root = verify_bundle(Path(__file__).absolute().parent)
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(root))
-    from operations.broker import main
+    if sys.argv[1:] == ["sensor"]:
+        from security.sensor import main
+    elif not sys.argv[1:]:
+        from operations.broker import main
+    else:
+        raise ValueError("Unsupported protected component")
     main()

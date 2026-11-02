@@ -43,7 +43,7 @@ def prefix_path(value):
 
 
 def launcher(python, module="operations.cli"):
-    if module not in {"operations.cli", "operations.agent", "ui.desktop"}:
+    if module not in {"operations.cli", "operations.agent", "ui.desktop", "security.monitor"}:
         raise ValueError("Unsupported installed launcher")
     # Guard before importing any user-owned Python code. "$@" preserves each argument.
     return f'''#!/bin/sh
@@ -116,7 +116,7 @@ def install(prefix, offline=False, desktop=False):
         raise ValueError("Application import did not resolve inside the installed environment")
     directory = prefix / "bin"
     directory.mkdir(mode=0o700)
-    for name, module in (("linxai", "operations.cli"), ("linxai-ops", "operations.cli"), ("linxai-agent", "operations.agent"), ("linxai-desktop", "ui.desktop")):
+    for name, module in (("linxai", "operations.cli"), ("linxai-ops", "operations.cli"), ("linxai-agent", "operations.agent"), ("linxai-desktop", "ui.desktop"), ("linxai-monitor", "security.monitor")):
         path = directory / name
         path.write_text(launcher(python, module))
         path.chmod(0o700)

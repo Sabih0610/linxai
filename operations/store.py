@@ -55,5 +55,11 @@ class Store:
             rows = self.db.execute("SELECT body FROM records WHERE kind=? ORDER BY updated DESC LIMIT ?", (kind, min(max(limit, 1), 1000))).fetchall()
         return [json.loads(row[0]) for row in rows]
 
+    def prune(self, kind, keep):
+        if type(keep) is not int or not 0 <= keep <= 10000:
+            raise ValueError("Invalid retention bound")
+        with self.lock, self.db:
+            self.db.execute("DELETE FROM records WHERE kind=? AND id NOT IN (SELECT id FROM records WHERE kind=? ORDER BY updated DESC LIMIT ?)", (kind, kind, keep))
+
     def close(self):
         self.db.close()

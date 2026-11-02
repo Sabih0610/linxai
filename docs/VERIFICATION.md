@@ -265,3 +265,18 @@ run, 160 passed, 8 skipped (20.292 s), including real agent IPC/execution, clien
 reconnect, duplicate exclusion and private SQLite. Qt setup is separate/in progress;
 a premature Qt run failed for absent PySide6 before install completion, not code.
 Physical desktop, hardware, OS-auth and kernel evidence remain pending.
+
+
+## Gate D monitoring checkpoint
+
+See MONITORING.md. Independent sensor/monitor paths, protected packaging, bounded
+transport/retention, normalized host/boot/start identity, deterministic incidents
+and desktop Security state are implemented. Seven new contract tests pass; current
+Windows offline: 151 run, 148 passed/3 skipped (2.064 s). Event/blocked-model tests
+are simulations, not real BPF evidence. WSL lacks BCC/systemd; native capture,
+actual loss/lifecycle and target privilege hardening remain pending. Original
+30–44, 58–60, 65, 67–70 remain partially covered; item 45 prevention is Gate E.
+
+Gate D native combined safe suite: 175 run, 167 passed, 8 skipped in 11.399 s.
+No BCC/kernel hook was loaded. The separate pinned Qt environment installation
+completed; desktop workflow execution is now running separately.

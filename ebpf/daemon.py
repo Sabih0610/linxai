@@ -167,7 +167,7 @@ class eBPFDaemon:
     # ── BPF program loaders ───────────────────────────────────────────────────
 
     def _on_lost(self, lost: int):
-        self._lost_samples += lost
+        self._lost_samples += int(cpu if lost is None else lost)
 
     def _load_execve(self):
         """Load execve kprobe BPF program."""
@@ -182,6 +182,8 @@ class eBPFDaemon:
             event = bpf["execve_events"].event(data)
             payload = {
                 "pid":      event.pid,
+                "monotonic_ns": int(event.monotonic_ns),
+                "start_ns": int(event.start_ns),
                 "ppid":     event.ppid,
                 "uid":      event.uid,
                 "process":  event.comm.decode("utf-8", errors="replace"),
@@ -214,6 +216,8 @@ class eBPFDaemon:
                 return
             payload = {
                 "pid":       event.pid,
+                "monotonic_ns": int(event.monotonic_ns),
+                "start_ns": int(event.start_ns),
                 "uid":       event.uid,
                 "process":   event.comm.decode("utf-8", errors="replace"),
                 "dest_ip":   dest_ip,
@@ -259,6 +263,8 @@ class eBPFDaemon:
 
             payload = {
                 "pid":      event.pid,
+                "monotonic_ns": int(event.monotonic_ns),
+                "start_ns": int(event.start_ns),
                 "uid":      event.uid,
                 "process":  process,
                 "filename": filename,

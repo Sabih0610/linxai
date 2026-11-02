@@ -1,0 +1,13 @@
+[Unit]
+Description=LINxAI independent deterministic incident monitor
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/linxai/bin/linxai-monitor
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

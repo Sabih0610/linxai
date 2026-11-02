@@ -1,9 +1,12 @@
 /* ebpf/probes/connect.c */
 
 #include <uapi/linux/ptrace.h>
+#include <linux/sched.h>
 #include <uapi/linux/in.h>
 
 struct connect_event_t {
+    u64 monotonic_ns;
+    u64 start_ns;
     u32  pid;
     u32  uid;
     char comm[16];
@@ -17,6 +20,9 @@ BPF_PERF_OUTPUT(connect_events);
 int trace_connect(struct pt_regs *ctx) {
 
     struct connect_event_t event = {};
+    event.monotonic_ns = bpf_ktime_get_ns();
+    struct task_struct *leader = ((struct task_struct *)bpf_get_current_task())->group_leader;
+    event.start_ns = leader->start_time;
     event.pid = bpf_get_current_pid_tgid() >> 32;
     event.uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
     bpf_get_current_comm(&event.comm, sizeof(event.comm));

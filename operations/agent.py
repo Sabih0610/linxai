@@ -66,7 +66,17 @@ class Agent:
                               "operation_id": row.get("operation_id", ""), "updated": row["updated"]}
                              for row in self.store.list("job", 100)]}
         if method == "security":
-            return {"status": "not_connected", "reason": "No independently supervised sensor connected", "incidents": []}
+            database = self.state / "security.sqlite"
+            if not database.exists():
+                return {"status": "not_connected", "reason": "Independent monitor has not recorded state", "incidents": []}
+            security = Store(database)
+            try:
+                import time
+                status = security.get("monitor", "status") or {"state": "unknown"}
+                if time.time() - status.get("updated", 0) > 5: status["state"] = "stale"
+                return {"status": status, "incidents": security.list("incident", 20), "enforcement": "Entry observations do not prove prevention"}
+            finally:
+                security.close()
         return {"uid": self.uid, "worker_degraded": self.jobs.degraded, "workspace": self.registry.permitted_workspace, "queue": self.jobs.queue.qsize(),
                 "broker": "OS authorization required for administrative requests", "model": "local; contacted only on a planning request"}
 

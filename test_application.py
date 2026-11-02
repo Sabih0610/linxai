@@ -16,6 +16,9 @@ class MemoryStore:
     def __init__(self): self.rows = {}
     def put(self, kind, key, value, **kwargs): self.rows[kind, key] = copy.deepcopy(value)
     def get(self, kind, key): return copy.deepcopy(self.rows.get((kind, key)))
+    def prune(self, kind, keep):
+        keys = [key for key in self.rows if key[0] == kind]
+        for key in keys[:max(0,len(keys)-keep)]: self.rows.pop(key)
     def list(self, kind, limit=100): return [copy.deepcopy(v) for (k, _), v in list(self.rows.items())[::-1] if k == kind][:limit]
 
 

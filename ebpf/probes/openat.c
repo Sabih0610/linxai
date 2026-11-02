@@ -1,8 +1,11 @@
 /* ebpf/probes/openat.c */
 
 #include <uapi/linux/ptrace.h>
+#include <linux/sched.h>
 
 struct openat_event_t {
+    u64 monotonic_ns;
+    u64 start_ns;
     u32  pid;
     u32  uid;
     char comm[16];
@@ -125,6 +128,9 @@ static __always_inline int should_skip_path(char *path) {
 
 TRACEPOINT_PROBE(syscalls, sys_enter_openat) {
     struct openat_event_t event = {};
+    event.monotonic_ns = bpf_ktime_get_ns();
+    struct task_struct *leader = ((struct task_struct *)bpf_get_current_task())->group_leader;
+    event.start_ns = leader->start_time;
 
     event.pid   = bpf_get_current_pid_tgid() >> 32;
     event.uid   = bpf_get_current_uid_gid() & 0xFFFFFFFF;

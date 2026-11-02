@@ -19,6 +19,11 @@ def main(argv=None):
              "usr/share/doc/linxai/broker.example.json": ROOT / "deployment/broker.example.json"}
     for path in sorted((ROOT / "operations").glob("*.py")):
         files["usr/lib/linxai-trusted/operations/" + path.name] = path
+    files["usr/lib/systemd/system/linxai-sensor.service"] = ROOT / "deployment/linxai-sensor.service"
+    for package in ("security", "ebpf"):
+        for path in sorted((ROOT / package).rglob("*")):
+            if path.is_file() and path.suffix in {".py", ".c"}:
+                files["usr/lib/linxai-trusted/" + path.relative_to(ROOT).as_posix()] = path
     manifest = {}
     with tarfile.open(args.output, "x") as archive:
         for name, source in files.items():
