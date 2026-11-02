@@ -42,7 +42,9 @@ def prefix_path(value):
     return raw
 
 
-def launcher(python):
+def launcher(python, module="operations.cli"):
+    if module not in {"operations.cli", "operations.agent", "ui.desktop"}:
+        raise ValueError("Unsupported installed launcher")
     # Guard before importing any user-owned Python code. "$@" preserves each argument.
     return f'''#!/bin/sh
 set -eu
@@ -52,7 +54,7 @@ if [ "$uid" = 0 ] || [ "$uid" != "$(/usr/bin/id -ur)" ] || [ "$(/usr/bin/id -g)"
     exit 2
 fi
 unset PYTHONPATH PYTHONHOME
-exec {shlex.quote(str(python))} -I -B -m operations.cli "$@"
+exec {shlex.quote(str(python))} -I -B -m {module} "$@"
 '''
 
 
@@ -83,7 +85,7 @@ def uninstall(prefix):
     prefix.rmdir()
 
 
-def install(prefix, offline=False):
+def install(prefix, offline=False, desktop=False):
     # Only create missing parents under a verified chain; do not repair permissions.
     missing = []
     parent = prefix.parent
@@ -101,6 +103,8 @@ def install(prefix, offline=False):
     (prefix / RECEIPT).write_text(json.dumps(receipt, indent=2) + "\n")
     target = prefix / "venv"
     command = [sys.executable, "-I", str(ROOT / "scripts/setup_dev.py"), "--venv", str(target), "--no-editable"]
+    if desktop:
+        command.extend(["--extra", "desktop"])
     if offline:
         command.append("--offline")
     subprocess.run(command, check=True, timeout=600)
@@ -112,9 +116,9 @@ def install(prefix, offline=False):
         raise ValueError("Application import did not resolve inside the installed environment")
     directory = prefix / "bin"
     directory.mkdir(mode=0o700)
-    for name in ("linxai", "linxai-ops"):
+    for name, module in (("linxai", "operations.cli"), ("linxai-ops", "operations.cli"), ("linxai-agent", "operations.agent"), ("linxai-desktop", "ui.desktop")):
         path = directory / name
-        path.write_text(launcher(python))
+        path.write_text(launcher(python, module))
         path.chmod(0o700)
     receipt.update(state="installed", operations_module=probe)
     (prefix / RECEIPT).write_text(json.dumps(receipt, indent=2) + "\n")
@@ -125,6 +129,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prefix", default=str(Path.home() / ".local/share/linxai"))
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument("--desktop", action="store_true", help="Explicitly install the pinned Qt desktop profile")
     parser.add_argument("--uninstall", action="store_true", help="Remove only this managed application prefix; retain audit/configuration")
     args = parser.parse_args(argv)
     try:
@@ -133,7 +138,7 @@ def main(argv=None):
         if args.uninstall:
             uninstall(prefix)
         else:
-            install(prefix, args.offline)
+            install(prefix, args.offline, args.desktop)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         print(f"LINxAI installation refused/failed: {exc}", file=sys.stderr)
         return 2

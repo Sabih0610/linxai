@@ -42,7 +42,11 @@ def run_request(action, parameters_json="{}", workspace=None, audit_path=None, *
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="LINxAI typed operations (ordinary Linux user)")
-    parser.add_argument("action")
+    parser.add_argument("action", nargs="?")
+    parser.add_argument("--ask", help="Natural-language preview through the running agent; never executes without --confirm")
+    parser.add_argument("--confirm", metavar="PREVIEW_ID")
+    parser.add_argument("--digest", help="Exact digest returned by preview")
+    parser.add_argument("--jobs", action="store_true")
     parser.add_argument("--parameters", default="{}", help="JSON parameter object; no command/identity/approval fields")
     parser.add_argument("--workspace", help="Explicit permitted POSIX workspace for create actions")
     parser.add_argument("--audit-path", help="JSONL path in an owned private directory")
@@ -56,6 +60,20 @@ def main(argv=None):
         result = OperationResult(str(uuid4()), "identity_denied", str(exc), audit_complete=False)
         print(json.dumps(asdict(result), sort_keys=True))
         return 2
+    selected = sum((bool(args.action), args.ask is not None, args.confirm is not None, args.jobs))
+    if selected != 1:
+        parser.error("Select exactly one action, --ask, --confirm or --jobs")
+    if args.ask is not None or args.confirm is not None or args.jobs:
+        from .agent import AgentClient
+        client = AgentClient()
+        try:
+            value = (client.call("preview", text=args.ask) if args.ask is not None else
+                     client.call("confirm", id=args.confirm, digest=args.digest) if args.confirm else client.call("jobs"))
+            print(json.dumps(value, sort_keys=True))
+            return 0
+        except Exception as exc:
+            print(json.dumps({"status": "agent_request_failed", "reason": str(exc)[:512]}))
+            return 2
     return run_request(args.action, args.parameters, args.workspace, args.audit_path)
 
 

@@ -16,7 +16,7 @@ A gate is PASS only with all required acceptance evidence; code plus mocks is no
 | --- | --- | --- | --- |
 | A | Typed app installation implemented | Windows 125 run/2 skips; WSL combined 142 run/7 skips (historical prior turn) | systemd success, Cloud/new CI pending; does not block B–H |
 | B | Bounded service broker production path implemented | Windows contracts and WSL 155-test combined run passed (7 skips); final failure-case addition verified separately | Real polkit/service lab pending |
-| C | Planned: existing planner/service + durable agent and desktop | Pending | Native desktop/auth workflow pending |
+| C | Planner → preview → durable job → service/broker → result implemented; Qt client and guarded launchers | Windows 144/3 skips; WSL 168/8 skips; Qt offscreen setup in progress | Physical desktop, real OS-auth and installed target acceptance pending |
 | D | Planned: independent sensor, detection/incidents and Security view | Pending | Native BCC/lifecycle/loss lab pending |
 | E | Planned: response, verified containment and validated policies | Pending | Actual recurring enforcement/benign/expiry/revoke lab pending |
 | F | Planned: typed recipes, remote/device development adapter | Pending | Chosen platform/remote/device lab pending |

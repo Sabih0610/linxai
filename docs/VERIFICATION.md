@@ -250,3 +250,18 @@ Gate B actual current native combined run: 155 run, 148 passed, 7 skipped in
 private SQLite persistence and symlink denial. No actual auth/service mutations.
 Windows combined: 135 run, 132 passed, 3 skipped in 1.391 s before the added
 post-dispatch storage-failure regression. Deployment tar built, never installed.
+
+
+## Gate C workflow checkpoint — 2 November 2026
+
+See APPLICATION.md. Existing fast paths/schema/adapt_plan now drive the agent and
+desktop through preview/confirmation and durable jobs. Strict ordinary-user IPC,
+exact target/digest binding, bounded admission/output, cancellation and unknown
+crash recovery are implemented. Privileged work only uses the Gate B broker; no
+raw-shell fallback is reachable from this installed route. Original requirements
+1–9, 15–26, 58–62 and 63–70 advance partially. Other original IDs remain required.
+Actual Windows suite: 144 run, 141 passed, 3 skipped (1.906 s). Native WSL: 168
+run, 160 passed, 8 skipped (20.292 s), including real agent IPC/execution, client
+reconnect, duplicate exclusion and private SQLite. Qt setup is separate/in progress;
+a premature Qt run failed for absent PySide6 before install completion, not code.
+Physical desktop, hardware, OS-auth and kernel evidence remain pending.

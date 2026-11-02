@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=LINxAI
+Comment=Natural-language Linux operations and security
+Exec=linxai-desktop
+Terminal=false
+Categories=System;Security;

@@ -15,9 +15,13 @@ class SupervisedLinuxAdapter(LinuxSystemAdapter):
             return Execution(op_id, argv, None, started=False, error="Ordinary account required")
         if not 0 < timeout_s <= 120 or len(stdin) > 65536:
             return Execution(op_id, argv, None, started=False, error="Process budget invalid")
+        cancel = getattr(self, "cancel_event", None)
+        if cancel and cancel.is_set():
+            return Execution(op_id, argv, None, started=False, error="Cancelled before launch")
         env = {"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C", "SYSTEMD_PAGER": "cat"}
         buffers, error, proc = {"stdout": bytearray(), "stderr": bytearray()}, "", None
         deadline = time.monotonic() + timeout_s
+        last_progress = 0.0
         try:
             proc = subprocess.Popen(list(argv), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     shell=False, cwd="/", env=env, close_fds=True, start_new_session=True)
@@ -33,6 +37,9 @@ class SupervisedLinuxAdapter(LinuxSystemAdapter):
                 else:
                     proc.stdin.close()
                 while selector.get_map():
+                    if cancel and cancel.is_set():
+                        error = "Cancelled read operation"
+                        break
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
                         error = "Command deadline exceeded"
@@ -54,6 +61,13 @@ class SupervisedLinuxAdapter(LinuxSystemAdapter):
                                 buf = buffers[key.data]
                                 budget = self.OUTPUT_LIMIT - len(buf)
                                 buf.extend(chunk[:budget])
+                                callback = getattr(self, "progress", None)
+                                if callback and time.monotonic() - last_progress >= 0.25:
+                                    try:
+                                        callback(op_id, key.data, bytes(buf[-8192:]).decode(errors="replace"))
+                                    except Exception:
+                                        self.progress_degraded = True
+                                    last_progress = time.monotonic()
                                 if len(chunk) > budget:
                                     error = "Output limit exceeded"
                     if error:

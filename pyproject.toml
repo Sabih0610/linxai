@@ -22,6 +22,8 @@ sensor = []
 [project.scripts]
 linxai = "operations.cli:main"
 linxai-ops = "operations.cli:main"
+linxai-agent = "operations.agent:main"
+linxai-desktop = "ui.desktop:main"
 
 [dependency-groups]
 dev = ["uv==0.13.3"]

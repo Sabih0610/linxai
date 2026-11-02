@@ -426,10 +426,10 @@ def _system_query(text: str) -> dict | None:
             explanation="Shows how long the machine has been running.",
         )
 
-    if text in {"disk", "disk space", "check disk", "check disk space", "show disk space"}:
+    if text in {"disk", "disk space", "check disk", "check disk space", "show disk space", "disk usage", "show disk usage"}:
         return _base("disk_usage", "", explanation="Shows disk usage.")
 
-    if text in {"memory", "free", "check memory", "memory usage", "show memory"}:
+    if text in {"memory", "free", "check memory", "memory usage", "show memory", "show memory usage", "check memory usage"}:
         return _base("memory_usage", "", explanation="Shows memory usage.")
 
     if text in {"cpu", "cpu usage", "check cpu", "show cpu"}:
