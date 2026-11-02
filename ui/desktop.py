@@ -71,6 +71,15 @@ def build_window(client):
                 view.setReadOnly(True)
                 pane.addWidget(view)
                 self.views[name] = view
+            security_layout = self.tabs.widget(3).layout()
+            self.incident_id = QLineEdit()
+            self.incident_id.setPlaceholderText("Incident UUID for response, or policy UUID to revoke")
+            security_layout.addWidget(self.incident_id)
+            response = QPushButton("Preview bounded incident response")
+            revoke = QPushButton("Preview policy revocation")
+            security_layout.addWidget(response); security_layout.addWidget(revoke)
+            response.clicked.connect(lambda: self.security_preview("propose_response", "incident_id"))
+            revoke.clicked.connect(lambda: self.security_preview("revoke_policy", "policy_id"))
             self.status = QLabel("Connecting to the local agent; no model or privileged component is started by this window")
             self.statusBar().addWidget(self.status)
             self.refreshing = False
@@ -101,6 +110,15 @@ def build_window(client):
             work.signals.done.connect(done)
             work.signals.failed.connect(failed)
             self.pool.start(work)
+
+        def security_preview(self, method, field):
+            key = self.incident_id.text()
+            def show(row):
+                self.preview = row
+                self.preview_text.setPlainText(json.dumps(row,indent=2)[:65536])
+                self.confirm_button.setEnabled(True)
+                self.tabs.setCurrentIndex(0)
+            self.call(lambda: client.call(method, **{field:key}), show)
 
         def invalidate_preview(self):
             self.preview = None

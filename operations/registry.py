@@ -12,6 +12,7 @@ from types import MappingProxyType
 from typing import Mapping
 
 from ._create_program import CREATE_PROGRAM
+from .response_contracts import NetworkResponse, RevokeResponse
 
 
 class ActionError(ValueError):
@@ -60,7 +61,7 @@ class DirectoryParameters:
     relative_path: str
 
 
-Parameters = NoParameters | PortParameters | ServiceParameters | FileParameters | DirectoryParameters
+Parameters = NoParameters | PortParameters | ServiceParameters | FileParameters | DirectoryParameters | NetworkResponse | RevokeResponse
 
 
 @dataclass(frozen=True)
@@ -99,6 +100,8 @@ _UNPRIVILEGED = Privilege.UNPRIVILEGED
 _ADMIN = Privilege.AUTHENTICATED_ADMIN
 ACTIONS: Mapping[str, ActionContract] = MappingProxyType({
     c.identifier: c for c in (
+        ActionContract("response.network.block", NetworkResponse, _ADMIN, 15),
+        ActionContract("response.policy.revoke", RevokeResponse, _ADMIN, 15),
         ActionContract("disk.usage", NoParameters, _UNPRIVILEGED, 10),
         ActionContract("memory.usage", NoParameters, _UNPRIVILEGED, 5),
         ActionContract("ports.listen", PortParameters, _UNPRIVILEGED, 5),
@@ -154,8 +157,11 @@ class ActionRegistry:
     symlink/ownership checks and authorization belong to the future service.
     """
     permitted_workspace: str | None = None
+    actor_uid: int | None = None
 
     def __post_init__(self):
+        if self.actor_uid is not None and (type(self.actor_uid) is not int or self.actor_uid <= 0):
+            raise InvalidParameters("Backend actor must be an ordinary OS UID")
         if self.permitted_workspace is not None:
             root = _path_text(self.permitted_workspace)
             if not root.startswith("/"):
@@ -187,6 +193,9 @@ class ActionRegistry:
         parameters = dict(parameters)
         contract = ACTIONS[identifier]
         parameter_type = contract.parameter_type
+        if parameter_type in {NetworkResponse, RevokeResponse}:
+            from .response_contracts import prepare
+            return prepare(self, identifier, parameters, contract)
         allowed = {
             NoParameters: set(), PortParameters: {"port", "protocol"},
             ServiceParameters: {"service", "port_free", "port_occupied"},

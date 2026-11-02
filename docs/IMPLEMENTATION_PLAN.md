@@ -16,9 +16,9 @@ A gate is PASS only with all required acceptance evidence; code plus mocks is no
 | --- | --- | --- | --- |
 | A | Typed app installation implemented | Windows 125 run/2 skips; WSL combined 142 run/7 skips (historical prior turn) | systemd success, Cloud/new CI pending; does not block B–H |
 | B | Bounded service broker production path implemented | Windows contracts and WSL 155-test combined run passed (7 skips); final failure-case addition verified separately | Real polkit/service lab pending |
-| C | Planner → preview → durable job → service/broker → result implemented; Qt client and guarded launchers | Windows 144/3 skips; WSL 168/8 skips; Qt offscreen setup in progress | Physical desktop, real OS-auth and installed target acceptance pending |
+| C | Planner → preview → durable job → service/broker → result implemented; Qt client and guarded launchers | Windows 144/3 skips; WSL 168/8 skips; Qt offscreen workflow passed separately (1 test, 4.717 s) | Physical desktop, real OS-auth and installed target acceptance pending |
 | D | Protected independent capture, normalized identity/loss, deterministic monitor/incidents and Security view implemented | Windows 151 run/3 skips; WSL 175 run/8 skips passed | Actual BCC compilation/capture/loss/lifecycle and target privilege hardening pending |
-| E | Planned: response, verified containment and validated policies | Pending | Actual recurring enforcement/benign/expiry/revoke lab pending |
+| E | Scoped response → broker → independent policy authority/native adapter → verified policy → recurrence/expiry/revoke implemented | Windows 162 run/3 skips; WSL 186 run/8 skips passed; all enforcement effects simulated | Actual BPF LSM qualification, response/recurrence/benign/revoke and OS auth acceptance pending |
 | F | Planned: typed recipes, remote/device development adapter | Pending | Chosen platform/remote/device lab pending |
 | G | Planned: account-bound face provider/fallback and voice | Pending | Biometric spoof/camera/microphone/WER pending |
 | H | Planned: packaged integrated candidate and full evidence matrix | Pending | Fresh target, sustained load and owner acceptance pending |

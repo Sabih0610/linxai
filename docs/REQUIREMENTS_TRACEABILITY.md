@@ -158,3 +158,20 @@ Windows offline: 151 run, 148 passed/3 skipped (2.064 s). Event/blocked-model te
 are simulations, not real BPF evidence. WSL lacks BCC/systemd; native capture,
 actual loss/lifecycle and target privilege hardening remain pending. Original
 30–44, 58–60, 65, 67–70 remain partially covered; item 45 prevention is Gate E.
+
+
+## Gate E scoped response checkpoint
+
+See RESPONSE_POLICIES.md. Existing registry/service/broker now support bounded
+response installation/revocation, exact operation-ID payload binding, root evidence
+and owner limits, independently qualified native BPF LSM adapter, verified
+containment, root policy persistence, model-free recurrence, expiry and revocation.
+Default auto-response remains disabled; root-configured automatic limits are
+independently rechecked. All eight response tests use explicit simulated kernel/
+auth/evidence adapters, with simulated origin retained. Three HTTP tests cover
+fixed loopback, no redirects/proxies, body and absolute-deadline bounds. Windows
+combined: 162 run, 159 passed/3 skips (1.511 s). No kernel hook was loaded.
+C actual Qt offscreen workflow also passed separately: 1 test, 4.717 s, deterministic
+backend; not physical desktop or real OS-auth evidence. Native E acceptance and
+performance remain pending. IDs 36, 40–45, 58–60 plus expanded adaptive-policy
+scope advance partially; original 1–72 inventory remains complete and unrenumbered.

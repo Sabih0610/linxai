@@ -1,0 +1,23 @@
+[Unit]
+Description=LINxAI independently enforced validated response policies
+After=linxai-sensor.service
+Requires=linxai-sensor.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -I -B /usr/lib/linxai-trusted/broker_entry.py policy
+User=root
+Group=root
+RuntimeDirectory=linxai-policy
+RuntimeDirectoryMode=0755
+StateDirectory=linxai-policy
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

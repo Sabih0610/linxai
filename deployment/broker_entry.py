@@ -28,6 +28,10 @@ if __name__ == "__main__":
     sys.path.insert(0, str(root))
     if sys.argv[1:] == ["sensor"]:
         from security.sensor import main
+    elif sys.argv[1:] == ["policy"]:
+        from security.policy_daemon import main
+    elif sys.argv[1:] == ["qualify"]:
+        from security.qualification import main
     elif not sys.argv[1:]:
         from operations.broker import main
     else:

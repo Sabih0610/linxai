@@ -199,6 +199,16 @@ class OperationService:
             observations.append(observed)
         return tuple(observations)
 
+    def _prepare_final(self, request, op_id):
+        prepared = self.registry.prepare(request["action"], request["parameters"])
+        from .response_contracts import NetworkResponse, RevokeResponse
+        if isinstance(prepared.parameters, (NetworkResponse, RevokeResponse)):
+            from dataclasses import replace
+            payload = json.loads(prepared.stdin)
+            payload["operation_id"] = op_id
+            prepared = replace(prepared, stdin=json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+        return prepared
+
     def _new_operation_id(self):
         return str(uuid4())
 
@@ -212,12 +222,12 @@ class OperationService:
             # Snapshot the JSON envelope and validate using the existing registry.
             request_json = json.dumps(request, sort_keys=True, separators=(",", ":"), allow_nan=False)
             snapshot = json.loads(request_json)
-            preliminary = self.registry.prepare(snapshot["action"], snapshot["parameters"])
+            preliminary = self._prepare_final(snapshot, op_id)
             identity = self._identity()
             self._emit(op_id, "identity", "resolved", uid=identity.uid, euid=identity.euid)
             self._authorize(identity, preliminary)
             self._emit(op_id, "authorization", "allowed", action=preliminary.contract.identifier, uid=identity.uid)
-            final = self.registry.prepare(snapshot["action"], snapshot["parameters"])
+            final = self._prepare_final(snapshot, op_id)
             operation = Operation(op_id, identity, request_json, final)
             digest = fingerprint(operation)
             self._emit(op_id, "constructed", "ready", digest, action=final.contract.identifier)
@@ -261,7 +271,7 @@ class OperationService:
             fresh = self._observations(operation, "validation")
             if fresh != pending.observations:
                 raise _Stop("state_changed", "Required system state changed since approval; revalidation is required")
-            reconstructed = self.registry.prepare(snapshot["action"], snapshot["parameters"])
+            reconstructed = self._prepare_final(snapshot, op_id)
             if reconstructed != operation.prepared or fingerprint(operation) != digest:
                 raise _Stop("approval_invalid", "Operation/registry changed; revalidation is required")
             self._authorize(identity, operation.prepared)

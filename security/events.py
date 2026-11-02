@@ -40,9 +40,10 @@ def normalize(record, host, boot, *, source):
         target["path"] = text(payload.get("filename", ""))
     subject = hashlib.sha256(f"{host}:{boot}:{uid}:{pid}:{start}".encode()).hexdigest() if start else None
     return {"schema": 1, "id": str(uuid4()), "host": text(host, 128), "boot": text(boot, 128),
-            "kind": record["event_type"], "uid": uid, "pid": pid, "ppid": integer(payload.get("ppid", 0)),
+            "kind": record["event_type"], "protocol": {6:"tcp",17:"udp"}.get(payload.get("protocol"),"unknown"), "uid": uid, "pid": pid, "ppid": integer(payload.get("ppid", 0)),
             "start_ns": start, "subject": subject, "process": text(payload.get("process", ""), 128),
-            "monotonic_ns": timestamp, "received_ns": time.monotonic_ns(), "target": target,
+            "monotonic_ns": timestamp, "received_ns": time.monotonic_ns(),
+            "received_boottime_ns": time.clock_gettime_ns(time.CLOCK_BOOTTIME) if hasattr(time,"CLOCK_BOOTTIME") else None, "target": target,
             "source": source, "identity_quality": "kernel_start_identity" if start and timestamp and source == "kernel" else "incomplete_or_simulated",
             "result": "entry_observation; syscall outcome unknown"}
 
@@ -71,6 +72,8 @@ def detect(event):
         rule = "sensitive_file_attempt"
     elif event["kind"] == "process_exec" and event["target"]["path"].startswith(("/tmp/", "/dev/shm/")):
         rule = "temporary_executable_attempt"
+    elif event["kind"] == "network_connect" and event["target"]["port"] in {4444, 1337}:
+        rule = "unusual_connection_attempt"
     if rule is None: return None
     return {"schema": 1, "id": event["id"], "event_id": event["id"], "state": "observed",
             "rule": rule, "severity": "warning", "evidence": event,

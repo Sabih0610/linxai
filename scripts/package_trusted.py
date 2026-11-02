@@ -20,6 +20,8 @@ def main(argv=None):
     for path in sorted((ROOT / "operations").glob("*.py")):
         files["usr/lib/linxai-trusted/operations/" + path.name] = path
     files["usr/lib/systemd/system/linxai-sensor.service"] = ROOT / "deployment/linxai-sensor.service"
+    files["usr/lib/systemd/system/linxai-policy.service"] = ROOT / "deployment/linxai-policy.service"
+    files["usr/share/doc/linxai/response.example.json"] = ROOT / "deployment/response.example.json"
     for package in ("security", "ebpf"):
         for path in sorted((ROOT / package).rglob("*")):
             if path.is_file() and path.suffix in {".py", ".c"}:

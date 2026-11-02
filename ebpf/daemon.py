@@ -208,11 +208,12 @@ class eBPFDaemon:
 
         bpf = _bpf_load_silent(src)
         bpf.attach_kprobe(event="__x64_sys_connect", fn_name="trace_connect")
+        bpf.attach_kprobe(event="tcp_v4_connect", fn_name="trace_tcp_connect")
 
         def handle_connect(cpu, data, size):
             event = bpf["connect_events"].event(data)
             dest_ip = _ip_to_str(event.dest_ip)
-            if dest_ip.startswith("127.") or dest_ip == "0.0.0.0":
+            if self.filter_noise and (dest_ip.startswith("127.") or dest_ip == "0.0.0.0"):
                 return
             payload = {
                 "pid":       event.pid,
@@ -223,6 +224,7 @@ class eBPFDaemon:
                 "dest_ip":   dest_ip,
                 "dest_port": event.dest_port,
                 "family":    event.family,
+                "protocol":  int(event.protocol),
             }
             self._event_count["connect"] += 1
             self._write_event("network_connect", payload)

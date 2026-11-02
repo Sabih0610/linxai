@@ -4,11 +4,12 @@ Branch: codex/cloud-handoff-2026-11-02. Local commits only; no deployment or pus
 
 - Completed implementation: A ordinary-user install; B bounded broker/OS-auth path;
   C natural-language preview, durable jobs, authenticated user agent and Qt client;
-  D independent sensor transport, deterministic incidents and live Security state.
-- Actual automated results: latest Windows 151 run/3 skips; native WSL 175 run/8
+  D independent sensor transport, deterministic incidents and live Security state;
+  E scoped response/policy/native-provider path with independent root enforcement.
+- Actual automated results: latest Windows 162 run/3 skips; native WSL 186 run/8
   skips. Agent IPC and real unprivileged operations passed. B target auth is mocked.
-- Current work: E bounded AI-selected response, trusted policy authority, native
-  enforcement adapter, expiry/revocation; C offscreen Qt check is running.
+- Current work: F typed environment/DevOps recipes, strict remote operations and
+  a development network-device adapter. C offscreen Qt workflow passed (1 test).
 - Acceptance pending: A systemd/Cloud/new CI; B real polkit fixture; C physical
   desktop/auth/fresh install; D–H target kernel/device/model/load/owner tests.
 - Continue without owner testing. Existing 1–72 requirements plus expanded scope

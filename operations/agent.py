@@ -27,7 +27,7 @@ class Agent:
             raise PermissionError("Agent requires an ordinary Linux account")
         self.uid, self.state = identity.uid, Path(state).absolute()
         self.store = Store(self.state / "application.sqlite")
-        self.registry = ActionRegistry(workspace)
+        self.registry = ActionRegistry(workspace, actor_uid=self.uid)
         self.planner = Planner(self.registry, model)
         self.audit = JsonlAudit(self.state / "operations.jsonl")
         def service(event):
@@ -35,6 +35,9 @@ class Agent:
             adapter.cancel_event = event
             return OperationService(self.registry, adapter, LocalPolicy(self.uid), self.audit)
         self.jobs = Jobs(self.store, self.registry, self.uid, service, broker or BrokerClient())
+        from security.response import Responses, ResponseWorker
+        self.responses = Responses(self.registry, self.jobs, model)
+        self.response_worker = ResponseWorker(lambda: Store(self.state / "security.sqlite"), self.responses)
 
     def handle(self, uid, request):
         if uid != self.uid:
@@ -43,9 +46,17 @@ class Agent:
             raise ValueError("API version 1 required")
         method = request.get("method")
         fields = {"preview": {"text"}, "confirm": {"id", "digest"}, "cancel": {"id"}, "reconcile": {"id"},
-                  "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set()}
+                  "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set(), "propose_response": {"incident_id"}, "revoke_policy": {"policy_id"}}
         if method not in fields or set(request) != {"version", "method"} | fields[method]:
             raise ValueError("Unsupported API request or authority fields")
+        if method == "propose_response":
+            security = Store(self.state / "security.sqlite")
+            try: incident = security.get("incident", request["incident_id"])
+            finally: security.close()
+            if not incident: raise ValueError("Unknown incident")
+            return self.responses.propose(incident)
+        if method == "revoke_policy":
+            return self.jobs.preview({"action": "response.policy.revoke", "parameters": {"policy_id": request["policy_id"]}}, text="Revoke scoped policy")
         if method == "preview":
             history = [{"text": row.get("text", ""), "plan": row.get("plan", {})} for row in reversed(self.store.list("job", 5))]
             typed, plan = self.planner.propose(request["text"], history)
@@ -74,10 +85,14 @@ class Agent:
                 import time
                 status = security.get("monitor", "status") or {"state": "unknown"}
                 if time.time() - status.get("updated", 0) > 5: status["state"] = "stale"
-                return {"status": status, "incidents": security.list("incident", 20), "enforcement": "Entry observations do not prove prevention"}
+                from security.policy_daemon import PolicyClient
+                try: policies=PolicyClient().call("status")
+                except Exception: policies={"state":"unavailable; no kernel enforcement acceptance inferred"}
+                return {"status": status, "incidents": security.list("incident", 20), "policies": policies,
+                        "enforcement": "Only independently qualified active policies assert scoped prevention"}
             finally:
                 security.close()
-        return {"uid": self.uid, "worker_degraded": self.jobs.degraded, "workspace": self.registry.permitted_workspace, "queue": self.jobs.queue.qsize(),
+        return {"uid": self.uid, "worker_degraded": self.jobs.degraded, "response": self.response_worker.health, "workspace": self.registry.permitted_workspace, "queue": self.jobs.queue.qsize(),
                 "broker": "OS authorization required for administrative requests", "model": "local; contacted only on a planning request"}
 
 
@@ -145,6 +160,7 @@ def serve(agent, path, stop=None):
             server.listen(8)
             server.settimeout(0.25)
             agent.jobs.start()
+            agent.response_worker.thread.start()
             while not stop or not stop.is_set():
                 try:
                     conn, _ = server.accept()
@@ -155,6 +171,7 @@ def serve(agent, path, stop=None):
                     continue
                 threading.Thread(target=handle, args=(conn,), daemon=True).start()
     finally:
+        agent.response_worker.stop.set()
         agent.jobs.close()
         if owns_socket and path.exists() and stat.S_ISSOCK(path.lstat().st_mode) and path.lstat().st_uid == agent.uid:
             path.unlink()

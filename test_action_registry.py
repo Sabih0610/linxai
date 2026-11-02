@@ -14,7 +14,7 @@ from operations._create_program import CREATE_PROGRAM
 
 class OfflineRegistryTest(unittest.TestCase):
     def setUp(self):
-        self.registry = ActionRegistry("/srv/linxai-work")
+        self.registry = ActionRegistry("/srv/linxai-work", actor_uid=1000)
         for target in ("subprocess.run", "subprocess.Popen", "socket.create_connection",
                        "os.system", "os.open", "os.mkdir"):
             self.enterContext(patch(target, side_effect=AssertionError("Live operation forbidden in registry tests")))
@@ -26,6 +26,8 @@ class OfflineRegistryTest(unittest.TestCase):
 class RegistryContractTests(OfflineRegistryTest):
     def test_all_actions_have_bounded_complete_contracts(self):
         requests = {
+            "response.network.block": {"policy_id": "00000000-0000-4000-8000-000000000001", "event_id": "00000000-0000-4000-8000-000000000002", "address": "127.0.0.1", "port": 4444, "duration": 60},
+            "response.policy.revoke": {"policy_id": "00000000-0000-4000-8000-000000000001"},
             "disk.usage": {}, "memory.usage": {}, "ports.listen": {},
             "service.status": {"service": "nginx"},
             "service.start": {"service": "nginx"},

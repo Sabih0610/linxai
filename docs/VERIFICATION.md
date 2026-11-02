@@ -280,3 +280,27 @@ actual loss/lifecycle and target privilege hardening remain pending. Original
 Gate D native combined safe suite: 175 run, 167 passed, 8 skipped in 11.399 s.
 No BCC/kernel hook was loaded. The separate pinned Qt environment installation
 completed; desktop workflow execution is now running separately.
+
+
+## Gate E scoped response checkpoint
+
+See RESPONSE_POLICIES.md. Existing registry/service/broker now support bounded
+response installation/revocation, exact operation-ID payload binding, root evidence
+and owner limits, independently qualified native BPF LSM adapter, verified
+containment, root policy persistence, model-free recurrence, expiry and revocation.
+Default auto-response remains disabled; root-configured automatic limits are
+independently rechecked. All eight response tests use explicit simulated kernel/
+auth/evidence adapters, with simulated origin retained. Three HTTP tests cover
+fixed loopback, no redirects/proxies, body and absolute-deadline bounds. Windows
+combined: 162 run, 159 passed/3 skips (1.511 s). No kernel hook was loaded.
+C actual Qt offscreen workflow also passed separately: 1 test, 4.717 s, deterministic
+backend; not physical desktop or real OS-auth evidence. Native E acceptance and
+performance remain pending. IDs 36, 40–45, 58–60 plus expanded adaptive-policy
+scope advance partially; original 1–72 inventory remains complete and unrenumbered.
+
+E native combined safe run: 186 run, 178 passed, 8 skipped in 11.365 s.
+Read-only root inspection of /sys/kernel/security/lsm returned No such file or
+directory in WSL; no active BPF LSM acceptance can be inferred from config flags.
+TCP-specific kernel provenance and bounded model retry refinements were added
+after that combined run and pass the 15 focused policy/detector tests; their actual
+BCC compilation remains pending. No privileged service/hook was installed.

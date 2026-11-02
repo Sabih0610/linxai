@@ -15,7 +15,9 @@ from .service import Execution, Identity, Observation, Operation, OperationResul
 from .store import Store
 from .supervised import SupervisedLinuxAdapter
 
-ADMIN = frozenset({"service.start", "service.stop", "service.restart"})
+SERVICE_ADMIN = frozenset({"service.start", "service.stop", "service.restart"})
+RESPONSE_ADMIN = frozenset({"response.network.block", "response.policy.revoke"})
+ADMIN = SERVICE_ADMIN | RESPONSE_ADMIN
 
 
 @dataclass(frozen=True)
@@ -80,13 +82,17 @@ class Polkit:
         self.runner._trusted_executable("/usr/bin/pkcheck")
         prepared = operation.prepared
         digest = fingerprint(operation)
-        argv = ("/usr/bin/pkcheck", "--action-id", "org.linxai.service.manage", "--process",
+        target = getattr(prepared.parameters, "service", getattr(prepared.parameters, "policy_id", ""))
+        if hasattr(prepared.parameters, "address"):
+            target += f" {prepared.parameters.address}:{prepared.parameters.port} for {prepared.parameters.duration}s"
+        action_id = "org.linxai.response.manage" if prepared.contract.identifier in RESPONSE_ADMIN else "org.linxai.service.manage"
+        argv = ("/usr/bin/pkcheck", "--action-id", action_id, "--process",
                 f"{peer.pid},{peer.start},{peer.uid}", "--allow-user-interaction",
                 "--detail", "action", prepared.contract.identifier,
-                "--detail", "target", prepared.parameters.service,
+                "--detail", "target", target,
                 "--detail", "operation", operation.operation_id,
                 "--detail", "digest", digest,
-                "--detail", "polkit.message", f"Authorize LINxAI {prepared.contract.identifier} on {prepared.parameters.service}")
+                "--detail", "polkit.message", f"Authorize LINxAI {prepared.contract.identifier} on {target}")
         result = self.runner._run(operation.operation_id, argv, b"", 120)
         if result.error or result.returncode != 0:
             status = "authentication_cancelled" if result.returncode == 3 else "authentication_authorization_required"
@@ -106,6 +112,19 @@ class BrokerSystem(SupervisedLinuxAdapter):
 
     def check(self, op_id, required, identity):
         name, args = required.identifier, dict(required.arguments)
+        if name in {"response_owner_scope", "qualified_kernel_enforcer"}:
+            try:
+                from security.policy_daemon import PolicyClient
+                if name == "qualified_kernel_enforcer":
+                    reply = PolicyClient().call("status")
+                    ok = reply["qualified"] is True and reply["owner_uid"] == identity.uid
+                else:
+                    payload = json.loads(args["parameters"])
+                    reply = PolicyClient().call("preview", actor_uid=identity.uid, parameters=payload["parameters"], revoke=args["action"] == "response.policy.revoke")
+                    ok = reply["owner_uid"] == identity.uid
+                return Observation(op_id, required, ok, "Independent root response policy checked", json.dumps(reply, sort_keys=True))
+            except Exception as exc:
+                return Observation(op_id, required, False, type(exc).__name__)
         if name == "authenticated_authorization":
             ok = self.authorized is not None and time.monotonic() < self.authorized[1]
             return Observation(op_id, required, ok, "Bound OS authorization" if ok else "OS authorization absent", self.authorized[0] if ok else "")
@@ -134,6 +153,13 @@ class BrokerSystem(SupervisedLinuxAdapter):
         return self._run(op_id, prepared.argv, prepared.stdin, prepared.contract.timeout_s)
 
     def verify(self, op_id, required, prepared, execution, identity):
+        if required.identifier == "response_policy_verified":
+            try:
+                from security.policy_daemon import PolicyClient
+                reply = PolicyClient().call("verify", policy_id=dict(required.arguments)["policy_id"])
+                return Observation(op_id, required, reply["verified"] is True, "Independent kernel containment/revocation verification", json.dumps(reply, sort_keys=True))
+            except Exception as exc:
+                return Observation(op_id, required, False, type(exc).__name__)
         if required.identifier == "service_active_state":
             args = dict(required.arguments)
             try:
@@ -147,7 +173,7 @@ class BrokerSystem(SupervisedLinuxAdapter):
 
 class BrokerService(OperationService):
     def __init__(self, request_id, request, peer, owner_uid, services, system, authorizer, audit):
-        super().__init__(ActionRegistry(), system, None, audit)
+        super().__init__(ActionRegistry(actor_uid=peer.uid), system, None, audit)
         self.id, self.request, self.peer = request_id, request, peer
         self.owner_uid, self.services, self.authorizer = owner_uid, frozenset(services), authorizer
         self.grant = None
@@ -156,7 +182,7 @@ class BrokerService(OperationService):
         return self.id
 
     def _authorize(self, identity, prepared):
-        if identity.uid != self.owner_uid or identity != self.peer.validate() or prepared.contract.identifier not in ADMIN or prepared.parameters.service not in self.services:
+        if identity.uid != self.owner_uid or identity != self.peer.validate() or prepared.contract.identifier not in ADMIN or (prepared.contract.identifier in SERVICE_ADMIN and prepared.parameters.service not in self.services):
             raise _Stop("authorization_denied", "Caller, action or service not in root-owned allowlist")
         operation = Operation(self.id, identity, json.dumps(self.request, sort_keys=True, separators=(",", ":"), allow_nan=False), prepared)
         digest = fingerprint(operation)
@@ -164,8 +190,17 @@ class BrokerService(OperationService):
             if digest != self.grant[0] or time.monotonic() >= self.grant[1]:
                 raise _Stop("authorization_denied", "Authorized operation changed or expired")
         else:
-            if self.authorizer.authorize(self.peer, operation) is not True:
-                raise _Stop("authentication_authorization_required", "Trusted OS authorization required")
+            automatic = False
+            if prepared.contract.identifier == "response.network.block":
+                try:
+                    from security.policy_daemon import PolicyClient
+                    proof = PolicyClient().call("automatic", actor_uid=identity.uid, parameters=asdict(prepared.parameters), operation_id=self.id, digest=digest)
+                    automatic = (proof.get("authorized") is True and proof.get("owner_uid") == identity.uid
+                                 and proof.get("operation_id") == self.id and proof.get("digest") == digest)
+                except Exception:
+                    automatic = False
+            if not automatic and self.authorizer.authorize(self.peer, operation) is not True:
+                raise _Stop("authentication_authorization_required", "Trusted OS authorization or independently configured automatic policy required")
             self.grant = (digest, time.monotonic() + 30)
         self.system.authorized = self.grant
         self.system.authorized_prepared = prepared
@@ -196,7 +231,7 @@ class Broker:
             request = envelope["request"]
             if not isinstance(request, dict) or set(request) != {"action", "parameters"}:
                 raise ValueError("Only typed action/parameters accepted")
-            prepared = ActionRegistry().prepare(request["action"], request["parameters"])
+            prepared = ActionRegistry(actor_uid=identity.uid).prepare(request["action"], request["parameters"])
             if prepared.contract.identifier not in ADMIN:
                 raise ValueError("Only bounded service mutations are broker actions")
             # Persistent admission precedes authentication or dispatch; never retry an ID.
