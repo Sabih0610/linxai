@@ -20,11 +20,10 @@ A gate is PASS only with all required acceptance evidence; code plus mocks is no
 | D | Protected independent capture, normalized identity/loss, deterministic monitor/incidents and Security view implemented | Windows 151 run/3 skips; WSL 175 run/8 skips passed | Actual BCC compilation/capture/loss/lifecycle and target privilege hardening pending |
 | E | Scoped response → broker → independent policy authority/native adapter → verified policy → recurrence/expiry/revoke implemented | Windows 162 run/3 skips; WSL 186 run/8 skips passed; all enforcement effects simulated | Actual BPF LSM qualification, response/recurrence/benign/revoke and OS auth acceptance pending |
 | F | Python provisioning, strict SSH typed peer and development-device diff/apply/restore integrated; broader recipes/resources remain PARTIAL | Windows 166/3 skips; four actual isolated native workflow tests passed | Real SSH auth/multi-host/vendor device and broader provisioning acceptance pending |
-| G | Planned: account-bound face provider/fallback and voice | Pending | Biometric spoof/camera/microphone/WER pending |
+| G | Protected account-bound enrollment/provider, password fallback and bounded local voice-to-preview implemented; biometric assurance PARTIAL | Windows 175 run/3 skips; WSL 203 run/8 skips; no hardware | Real OS auth, camera/spoof/microphone/WER pending; primary face defaults off |
 | H | Planned: packaged integrated candidate and full evidence matrix | Pending | Fresh target, sustained load and owner acceptance pending |
 
-Current checkpoint: preserve and commit Gate A; implement B using the existing
-registry/OperationService, trusted peer identity and a root-owned deployment path.
+Current checkpoint: B–G production paths and deterministic/native workflows implemented; integrate H packaging, installed workflows and current full requirements evidence. F recipe/resource breadth and G biometric assurance remain partial.
 Keep the full original 1–72 inventory and expanded desktop/network/adaptive scope.
 
 # LINxAI implementation plan

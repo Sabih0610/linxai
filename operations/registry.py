@@ -13,6 +13,7 @@ from types import MappingProxyType
 from typing import Mapping
 
 from ._create_program import CREATE_PROGRAM
+from .face_contracts import FaceParameters
 from .response_contracts import NetworkResponse, RevokeResponse
 from .workflow_contracts import Project, Device, Interface, Restore, Remote, TYPES as WORKFLOW_TYPES
 
@@ -63,7 +64,7 @@ class DirectoryParameters:
     relative_path: str
 
 
-Parameters = NoParameters | PortParameters | ServiceParameters | FileParameters | DirectoryParameters | NetworkResponse | RevokeResponse | Project | Device | Interface | Restore | Remote
+Parameters = NoParameters | PortParameters | ServiceParameters | FileParameters | DirectoryParameters | NetworkResponse | RevokeResponse | Project | Device | Interface | Restore | Remote | FaceParameters
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,8 @@ _UNPRIVILEGED = Privilege.UNPRIVILEGED
 _ADMIN = Privilege.AUTHENTICATED_ADMIN
 ACTIONS: Mapping[str, ActionContract] = MappingProxyType({
     c.identifier: c for c in (
+        ActionContract("auth.face.enroll", FaceParameters, _ADMIN, 20),
+        ActionContract("auth.face.revoke", FaceParameters, _ADMIN, 10),
         ActionContract("environment.python", Project, _UNPRIVILEGED, 30),
         ActionContract("project.scaffold", Project, _UNPRIVILEGED, 30),
         ActionContract("device.initialize", Device, _UNPRIVILEGED, 10),
@@ -205,6 +208,9 @@ class ActionRegistry:
         parameters = dict(parameters)
         contract = ACTIONS[identifier]
         parameter_type = contract.parameter_type
+        if parameter_type is FaceParameters:
+            from .face_contracts import prepare
+            return prepare(self, identifier, parameters, contract)
         if parameter_type in WORKFLOW_TYPES:
             from .workflow_contracts import prepare
             return prepare(self, identifier, parameters, contract)

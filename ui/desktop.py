@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 
-def build_window(client):
+def build_window(client, voice_model=None):
     from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal
     from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
                                    QLineEdit, QPushButton, QPlainTextEdit, QLabel, QTableWidget, QTableWidgetItem)
@@ -32,6 +32,7 @@ def build_window(client):
             self.resize(1050, 740)
             self.pool, self.calls, self.preview = QThreadPool(self), set(), None
             self.pool.setMaxThreadCount(3)
+            self.revision = 0
             self.tabs = QTabWidget()
             self.setCentralWidget(self.tabs)
             assistant, layout = self.page("Assistant")
@@ -50,6 +51,10 @@ def build_window(client):
             buttons.addWidget(reconcile)
             reconcile.clicked.connect(self.reconcile)
             self.plan_button.clicked.connect(self.plan)
+            self.voice_button=QPushButton("Voice input (local model)")
+            buttons.addWidget(self.voice_button)
+            self.voice_button.setEnabled(voice_model is not None)
+            self.voice_button.clicked.connect(self.voice_input)
             self.input.returnPressed.connect(self.plan)
             self.input.textChanged.connect(self.invalidate_preview)
             self.confirm_button.clicked.connect(self.confirm)
@@ -90,6 +95,11 @@ def build_window(client):
             security_layout.addWidget(response); security_layout.addWidget(revoke)
             response.clicked.connect(lambda: self.security_preview("propose_response", "incident_id"))
             revoke.clicked.connect(lambda: self.security_preview("revoke_policy", "policy_id"))
+            for label,action in (("Preview face enrollment (password required)","auth.face.enroll"),("Preview face revocation","auth.face.revoke")):
+                button=QPushButton(label);security_layout.addWidget(button)
+                button.clicked.connect(lambda checked=False,action=action:self.call(lambda:client.call("typed_preview",request={"action":action,"parameters":{}}),self.show_preview))
+            self.face_challenge=QLabel("Face primary remains disabled until protected lab qualification")
+            security_layout.addWidget(self.face_challenge)
             self.status = QLabel("Connecting to the local agent; no model or privileged component is started by this window")
             self.statusBar().addWidget(self.status)
             self.refreshing = False
@@ -145,14 +155,28 @@ def build_window(client):
             self.call(lambda: client.call(method, **{field:key}), show)
 
         def invalidate_preview(self):
+            self.revision += 1
             self.preview = None
             self.confirm_button.setEnabled(False)
 
+        def voice_input(self):
+            self.invalidate_preview()
+            self.status.setText("Listening; local capture/transcription has a 45 second deadline")
+            from voice.client import listen
+            revision = self.revision
+            def captured(text):
+                if revision != self.revision: return
+                self.input.setText(text)
+                self.plan()
+            self.call(lambda:listen(voice_model),captured)
+
         def plan(self):
             text = self.input.text()
+            revision = self.revision
             self.confirm_button.setEnabled(False)
             self.preview = None
             def preview(value):
+                if revision != self.revision: return
                 self.preview = value
                 self.preview_text.setPlainText(json.dumps(value, indent=2)[:65536])
                 self.confirm_button.setEnabled(True)
@@ -198,6 +222,8 @@ def build_window(client):
             def render(value):
                 self.refreshing = False
                 jobs, status, security = value
+                pending=status.get("face",{}).get("pending")
+                self.face_challenge.setText(("Requested "+pending["label"]+": "+", ".join(pending["sequence"])) if pending else "No active camera challenge; trusted OS password fallback is available")
                 selected = self.selected_id()
                 self.table.blockSignals(True)
                 self.table.setRowCount(len(jobs["jobs"]))
@@ -220,6 +246,7 @@ def build_window(client):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--socket", type=Path)
+    parser.add_argument("--voice-model",type=Path,help="Explicit existing local Whisper model; no download")
     args = parser.parse_args(argv)
     from operations.supervised import SupervisedLinuxAdapter
     if not SupervisedLinuxAdapter().resolve_identity().ordinary():
@@ -231,7 +258,7 @@ def main(argv=None):
         return 2
     from operations.agent import AgentClient
     application = QApplication(sys.argv[:1])
-    window = build_window(AgentClient(args.socket))
+    window = build_window(AgentClient(args.socket),args.voice_model)
     window.show()
     return application.exec()
 

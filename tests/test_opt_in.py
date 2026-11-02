@@ -51,8 +51,15 @@ class HardwareTests(unittest.TestCase):
         finally:
             camera.release()
 
-    def test_voice_acceptance_pending(self):
-        self.skipTest("Voice pipeline source/WER fixture not recovered; package presence is not implementation")
+    def test_voice_acceptance(self):
+        model=os.environ.get("LINXAI_VOICE_MODEL")
+        reference=os.environ.get("LINXAI_VOICE_REFERENCE")
+        if not model or not reference:self.skipTest("Real microphone/WER requires LINXAI_VOICE_MODEL and LINXAI_VOICE_REFERENCE")
+        if not importlib.util.find_spec("sounddevice") or not importlib.util.find_spec("faster_whisper"):self.skipTest("Explicit voice profile is not installed")
+        from voice.client import listen
+        from voice.pipeline import wer
+        result=wer(reference,listen(model))
+        self.assertLessEqual(result["wer"],0.15,json.dumps(result))
 
 
 @unittest.skipUnless(os.environ.get("LINXAI_TEST_MODEL") == "1", "opt in with LINXAI_TEST_MODEL=1; uses existing loopback Ollama only")

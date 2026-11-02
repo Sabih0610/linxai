@@ -32,6 +32,12 @@ if __name__ == "__main__":
         from security.policy_daemon import main
     elif sys.argv[1:] == ["qualify"]:
         from security.qualification import main
+    elif sys.argv[1:] == ["face"]:
+        from security.face import main
+    elif sys.argv[1:] == ["face-qualify"]:
+        from security.face_qualification import main
+    elif sys.argv[1:] == ["face-capture"]:
+        from security.face_capture import main
     elif not sys.argv[1:]:
         from operations.broker import main
     else:

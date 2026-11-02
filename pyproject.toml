@@ -35,7 +35,7 @@ test = []
 py-modules = ["main"]
 
 [tool.setuptools.packages.find]
-include = ["ai*", "cie*", "ebpf*", "executor*", "logger*", "operations*", "security*", "resources*", "system*", "ui*", "vps*"]
+include = ["ai*", "cie*", "ebpf*", "executor*", "logger*", "operations*", "security*", "voice*", "resources*", "system*", "ui*", "vps*"]
 namespaces = true
 
 [tool.setuptools.package-data]

@@ -17,7 +17,8 @@ from .supervised import SupervisedLinuxAdapter
 
 SERVICE_ADMIN = frozenset({"service.start", "service.stop", "service.restart"})
 RESPONSE_ADMIN = frozenset({"response.network.block", "response.policy.revoke"})
-ADMIN = SERVICE_ADMIN | RESPONSE_ADMIN
+FACE_ADMIN = frozenset({"auth.face.enroll", "auth.face.revoke"})
+ADMIN = SERVICE_ADMIN | RESPONSE_ADMIN | FACE_ADMIN
 
 
 @dataclass(frozen=True)
@@ -79,13 +80,21 @@ class Polkit:
 
     def authorize(self, peer, operation):
         peer.validate()
+        if operation.prepared.contract.identifier not in FACE_ADMIN:
+            try:
+                from security.face import FaceClient
+                if FaceClient().authorize(peer,operation) is True:
+                    peer.validate();self.last_method="qualified_face";return True
+            except Exception:
+                pass  # Face failure never suppresses trusted OS password fallback.
         self.runner._trusted_executable("/usr/bin/pkcheck")
         prepared = operation.prepared
         digest = fingerprint(operation)
         target = getattr(prepared.parameters, "service", getattr(prepared.parameters, "policy_id", ""))
         if hasattr(prepared.parameters, "address"):
             target += f" {prepared.parameters.address}:{prepared.parameters.port} for {prepared.parameters.duration}s"
-        action_id = "org.linxai.response.manage" if prepared.contract.identifier in RESPONSE_ADMIN else "org.linxai.service.manage"
+        if prepared.contract.identifier in FACE_ADMIN:target=f"account UID {peer.uid}"
+        action_id = "org.linxai.response.manage" if prepared.contract.identifier in RESPONSE_ADMIN else "org.linxai.face.manage" if prepared.contract.identifier in FACE_ADMIN else "org.linxai.service.manage"
         argv = ("/usr/bin/pkcheck", "--action-id", action_id, "--process",
                 f"{peer.pid},{peer.start},{peer.uid}", "--allow-user-interaction",
                 "--detail", "action", prepared.contract.identifier,
@@ -98,6 +107,7 @@ class Polkit:
             status = "authentication_cancelled" if result.returncode == 3 else "authentication_authorization_required"
             raise _Stop(status, "OS authorization denied, unavailable, cancelled or timed out")
         peer.validate()
+        self.last_method="polkit"
         return True
 
 
@@ -112,6 +122,12 @@ class BrokerSystem(SupervisedLinuxAdapter):
 
     def check(self, op_id, required, identity):
         name, args = required.identifier, dict(required.arguments)
+        if name == "face_owner_scope":
+            try:
+                from security.face import FaceClient
+                value=FaceClient().call("preview",actor_uid=identity.uid)
+                return Observation(op_id,required,value["uid"]==identity.uid==args["uid"],"Independent account profile checked",json.dumps(value.get("profile"),sort_keys=True))
+            except Exception as exc:return Observation(op_id,required,False,type(exc).__name__)
         if name in {"response_owner_scope", "qualified_kernel_enforcer"}:
             try:
                 from security.policy_daemon import PolicyClient
@@ -153,6 +169,12 @@ class BrokerSystem(SupervisedLinuxAdapter):
         return self._run(op_id, prepared.argv, prepared.stdin, prepared.contract.timeout_s)
 
     def verify(self, op_id, required, prepared, execution, identity):
+        if required.identifier == "face_profile_verified":
+            try:
+                from security.face import FaceClient
+                value=FaceClient().call("status");args=dict(required.arguments)
+                return Observation(op_id,required,value["uid"]==identity.uid==args["uid"] and value["enrolled"]==bool(args["enrolled"]),"Protected account enrollment state verified")
+            except Exception as exc:return Observation(op_id,required,False,type(exc).__name__)
         if required.identifier == "response_policy_verified":
             try:
                 from security.policy_daemon import PolicyClient
@@ -201,6 +223,8 @@ class BrokerService(OperationService):
                     automatic = False
             if not automatic and self.authorizer.authorize(self.peer, operation) is not True:
                 raise _Stop("authentication_authorization_required", "Trusted OS authorization or independently configured automatic policy required")
+            source=getattr(self.authorizer,"last_method","trusted_authorizer")
+            self.authorization_source="root_owner_policy" if automatic else source if type(source) is str else "trusted_authorizer"
             self.grant = (digest, time.monotonic() + 30)
         self.system.authorized = self.grant
         self.system.authorized_prepared = prepared

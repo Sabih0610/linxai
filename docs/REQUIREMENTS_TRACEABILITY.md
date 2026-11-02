@@ -188,3 +188,21 @@ transactional development files and the remote peer protocol over local pipes.
 This is not physical router or SSH-login evidence. Original 15–25, 52–62, 63–70
 advance partially; Node/MERN/deployment breadth, resources and vendor/multi-host
 acceptance remain pending and all original requirements remain present.
+
+
+## Gate G authentication/voice checkpoint — 2 November 2026
+
+See AUTHENTICATION_VOICE.md. Empty-parameter account enrollment/revocation actions
+use the existing broker/registry and always require polkit. Protected face proofs
+bind OS account, operation/digest, nonce, template/provider and expiry. Failure
+falls back to trusted OS authentication; no UI/model credential flags are accepted.
+Primary face defaults off pending actual camera/spoof qualification; heuristic
+liveness is not demonstrated biometric assurance. Local-only bounded voice input
+feeds ordinary preview/confirmation. Root camera interpreter remains separate.
+Nine new deterministic tests plus existing suites: Windows 175 run/172 passed,
+3 skips (1.621 s). Native WSL combined: 203 run/195 passed, 8 skips (42.452 s)
+including actual ordinary-user agent/filesystem/process workflows. UI/provider
+refinements after this run are verified in subsequent H evidence. Cloud/CI and
+native OS-auth/kernel/hardware/model acceptance: none executed for this checkpoint.
+Original 10–14, 26–29 and 58–70 advance partially; all 1–72 items remain required.
+No face/PAM, physical camera/microphone, spoof assurance or WER success is claimed.

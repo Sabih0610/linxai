@@ -111,7 +111,10 @@ class Agent:
                         "enforcement": "Only independently qualified active policies assert scoped prevention"}
             finally:
                 security.close()
-        return {"uid": self.uid, "worker_degraded": self.jobs.degraded, "response": self.response_worker.health, "workspace": self.registry.permitted_workspace, "queue": self.jobs.queue.qsize(),
+        from security.face import FaceClient
+        try:face=FaceClient().call("status")
+        except Exception:face={"state":"unavailable; trusted OS password required"}
+        return {"face":face,"uid": self.uid, "worker_degraded": self.jobs.degraded, "response": self.response_worker.health, "workspace": self.registry.permitted_workspace, "queue": self.jobs.queue.qsize(),
                 "assets": {name:{"platform":asset["platform"]} for name,asset in json.loads(self.registry.assets_json).items()},
                 "broker": "OS authorization required for administrative requests", "model": "local; contacted only on a planning request"}
 

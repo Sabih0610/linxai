@@ -215,8 +215,9 @@ class OperationService:
 
     def _prepare_final(self, request, op_id):
         prepared = self.registry.prepare(request["action"], request["parameters"])
+        from .face_contracts import FaceParameters
         from .response_contracts import NetworkResponse, RevokeResponse
-        if isinstance(prepared.parameters, (NetworkResponse, RevokeResponse, *WORKFLOW_TYPES)):
+        if isinstance(prepared.parameters, (NetworkResponse, RevokeResponse, FaceParameters, *WORKFLOW_TYPES)):
             from dataclasses import replace
             payload = json.loads(prepared.stdin)
             payload["operation_id"] = op_id
@@ -240,7 +241,7 @@ class OperationService:
             identity = self._identity()
             self._emit(op_id, "identity", "resolved", uid=identity.uid, euid=identity.euid)
             self._authorize(identity, preliminary)
-            self._emit(op_id, "authorization", "allowed", action=preliminary.contract.identifier, uid=identity.uid)
+            self._emit(op_id, "authorization", "allowed", action=preliminary.contract.identifier, uid=identity.uid, source=getattr(self,"authorization_source","local_policy"))
             final = self._prepare_final(snapshot, op_id)
             self._current_prepared = final
             operation = Operation(op_id, identity, request_json, final)

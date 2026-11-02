@@ -37,3 +37,49 @@ class DesktopTests(unittest.TestCase):
         window.pool.waitForDone(3000)
         app.processEvents()
         window.close()
+
+    def test_voice_reaches_preview_without_confirmation(self):
+        from unittest.mock import Mock, patch
+        from PySide6.QtWidgets import QApplication
+        from ui.desktop import build_window
+        backend=Mock()
+        def response(method,**fields):
+            if method=="jobs":return {"jobs":[]}
+            if method=="preview":return {"id":"voice-job","digest":"bound"}
+            return {}
+        backend.call.side_effect=response
+        app=QApplication.instance() or QApplication([])
+        window=build_window(backend,"/existing/test-only-model")
+        with patch("voice.client.listen",return_value="show memory usage"):
+            window.voice_button.click()
+            deadline=time.monotonic()+3
+            while not window.confirm_button.isEnabled() and time.monotonic()<deadline:
+                app.processEvents();time.sleep(0.01)
+        self.assertEqual(window.input.text(),"show memory usage")
+        self.assertTrue(window.confirm_button.isEnabled())
+        self.assertFalse(any(call.args[0]=="confirm" for call in backend.call.call_args_list))
+        window.timer.stop();window.pool.waitForDone(3000);app.processEvents();window.close()
+
+    def test_changed_input_cannot_accept_stale_async_preview(self):
+        import threading
+        from unittest.mock import Mock
+        from PySide6.QtWidgets import QApplication
+        from ui.desktop import build_window
+        entered,released=threading.Event(),threading.Event()
+        backend=Mock()
+        def response(method,**fields):
+            if method=="jobs":return {"jobs":[]}
+            if method=="preview":
+                entered.set();released.wait(2)
+                return {"id":"stale","digest":"old"}
+            return {}
+        backend.call.side_effect=response
+        app=QApplication.instance() or QApplication([])
+        window=build_window(backend)
+        window.input.setText("show memory usage");window.plan_button.click()
+        self.assertTrue(entered.wait(2))
+        window.input.setText("restart another service");released.set()
+        window.pool.waitForDone(3000);app.processEvents()
+        self.assertFalse(window.confirm_button.isEnabled())
+        self.assertIsNone(window.preview)
+        window.timer.stop();window.close()
