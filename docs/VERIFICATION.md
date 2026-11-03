@@ -383,3 +383,55 @@ kernel/hardware doubles are explicitly simulations. All target commands/procedur
 are in RELEASE_CANDIDATE.md and per-component guides. Primary face and automatic
 response remain disabled in supplied root examples. No host mounts, PAM, security
 settings or operational services were modified to obtain passing tests.
+
+
+## Current integrity and artifact verification follow-up — 3 November 2026
+
+The packaged 0945a13 candidate passed manifest/source/wheel/protected-code hash
+verification and five actual Linux artifact steps: locked dependency installation,
+replacement by the exact hashed wheel, installed agent/project workflow, CLI memory
+read and managed uninstall. It is a historical checkpoint, superseded by the new
+approval/storage fixes. scripts/verify_candidate.py now automates this artifact
+procedure and rejects tampered wheels or self-consistent protected archives whose
+code differs from committed source. Neither artifact verification nor source
+hashes establish signed provenance, root deployment or hardware acceptance.
+
+Final review reproduced two durable-job binding defects with failing regressions:
+asset retargeting after preview, and changed queued requests after confirmation.
+Both are fixed; execution-factory scope and restart expiration are also covered.
+Existing mandatory checks, trusted identity/authorization and service approval
+binding are preserved. Deep remote nesting now rejects before recursive planning.
+
+Three expanded native runs encountered observation deadlines under high I/O:
+214 run/10 skips with 1 failure+1 error (148.554 s); repeat 214 with 1 failure
+(117.592 s); 215 with 1 failure+1 error (169.837 s). Both initially failing cases
+passed unchanged in isolation (2 tests, 5.147 s). A read-only pressure snapshot
+showed I/O some/full avg60 approximately 38%, with CPU/memory avg10 zero; this
+suggests contention, not a proven sole cause. These failures are preserved rather
+than relabelled as passes. No host security or filesystem settings were changed.
+
+Review removed redundant directory sync and repeated SQLite schema-header writes,
+while keeping every ledger fsync and rejecting unknown schema versions. It also
+corrected integration observation windows: the previous roughly two-second agent
+wait was shorter than the existing five-second action plus three validation phases;
+the pipe peer used ten seconds while the existing remote transport allows thirty.
+Harness observation now derives from those existing contracts. Production command,
+validation, expiry, authorization and output limits are unchanged; all success,
+postcondition and replay assertions remain. This is not latency acceptance.
+
+The resulting combined native run: **219 run, 209 passed, 10 skipped, zero failures/
+errors in 159.833 s**. This includes all approval/storage fixes. The subsequent
+remote-nesting regression is additionally verified separately; later final records
+identify the exact current totals. Full target/Cloud/new hosted CI/hardware and
+24-hour acceptance remain pending, independently of passing logic/integration tests.
+
+
+Current complete suites after all integrity and nesting fixes: Windows **186 run,
+183 passed, 3 skipped**, zero failures/errors (3.479 s); native WSL **220 run,
+210 passed, 10 skipped**, zero failures/errors (24.053 s). See candidate/
+windows-current.json and native-final-suite.json. Older failing runs remain in
+native-timeout-*.json. The speed difference between runs is not a performance
+benchmark. Installed/artifact verification of this new committed source follows
+separately; the 0945a13 artifact record is historical. No security deadline or
+success assertion was removed, and no unavailable target feature was simulated
+and relabelled native.

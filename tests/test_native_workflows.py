@@ -68,10 +68,12 @@ class NativeWorkflowTests(unittest.TestCase):
         state=self.root/'remote';state.mkdir(mode=0o700)
         request={'version':1,'operation_id':str(uuid4()),'request':{'action':'memory.usage','parameters':{}}}
         command=[sys.executable,'-I','-B','-m','operations.remote_peer','--state',str(state)]
-        result=subprocess.run(command,input=json.dumps(request),shell=False,capture_output=True,text=True,timeout=10)
+        # The transport contract bounds the full peer lifecycle, not only its command.
+        timeout=self.service.registry.prepare('remote.operation', {'asset':'lab','action':'memory.usage','parameters':{}}).contract.timeout_s
+        result=subprocess.run(command,input=json.dumps(request),shell=False,capture_output=True,text=True,timeout=timeout)
         self.assertEqual(result.returncode,0,result.stderr)
         reply=json.loads(result.stdout)
         self.assertEqual(reply['uid'],os.getuid());self.assertEqual(reply['result']['operation_id'],request['operation_id'])
         self.assertTrue(reply['result']['verified'])
-        repeated=subprocess.run(command,input=json.dumps(request),shell=False,capture_output=True,text=True,timeout=10)
+        repeated=subprocess.run(command,input=json.dumps(request),shell=False,capture_output=True,text=True,timeout=timeout)
         self.assertNotEqual(repeated.returncode,0)

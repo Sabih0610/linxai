@@ -27,12 +27,25 @@ class Store:
         finally:
             os.close(fd)
         self.db = sqlite3.connect(self.path, timeout=5, check_same_thread=False)
-        self.db.execute("PRAGMA journal_mode=DELETE")
-        self.db.execute("PRAGMA synchronous=FULL")
-        self.db.execute("PRAGMA max_page_count=8192")
-        with self.db:
-            self.db.execute("CREATE TABLE IF NOT EXISTS records (kind TEXT, id TEXT, body TEXT NOT NULL, updated REAL NOT NULL, PRIMARY KEY(kind,id))")
-            self.db.execute("PRAGMA user_version=1")
+        try:
+            version = self.db.execute("PRAGMA user_version").fetchone()[0]
+            if version not in {0, 1}:
+                raise ValueError("Unsupported storage schema; explicit migration required")
+            self.db.execute("PRAGMA journal_mode=DELETE")
+            self.db.execute("PRAGMA synchronous=FULL")
+            self.db.execute("PRAGMA max_page_count=8192")
+            with self.db:
+                if version == 0:
+                    self.db.execute("CREATE TABLE IF NOT EXISTS records (kind TEXT, id TEXT, body TEXT NOT NULL, updated REAL NOT NULL, PRIMARY KEY(kind,id))")
+                columns = [(row[1], row[2], row[3], row[5]) for row in self.db.execute("PRAGMA table_info(records)")]
+                expected = [("kind", "TEXT", 0, 1), ("id", "TEXT", 0, 2), ("body", "TEXT", 1, 0), ("updated", "REAL", 1, 0)]
+                if columns != expected:
+                    raise ValueError("Unsupported storage layout; explicit migration required")
+                if version == 0:
+                    self.db.execute("PRAGMA user_version=1")
+        except Exception:
+            self.db.close()
+            raise
 
     def put(self, kind, key, body, *, replace=True, limit=1000):
         value = json.dumps(body, allow_nan=False, separators=(",", ":"))

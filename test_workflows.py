@@ -48,3 +48,11 @@ class WorkflowTests(unittest.TestCase):
         model=Mock()
         with self.assertRaises(ValueError):Planner(registry,model).propose('on unknown do something')
         model.generate.assert_not_called()
+
+    def test_nested_remote_input_is_rejected_before_recursing_or_model(self):
+        values=configured_assets();values['a']=values['lab']
+        registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps(values))
+        model=Mock()
+        with self.assertRaisesRegex(ValueError,'Nested remote'):
+            Planner(registry,model).propose('on a '*1100+'show memory usage')
+        model.generate.assert_not_called()

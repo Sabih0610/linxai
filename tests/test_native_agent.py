@@ -34,11 +34,17 @@ class NativeAgentTests(unittest.TestCase):
         self.agent.store.close()
 
     def wait_result(self, key):
-        for _ in range(100):
+        row = self.client.call("job", id=key)
+        # Observe the complete existing lifecycle: command + three check phases
+        # and IPC scheduling. This does not change any product execution deadline.
+        service = self.agent.jobs.service_factory(threading.Event())
+        timeout = self.agent.registry.prepare(row["request"]["action"], row["request"]["parameters"]).contract.timeout_s + 3 * service.validation_timeout + 5
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
             row = self.client.call("job", id=key)
             if row["state"] in {"succeeded", "failed", "unknown", "review_required"}: return row
             time.sleep(0.02)
-        self.fail("Job did not finish within native test bound")
+        self.fail("Job did not finish within native test bound: state=" + repr(row.get("state")) + "; worker_degraded=" + repr(self.agent.jobs.degraded))
 
     def test_real_read_survives_client_disconnect_and_reopen(self):
         preview = self.client.call("preview", text="show memory usage")

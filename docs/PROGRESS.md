@@ -10,11 +10,16 @@ device workflow; G protected face/password fallback and local voice-to-preview;
 H clean-source packaging and installed candidate runner. F breadth, G biometric
 assurance and H full release remain PARTIAL; implementation is not acceptance.
 
-Current automated results: Windows 180 run/177 pass/3 skips; WSL 212 run/202 pass/
+Current automated results: Windows 186 run/183 pass/3 skips; WSL 220 run/210 pass/
 10 skips; Qt offscreen 3 pass; fresh installed candidate seven steps passed; short
 10-second read/audit soak 11 verified operations/0 failures. Cloud/hosted new CI,
 real root authentication/kernel/SSH/vendor/camera/microphone/model and 24-hour tests
 have NOT run. See VERIFICATION.md and current source hashes in native evidence.
+
+Integrity follow-up completed: resolved target/contract digest at confirmation and
+dispatch; execution-factory scope check; restart preview expiry; readonly schema
+reopen and unknown-version refusal; bounded remote nesting. Old timeout failures
+are retained; harness observation derives from existing lifecycle deadlines.
 
 Remaining implementation: typed Node/MERN/repository/deployment recipes; stable
 process identity and independently authorized priority capture/restoration;

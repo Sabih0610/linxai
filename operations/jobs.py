@@ -14,9 +14,18 @@ READS = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status
 TERMINAL = frozenset({"succeeded", "failed", "cancelled", "unknown", "review_required", "interrupted_before_dispatch"})
 
 
-def digest(request, workspace, uid):
-    return hashlib.sha256(json.dumps({"request": request, "workspace": workspace, "uid": uid, "target": "local"},
-                                     sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+def digest(request, workspace, uid, prepared):
+    # Bind the resolved backend target, fixed program/argv, server privilege,
+    # mandatory checks and postconditions as well as the wire request.
+    contract = prepared.contract
+    binding = {"action": contract.identifier, "privilege": contract.privilege.value,
+               "timeout": contract.timeout_s, "recovery": contract.recovery_supported,
+               "parameters": asdict(prepared.parameters), "argv": prepared.argv,
+               "stdin_sha256": hashlib.sha256(prepared.stdin).hexdigest(),
+               "checks": [asdict(check) for check in prepared.mandatory_checks],
+               "postconditions": [asdict(check) for check in prepared.postconditions]}
+    return hashlib.sha256(json.dumps({"schema": 2, "request": request, "workspace": workspace,
+        "uid": uid, "prepared": binding}, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
 
 
 class Jobs:
@@ -35,7 +44,7 @@ class Jobs:
                 row["state"] = "unknown"
                 row["recovery"] = "Read-only reconciliation required; never auto-retry"
                 self.save(row)
-            elif row["state"] in {"queued", "validating", "approved"}:
+            elif row["state"] in {"preview", "queued", "validating", "approved"}:
                 row["state"] = "interrupted_before_dispatch"
                 self.save(row)
 
@@ -45,8 +54,14 @@ class Jobs:
 
     def preview(self, request, *, text="", plan=None):
         prepared = self.registry.prepare(request["action"], request["parameters"])
-        row = {"id": str(uuid4()), "uid": self.uid, "state": "preview", "request": request,
-               "digest": digest(request, self.registry.permitted_workspace, self.uid),
+        request = json.loads(json.dumps(request, allow_nan=False))
+        target = {"account_uid": self.uid, "workspace": self.registry.permitted_workspace}
+        asset_name = getattr(prepared.parameters, "asset", None)
+        if asset_name is not None:
+            asset = json.loads(self.registry.assets_json)[asset_name]
+            target.update(asset=asset_name, **{key: asset[key] for key in ("platform", "host", "port", "username", "expected_uid", "path") if key in asset})
+        row = {"id": str(uuid4()), "uid": self.uid, "state": "preview", "request": request, "target": target,
+               "digest": digest(request, self.registry.permitted_workspace, self.uid, prepared),
                "plan": {key: plan[key] for key in ("intent", "target", "port", "pre_conditions") if plan and key in plan},
                "expires": self.clock() + 60, "created": self.clock(), "text": text[:8192],
                "privilege": prepared.contract.privilege.value,
@@ -62,10 +77,10 @@ class Jobs:
             row = self.store.get("job", key)
             if not row or row["state"] != "preview" or row["expires"] <= self.clock():
                 raise ValueError("Preview expired, consumed or absent")
-            expected = digest(row["request"], self.registry.permitted_workspace, self.uid)
+            prepared = self.registry.prepare(row["request"]["action"], row["request"]["parameters"])
+            expected = digest(row["request"], self.registry.permitted_workspace, self.uid, prepared)
             if approved_digest != row["digest"] or expected != row["digest"] or row["uid"] != self.uid:
                 raise PermissionError("Preview action/parameters/target changed; preview again")
-            self.registry.prepare(row["request"]["action"], row["request"]["parameters"])
             if self.queue.full():
                 raise ValueError("Job admission queue is full")
             row["state"] = "queued"
@@ -100,6 +115,8 @@ class Jobs:
         result, dispatching = None, False
         try:
             prepared = self.registry.prepare(row["request"]["action"], row["request"]["parameters"])
+            if row["uid"] != self.uid or digest(row["request"], self.registry.permitted_workspace, self.uid, prepared) != row["digest"]:
+                raise PermissionError("Confirmed request or resolved target changed; preview again")
             if prepared.contract.privilege is Privilege.AUTHENTICATED_ADMIN:
                 row.update(state="dispatching", operation_id=key)
                 self.save(row)  # Durable intent before sending a privileged request.
@@ -107,6 +124,9 @@ class Jobs:
                 result = self.broker.run(row["request"], operation_id=key)
             else:
                 service = self.service_factory(event)
+                service_prepared = service.registry.prepare(row["request"]["action"], row["request"]["parameters"])
+                if digest(row["request"], service.registry.permitted_workspace, self.uid, service_prepared) != row["digest"]:
+                    raise PermissionError("Execution service target differs from confirmed preview")
                 service.system.progress = lambda op_id, stream, tail: self.store.put("progress", key, {"operation_id": op_id, "stream": stream, "tail": tail})
                 approval = service.prepare(row["request"])
                 if isinstance(approval, Approval):

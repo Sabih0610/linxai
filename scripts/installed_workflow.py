@@ -31,7 +31,9 @@ def main():
         while not (state/'agent.sock').exists() and time.monotonic()<deadline:time.sleep(.02)
         row=client.call('preview',text='show memory usage')
         client.call('confirm',id=row['id'],digest=row['digest'])
-        deadline=time.monotonic()+10
+        observation_service=agent.jobs.service_factory(threading.Event())
+        lifecycle_budget=agent.registry.prepare('memory.usage',{}).contract.timeout_s+3*observation_service.validation_timeout+5
+        deadline=time.monotonic()+lifecycle_budget
         while time.monotonic()<deadline:
             result=client.call('job',id=row['id'])
             if result['state'] in {'succeeded','failed','unknown'}:break

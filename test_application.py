@@ -92,6 +92,10 @@ class ApplicationTests(unittest.TestCase):
         self.assertEqual(self.store.get("job", row["id"])["state"], "unknown")
         self.broker.run.assert_not_called()
         self.assertTrue(restarted.queue.empty())
+        preview=self.jobs.preview({"action":"memory.usage","parameters":{}})
+        restarted.reconcile_restart()
+        with self.assertRaises(ValueError):restarted.confirm(preview["id"],preview["digest"])
+
 
     def test_uncertain_privileged_response_requires_reconciliation(self):
         row = self.jobs.preview({"action": "service.start", "parameters": {"service": "linxai-lab"}})
@@ -108,3 +112,29 @@ class ApplicationTests(unittest.TestCase):
         self.assertEqual(observed["state"], "unknown")
         self.assertEqual(observed["reconciliation"]["current_state"]["status"], "succeeded")
         self.broker.run.assert_not_called()
+
+    def test_asset_target_change_requires_a_new_preview(self):
+        import json
+        from test_workflows import configured_assets
+        self.jobs.registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps(configured_assets('/srv/work/first.json')))
+        row=self.jobs.preview({'action':'device.inspect','parameters':{'asset':'switch'}})
+        self.assertEqual(row['target']['path'],'/srv/work/first.json')
+        self.jobs.registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps(configured_assets('/srv/work/second.json')))
+        with self.assertRaises(PermissionError):self.jobs.confirm(row['id'],row['digest'])
+        self.assertEqual(self.system.exec_count,0)
+
+    def test_queued_request_cannot_change_after_confirmation(self):
+        row=self.jobs.preview({'action':'memory.usage','parameters':{}})
+        self.jobs.confirm(row['id'],row['digest'])
+        queued=self.store.get('job',row['id']);queued['request']={'action':'disk.usage','parameters':{}}
+        self.jobs.save(queued);self.jobs.process(row['id'])
+        self.assertEqual(self.system.exec_count,0)
+        self.assertEqual(self.store.get('job',row['id'])['state'],'failed')
+
+    def test_execution_factory_scope_must_match_confirmed_scope(self):
+        self.jobs.registry=ActionRegistry('/srv/first')
+        self.service.registry=ActionRegistry('/srv/second')
+        row=self.jobs.preview({'action':'memory.usage','parameters':{}})
+        self.jobs.confirm(row['id'],row['digest']);self.jobs.process(row['id'])
+        self.assertEqual(self.system.exec_count,0)
+        self.assertEqual(self.store.get('job',row['id'])['state'],'failed')

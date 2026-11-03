@@ -42,7 +42,9 @@ class JsonlAudit:
             raise ValueError("Audit record exceeds retained-data budget")
         with self._lock:
             # A stable sidecar serializes rotation across independent CLI processes.
-            lock = os.open(self.path.with_name(self.path.name + ".lock"),
+            lock_path = self.path.with_name(self.path.name + ".lock")
+            changed_parent = not os.path.lexists(lock_path)
+            lock = os.open(lock_path,
                            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
             try:
                 self._safe_file(os.fstat(lock), uid)
@@ -52,7 +54,10 @@ class JsonlAudit:
                 for path in paths:
                     if os.path.lexists(path):
                         self._safe_file(path.lstat(), uid)
+                if not self.path.exists():
+                    changed_parent = True
                 if self.path.exists() and self.path.stat().st_size + len(line) > self.MAX_BYTES:
+                    changed_parent = True
                     for index in range(self.GENERATIONS, 0, -1):
                         if paths[index - 1].exists():
                             paths[index - 1].replace(paths[index])
@@ -68,7 +73,10 @@ class JsonlAudit:
                     os.fsync(fd)
                 finally:
                     os.close(fd)
-                self._sync_parent(parent)
+                # Appending changes file contents, not directory entries. Always fsync
+                # the ledger; fsync its parent only on creation or rotation.
+                if changed_parent:
+                    self._sync_parent(parent)
             finally:
                 os.close(lock)
 

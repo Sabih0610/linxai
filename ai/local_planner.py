@@ -54,6 +54,7 @@ class Planner:
         scoped=re.fullmatch(r"on ([A-Za-z][A-Za-z0-9_-]{0,31}) (.+)",text.strip(),re.IGNORECASE)
         if scoped:
             if scoped.group(1) not in json.loads(self.registry.assets_json):raise ValueError("Unknown configured remote asset")
+            if scoped.re.fullmatch(scoped.group(2)):raise ValueError("Nested remote operation refused")
             request,plan=Planner(self.registry,self.model).propose(scoped.group(2),context)
             if request["action"]=="remote.operation":raise ValueError("Nested remote operation refused")
             remote={"action":"remote.operation","parameters":{"asset":scoped.group(1),**request}}

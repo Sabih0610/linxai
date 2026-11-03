@@ -80,3 +80,23 @@ adaptive response, network breadth and hardware remain E–G. Original requireme
 
 References: [Qt thread pool](https://doc.qt.io/qtforpython-6/PySide6/QtCore/QThreadPool.html),
 [Ollama bounded non-streaming JSON chat](https://docs.ollama.com/api/chat).
+
+
+## Approval and storage integrity follow-up — 3 November 2026
+
+Durable previews now bind the complete registry-prepared action: resolved asset
+endpoint/path, fixed argv/stdin hash, typed parameters, server privilege, timeout,
+mandatory checks and postconditions. Confirmation and dispatch reconstruct this
+binding; a different execution-service scope is refused. Target details shown in
+preview are backend-derived and omit SSH private-key paths. Restart invalidates
+old previews. Three regressions cover asset retargeting, changed queued work and
+mismatched execution factories; the first two reproduced failures before the fix.
+The existing OperationService validation-to-execution binding remains unchanged.
+
+Existing SQLite schema 1 opens for read without rewriting its version header;
+unknown versions/layouts require an explicit migration instead of silent downgrade.
+Audit writes still require file fsync. Directory fsync is needed when entries are
+created/rotated; unchanged appends retain file sync without redundant directory
+sync. The syscall distinction follows the Linux [fsync manual](https://man7.org/linux/man-pages/man2/fsync.2.html).
+Native tests verify unchanged database bytes/mtime on reopen, unknown-version
+preservation and propagation of regular-ledger fsync failure.

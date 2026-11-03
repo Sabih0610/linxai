@@ -75,3 +75,29 @@ class NativeRuntimeTests(unittest.TestCase):
         with self.assertRaises(PermissionError):writer.append({"operation_id":"second"})
         self.assertEqual(path.read_bytes(),original);self.assertEqual(outside.read_text(),"keep")
         with self.assertRaises(ValueError):writer.append({"data":"x"*65536})
+
+    def test_existing_audit_append_still_requires_durable_file_sync(self):
+        from unittest.mock import patch
+        from operations.audit import JsonlAudit
+        path=Path(self.temp)/"audit.jsonl";writer=JsonlAudit(path)
+        writer.append({"operation_id":"first"})
+        real_sync=os.fsync
+        def fail_file(fd):
+            import stat
+            if stat.S_ISREG(os.fstat(fd).st_mode):raise OSError("simulated storage failure")
+            return real_sync(fd)
+        with patch('operations.audit.os.fsync',side_effect=fail_file),self.assertRaises(OSError):
+            writer.append({"operation_id":"second"})
+
+    def test_store_reopen_is_read_only_and_unknown_schema_not_downgraded(self):
+        import sqlite3
+        path=Path(self.temp)/"schema.sqlite"
+        store=Store(path);store.put("fixture","first",{"value":1});store.close()
+        before=path.read_bytes();mtime=path.stat().st_mtime_ns
+        store=Store(path);self.assertEqual(store.get("fixture","first"),{"value":1});store.close()
+        self.assertEqual(path.read_bytes(),before)
+        self.assertEqual(path.stat().st_mtime_ns,mtime)
+        with sqlite3.connect(path) as connection:connection.execute("PRAGMA user_version=2")
+        with self.assertRaisesRegex(ValueError,"Unsupported storage schema"):Store(path)
+        with sqlite3.connect(path) as connection:
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0],2)
