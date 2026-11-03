@@ -1,3 +1,9 @@
+> Current integrated instructions: RELEASE_CANDIDATE.md. The sections below record
+> the Gate A installation boundary; B–G now supply protected components and desktop
+> workflows. They remain separately reviewed target deployments. `--voice` explicitly
+> installs pinned input packages; no weights are downloaded. Non-editable installs
+> now build from clean temporary source, preserving old checkout build output.
+
 # Gate A application installation and Linux support
 
 This installs the current typed CLI on an ordinary Linux account. The final

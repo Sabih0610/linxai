@@ -47,3 +47,31 @@ class NativeRuntimeTests(unittest.TestCase):
         link = Path(self.temp) / "link.sqlite"
         link.symlink_to(path)
         with self.assertRaises(OSError): Store(link)
+
+    def test_audit_rotation_is_bounded_and_shared_across_writers(self):
+        import concurrent.futures
+        import json
+        from operations.audit import JsonlAudit
+        path=Path(self.temp)/"audit.jsonl"
+        writers=[JsonlAudit(path),JsonlAudit(path)]
+        for writer in writers:writer.MAX_BYTES=1024
+        def write(index):writers[index%2].append({"operation_id":str(index),"data":"x"*300})
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:list(pool.map(write,range(40)))
+        retained=[path]+[path.with_name(path.name+f".{i}") for i in range(1,4)]
+        ids=[]
+        for item in retained:
+            self.assertLessEqual(item.stat().st_size,1024)
+            ids.extend(json.loads(line)["operation_id"] for line in item.read_text().splitlines())
+        self.assertEqual(len(ids),len(set(ids)))
+        self.assertIn("39",ids)
+        self.assertEqual(len(list(Path(self.temp).glob("audit.jsonl*"))),5)
+
+    def test_audit_unsafe_archive_and_oversize_record_fail_before_append(self):
+        from operations.audit import JsonlAudit
+        path=Path(self.temp)/"audit.jsonl";writer=JsonlAudit(path)
+        writer.append({"operation_id":"first"});original=path.read_bytes()
+        outside=Path(self.temp)/"outside";outside.write_text("keep")
+        path.with_name(path.name+".1").symlink_to(outside)
+        with self.assertRaises(PermissionError):writer.append({"operation_id":"second"})
+        self.assertEqual(path.read_bytes(),original);self.assertEqual(outside.read_text(),"keep")
+        with self.assertRaises(ValueError):writer.append({"data":"x"*65536})

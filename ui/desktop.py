@@ -7,7 +7,7 @@ import sys
 
 
 def build_window(client, voice_model=None):
-    from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal
+    from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal, Qt
     from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
                                    QLineEdit, QPushButton, QPlainTextEdit, QLabel, QTableWidget, QTableWidgetItem)
 
@@ -99,8 +99,10 @@ def build_window(client, voice_model=None):
                 button=QPushButton(label);security_layout.addWidget(button)
                 button.clicked.connect(lambda checked=False,action=action:self.call(lambda:client.call("typed_preview",request={"action":action,"parameters":{}}),self.show_preview))
             self.face_challenge=QLabel("Face primary remains disabled until protected lab qualification")
+            self.face_challenge.setTextFormat(Qt.TextFormat.PlainText)
             security_layout.addWidget(self.face_challenge)
             self.status = QLabel("Connecting to the local agent; no model or privileged component is started by this window")
+            self.status.setTextFormat(Qt.TextFormat.PlainText)
             self.statusBar().addWidget(self.status)
             self.refreshing = False
             self.timer = QTimer(self)

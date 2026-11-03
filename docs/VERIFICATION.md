@@ -337,3 +337,49 @@ Original 10–14, 26–29 and 58–70 advance partially; all 1–72 items remain
 No face/PAM, physical camera/microphone, spoof assurance or WER success is claimed.
 
 Gate G final Qt offscreen: 3 tests passed in 6.899 s. Real Qt event loop, deterministic backend and voice stand-in; stale asynchronous preview rejected. No physical desktop/microphone evidence. Pinned uv lock check passed.
+
+
+## Gate H integrated development candidate — 3 November 2026
+
+Status PARTIAL. Full source/acceptance boundaries and procedures are in
+RELEASE_CANDIDATE.md. Original requirement IDs 1–72 are preserved with separate
+implementation/evidence/pending columns. No full-scope release PASS is asserted.
+
+Actual current checks:
+- Windows CPython offline suite: 180 run, 177 passed, 3 POSIX skips, zero failures/
+  errors (2.604 s). Original 41 foundation and existing registry/service tests retained.
+- Ordinary Ubuntu 24.04 WSL CPython 3.12.3 combined explicit groups: 212 run,
+  202 passed, 10 skipped, zero failures/errors (30.107 s). Skips: no running
+  systemd service.status plus nine separately opt-in kernel/desktop/hardware/model tests.
+- Three real Qt offscreen tests passed separately (latest 0.586 s): preview/confirm,
+  voice stand-in to preview without confirmation, stale async preview refusal.
+  Real Qt is evidence; deterministic backend/voice remains a stand-in.
+- Fresh offline installed desktop candidate: seven steps all exit 0. Locked clean
+  wheel installation, installed 20-action/face/voice/SSH-metadata imports, actual CLI
+  memory read, actual agent natural-language job and Python project, installed Qt
+  window and managed uninstall. Imports verified inside installed venv from foreign cwd.
+- New native concurrent audit rotation, unsafe archive and oversized-record denial
+  passed. Audit files retain four bounded 8 MiB generations under a shared private
+  lock; unsafe files or failed writes block admission rather than suppress evidence.
+- Short actual read/audit soak: 10.000766 seconds, 11 verified operations, 0 failures,
+  54,425 retained audit bytes. This limited workload is NOT 24-hour system stress.
+- Pinned uv lock check passed; 58 current module/script files parsed; Linux CI YAML
+  parsed; all 72 original IDs checked in order. Hosted CI execution remains pending.
+
+A first installed candidate failed because stale checkout build/lib was reused by
+setuptools: an old registry reached the wheel alongside the current agent. Source
+unit tests passed and did not reveal it. Fixed non-editable builds by copying only
+current declared application inputs into a new temporary source directory; existing
+checkout build output was preserved. The repeat installed workflow passed. A later
+inspection found legacy Paramiko imported by typed metadata; lazy compatibility
+exports plus core/installed coverage fixed that dependency leak. No tests were weakened.
+
+Cloud tests actually executed: NONE for B–H. Native Linux lab: WSL ordinary-user
+files/process/IPC/installed Qt evidence above. Real privileged broker/polkit,
+systemd success/lifecycle, BCC attach/LSM enforcement, SSH authentication/vendor,
+physical camera/spoof/microphone/WER, real-model and 24-hour acceptance: NOT RUN.
+Hardware/device tests actually executed: NONE; development-file adapter and model/
+kernel/hardware doubles are explicitly simulations. All target commands/procedures
+are in RELEASE_CANDIDATE.md and per-component guides. Primary face and automatic
+response remain disabled in supplied root examples. No host mounts, PAM, security
+settings or operational services were modified to obtain passing tests.

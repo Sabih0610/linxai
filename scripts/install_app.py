@@ -85,7 +85,7 @@ def uninstall(prefix):
     prefix.rmdir()
 
 
-def install(prefix, offline=False, desktop=False):
+def install(prefix, offline=False, desktop=False, voice=False):
     # Only create missing parents under a verified chain; do not repair permissions.
     missing = []
     parent = prefix.parent
@@ -105,6 +105,8 @@ def install(prefix, offline=False, desktop=False):
     command = [sys.executable, "-I", str(ROOT / "scripts/setup_dev.py"), "--venv", str(target), "--no-editable"]
     if desktop:
         command.extend(["--extra", "desktop"])
+    if voice:
+        command.extend(["--extra", "voice"])
     if offline:
         command.append("--offline")
     subprocess.run(command, check=True, timeout=600)
@@ -120,7 +122,7 @@ def install(prefix, offline=False, desktop=False):
         path = directory / name
         path.write_text(launcher(python, module))
         path.chmod(0o700)
-    receipt.update(state="installed", operations_module=probe)
+    receipt.update(state="installed", operations_module=probe, profiles=[name for name,selected in (("desktop",desktop),("voice",voice)) if selected])
     (prefix / RECEIPT).write_text(json.dumps(receipt, indent=2) + "\n")
     print(f"Installed typed CLI: {directory / 'linxai'}\nAdd {directory} to your PATH explicitly if desired.")
 
@@ -130,6 +132,7 @@ def main(argv=None):
     parser.add_argument("--prefix", default=str(Path.home() / ".local/share/linxai"))
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--desktop", action="store_true", help="Explicitly install the pinned Qt desktop profile")
+    parser.add_argument("--voice",action="store_true",help="Explicit pinned voice packages; never downloads model weights or opens microphone")
     parser.add_argument("--uninstall", action="store_true", help="Remove only this managed application prefix; retain audit/configuration")
     args = parser.parse_args(argv)
     try:
@@ -138,7 +141,7 @@ def main(argv=None):
         if args.uninstall:
             uninstall(prefix)
         else:
-            install(prefix, args.offline, args.desktop)
+            install(prefix, args.offline, args.desktop, args.voice)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         print(f"LINxAI installation refused/failed: {exc}", file=sys.stderr)
         return 2

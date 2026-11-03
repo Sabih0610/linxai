@@ -1,0 +1,15 @@
+{
+  "profile": "protected-face",
+  "status": "declared interpreter prerequisites; native camera/spoof acceptance pending",
+  "candidate_os": "Ubuntu 24.04 LTS",
+  "interpreter": "/usr/bin/python3 (OS Python, never an ordinary-user venv)",
+  "required_imports": [
+    "cv2",
+    "cv2.face.LBPHFaceRecognizer_create",
+    "numpy"
+  ],
+  "version_recording": "Capture actual OS package versions, OpenCV contrib availability, camera/driver and interpreter on the selected target; bind qualification to provider source and template hashes",
+  "routine_setup_installs_os_packages": false,
+  "primary_enabled_by_default": false,
+  "assurance": "Unproven LBPH/flow/direction heuristic; repeated actual spoof qualification and security review required; trusted polkit fallback stays independent"
+}

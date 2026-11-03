@@ -1,3 +1,10 @@
+> Continued through the B–H development candidate on 3 November 2026. Read
+> RELEASE_CANDIDATE.md, IMPLEMENTATION_PLAN.md, PROGRESS.md and the complete current
+> REQUIREMENTS_TRACEABILITY.md before selecting work. Twenty typed contracts,
+> broker/agent/jobs, Qt, monitoring/policy, workflows and voice now exist. These new
+> focused commits are local until deliberately published; verify actual HEAD and
+> remote before loading Cloud. Earlier handoff capability counts below are historical.
+
 # LINxAI self-contained development handoff
 
 Prepared 2 November 2026. Selected working source was verified at

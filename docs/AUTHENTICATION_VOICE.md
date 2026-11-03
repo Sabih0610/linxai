@@ -34,6 +34,7 @@ assurance or a production security certification. Keep primary disabled unless
 the target's required assurance and repeated spoof trials have been accepted.
 The password path remains usable when qualifications fail/expire.
 
+The separate protected interpreter prerequisite declaration is `requirements/face-os.json`.
 The ordinary Python environment's `hardware` extra is for development only.
 Protected capture uses `/usr/bin/python3` and independently provisioned OS OpenCV
 contrib/NumPy; it never imports an ordinary-user venv. Check explicitly on target:

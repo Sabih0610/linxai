@@ -499,7 +499,10 @@ class AuditAdapterTests(unittest.TestCase):
         # Simulate POSIX ownership/mode metadata while writing only Windows temp files.
         parent = Path(directory)
         real_stat, real_lstat, real_fstat = Path.stat, Path.lstat, os.fstat
+        self.enterContext(patch.object(JsonlAudit, "_sync_parent"))  # Native directory fsync has separate Linux coverage.
         def metadata(info, private=False):
+            if __import__('stat').S_ISREG(info.st_mode):
+                return types.SimpleNamespace(st_mode=0o100600,st_uid=1000,st_nlink=1,st_size=info.st_size)
             return types.SimpleNamespace(st_mode=(0o40777 if unsafe else 0o40700 if private else 0o40755),
                                          st_uid=1000 if private else 0)
         self.enterContext(patch.object(Path, "stat", lambda path, **kw: metadata(real_stat(path, **kw), path == parent)))

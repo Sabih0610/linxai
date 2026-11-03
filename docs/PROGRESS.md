@@ -1,28 +1,39 @@
-# Integrated candidate progress
+# Integrated candidate progress — 3 November 2026
 
-Branch: codex/cloud-handoff-2026-11-02. Local commits only; no deployment or push.
+Branch codex/cloud-handoff-2026-11-02. Preserve all existing work. Local commits only;
+no push, merge or operational deployment. No waiting for intermediate owner testing.
 
-- Completed implementation: A ordinary-user install; B bounded broker/OS-auth path;
-  C natural-language preview, durable jobs, authenticated user agent and Qt client;
-  D independent sensor transport, deterministic incidents and live Security state;
-  E scoped response/policy/native-provider path with independent root enforcement.
-- Actual automated results: latest Windows 162 run/3 skips; native WSL 186 run/8
-  skips. Agent IPC and real unprivileged operations passed. B target auth is mocked.
-- G implemented: protected face enrollment/provider, trusted password fallback, voice-to-preview; camera/spoof/WER acceptance pending.
-- Current work: H integrated packaging, installed candidate verification and complete evidence matrix;
-  F Python/dev-device/local remote-peer native workflows passed (4 tests).
-  F broader recipes/resources and real vendor/SSH acceptance remain partial.
-- Acceptance pending: A systemd/Cloud/new CI; B real polkit fixture; C physical
-  desktop/auth/fresh install; D–H target kernel/device/model/load/owner tests.
-- Continue without owner testing. Existing 1–72 requirements plus expanded scope
-  remain in REQUIREMENTS_TRACEABILITY.md; no gate is PASS based only on mocks.
+Completed supported paths: A ordinary-user install; B authenticated bounded broker;
+C NL preview/durable jobs/agent/Qt; D independent capture/detection/incidents; E scoped
+root-authorized response/policy/qualification path; F Python/strict SSH peer/development
+device workflow; G protected face/password fallback and local voice-to-preview;
+H clean-source packaging and installed candidate runner. F breadth, G biometric
+assurance and H full release remain PARTIAL; implementation is not acceptance.
 
-Checkpoint inputs: operations/{broker,agent,jobs,store,supervised}.py,
-ai/local_planner.py, ui/desktop.py, deployment/, docs/{BROKER,APPLICATION}.md.
-Commands: Windows .venv-windows\Scripts\python.exe -B scripts/test.py offline;
-Linux .venv/bin/python -B scripts/test.py all; optional Qt with
-QT_QPA_PLATFORM=offscreen LINXAI_TEST_DESKTOP=1 python -B -m unittest tests.test_desktop -v.
-Next dependency: package the integrated source/trusted bundle; verify fresh ordinary-user
-wheel and agent/desktop workflows. Inspect scripts/{install_app,package_trusted,run_gate_a_lab}.py,
-then update full requirements matrix and explicit residual implementation gaps. Do not
-report broader F recipes/predictive resources or biometric assurance as complete.
+Current automated results: Windows 180 run/177 pass/3 skips; WSL 212 run/202 pass/
+10 skips; Qt offscreen 3 pass; fresh installed candidate seven steps passed; short
+10-second read/audit soak 11 verified operations/0 failures. Cloud/hosted new CI,
+real root authentication/kernel/SSH/vendor/camera/microphone/model and 24-hour tests
+have NOT run. See VERIFICATION.md and current source hashes in native evidence.
+
+Remaining implementation: typed Node/MERN/repository/deployment recipes; stable
+process identity and independently authorized priority capture/restoration;
+predictive resources and benchmarks; firewall/dependency alternatives; nuanced
+follow-ups/LangGraph source criteria; incident-aware future warnings; full legacy
+migration. All original requirements 1–72 plus expanded scope remain in the matrix.
+
+Next concrete continuation:
+1. Read RELEASE_CANDIDATE.md and current matrix; inspect operations/{workflow_contracts,
+   _workflow_program,workflows,registry,service,broker,jobs}.py and resources/monitor.py.
+2. Finish one additional typed DevOps recipe with idempotency/partial failure/edit
+   preservation before breadth. No model command becomes executable. Then resource
+   actions must use host/boot/UID/PID/start identity and captured prior state; do not
+   reuse the old name-substring automatic renicer as a trust boundary.
+3. Windows: .venv-windows\Scripts\python.exe -B scripts/test.py offline.
+   Native: .venv/bin/python -B scripts/run_candidate.py --offline --desktop --report
+   candidate-acceptance.json (exit 3 is pending target acceptance, not failure).
+4. Review/commit source/tests/docs, package with scripts/package_candidate.py from a
+   clean committed tree. Publish or target-deploy only when explicitly requested.
+   Prepared target acceptance runners are accept_broker.py, accept_monitor.py,
+   accept_policy.py, accept_face.py and accept_voice.py. Do independent coding while
+   target hardware is unavailable; never convert simulations into acceptance claims.

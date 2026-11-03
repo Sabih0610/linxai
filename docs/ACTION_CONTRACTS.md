@@ -1,3 +1,50 @@
+# Current catalog — 3 November 2026
+
+The single existing ActionRegistry now has 20 contracts. The full product scope
+remains the original 1–72 inventory plus the agreed desktop/network/adaptive scope;
+this catalog is the implemented subset, not a reduction of requirements.
+
+| Identifier | Wire parameters (optional/default details in source) | Server privilege | Timeout seconds | Recovery |
+| --- | --- | --- | --- | --- |
+| auth.face.enroll | {} | authenticated_admin | 20 | unsupported/review |
+| auth.face.revoke | {} | authenticated_admin | 10 | unsupported/review |
+| environment.python | path | unprivileged | 30 | unsupported/review |
+| project.scaffold | path | unprivileged | 30 | unsupported/review |
+| device.initialize | asset | unprivileged | 10 | unsupported/review |
+| device.inspect | asset | unprivileged | 10 | unsupported/review |
+| device.interface.set | asset, interface, enabled, expected_revision, transaction_id | unprivileged | 10 | captured-state typed restoration |
+| device.interface.restore | asset, transaction_id, expected_revision | unprivileged | 10 | unsupported/review |
+| remote.operation | asset, action, parameters | unprivileged | 30 | unsupported/review |
+| response.network.block | policy_id, event_id, address, port, duration | authenticated_admin | 15 | unsupported/review |
+| response.policy.revoke | policy_id | authenticated_admin | 15 | unsupported/review |
+| disk.usage | {} | unprivileged | 10 | unsupported/review |
+| memory.usage | {} | unprivileged | 5 | unsupported/review |
+| ports.listen | port, protocol | unprivileged | 5 | unsupported/review |
+| service.status | service, port_free, port_occupied | unprivileged | 10 | unsupported/review |
+| service.start | service, port_free, port_occupied | authenticated_admin | 30 | unsupported/review |
+| service.stop | service, port_free, port_occupied | authenticated_admin | 30 | unsupported/review |
+| service.restart | service, port_free, port_occupied | authenticated_admin | 30 | unsupported/review |
+| file.create | path, content | unprivileged | 5 | unsupported/review |
+| directory.create | path | unprivileged | 5 | unsupported/review |
+
+Every action derives mandatory Linux/trusted-executable checks. Registry.py defines
+resource/port/systemd/workspace/content/confinement checks. workflow_contracts.py
+adds independently inspected workflow prerequisites or trusted SSH metadata and
+verified helper/peer postconditions. response_contracts.py adds OS authorization,
+root owner/evidence scope and qualified kernel capability for new policies;
+revocation remains available without a new qualification. face_contracts.py adds
+OS authorization, root account scope and protected profile postconditions. No
+caller precondition list or privilege boolean removes these checks. All dispatch
+uses fixed arrays, shell=False, controlled input and bounded supervision. The
+service reconstructs the approved action and reruns every check before dispatch;
+execution and audit carry one operation ID. See OPERATIONS_SERVICE.md, BROKER.md,
+WORKFLOWS.md, RESPONSE_POLICIES.md and AUTHENTICATION_VOICE.md for exact boundaries.
+Only device.interface.set currently has captured-state restoration support. Other
+failures/unknown state require review; no raw rollback command is executed.
+
+The detailed original nine-action contracts below are retained with their dated
+migration notes; current routes and evidence are in RELEASE_CANDIDATE.md.
+
 # Typed action registry: first shared-operations slice
 
 Implemented 1 November 2026 in `operations/`. This is a closed, executable-free

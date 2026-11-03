@@ -54,24 +54,6 @@ class RootAudit(JsonlAudit):
             raise PermissionError("Root ledger requires root")
         return 0
 
-    def append(self, record):
-        with self._lock:
-            return self._append_locked(record)
-
-    def _append_locked(self, record):
-        # Bound each ledger generation. Only root can write the parent directory.
-        if self.path.exists() and self.path.stat().st_size >= 8 * 1024 * 1024:
-            self._writer_uid()
-            SupervisedLinuxAdapter()._directories(self.path.parent, 0, private_leaf=True)
-            for index in (3, 2, 1):
-                src = self.path.with_name(self.path.name + (f".{index-1}" if index > 1 else ""))
-                dst = self.path.with_name(self.path.name + f".{index}")
-                if src.exists():
-                    info = src.lstat()
-                    if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_nlink != 1:
-                        raise PermissionError("Unsafe audit rotation entry")
-                    src.replace(dst)
-        super().append(record)
 
 
 class Polkit:

@@ -30,6 +30,8 @@ def main(argv=None):
         for path in sorted((ROOT / package).rglob("*")):
             if path.is_file() and path.suffix in {".py", ".c"}:
                 files["usr/lib/linxai-trusted/" + path.relative_to(ROOT).as_posix()] = path
+    for name in ("sensor-os.json","face-os.json"):
+        files["usr/share/doc/linxai/"+name]=ROOT/"requirements"/name
     manifest = {}
     with tarfile.open(args.output, "x") as archive:
         for name, source in files.items():

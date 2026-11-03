@@ -1,0 +1,136 @@
+{
+  "operations_sha256": {
+    "__init__.py": "ca1da33b1330fb8a2e627633f1e0a353b4ab486040c298569bdc64ae4751ef5c",
+    "_create_program.py": "0d2528e76c636cc98bc7441b79acd405c808c6065635502eb16ccaff4c7d68f6",
+    "_policy_program.py": "72828ecd84559765c3c524d9ad33907f0d89d8dfd792a2420503217c30eb2aa6",
+    "_workflow_program.py": "f8fdcf66f7cad662bbc4f00dc80fe27a98a318f458057b3c14415454931a7ab4",
+    "agent.py": "18c0a1c96444b63443cf2a177886283e60ee8563241738a29e05067331cfe80c",
+    "audit.py": "aa49b84aba1ef42e9730c19b1e74f6280a4e1e71cf29a0dc1ff995c7fa0e028b",
+    "broker.py": "8aa9c8056359724dceec7a8422fb702f1721419cdec99ae0e84e712c1e88060f",
+    "cli.py": "8fc5e160db929409584af946066d4f08cab8b457c0d6bf08af3c1c41d2b014f2",
+    "face_contracts.py": "24143026463b4ef39faeb51a0e5d064f1d1a1d834986b5c2bc81adde04472609",
+    "ipc.py": "53d922227f37ed5534d759a4acacfb17a13b00b8889c73770e5ebca063afb719",
+    "jobs.py": "cdbb22e988fb42dabb278c082cd5a312de3c468896a526522ea1768af2576c31",
+    "plans.py": "ba6a5ca991130297c5ff50a6d25295ddde018d805f264ac02b31982c6a318415",
+    "registry.py": "f5094f1d630f28c7934a66bbcc8dae868703d51532a33a53106a4fdc239a7e6d",
+    "remote_peer.py": "d040eedd1cf96eee91212ffedd40e0cebee3b53abfa4eb61868679a81ff55f7a",
+    "response_contracts.py": "c99c01376b0251c88c959da5fa979eaf86a76cb4df87ca4b9994429c22d8f6d8",
+    "service.py": "ff5ebbcc69b5f730f932635e7f17ec88c04adb5755e213db5ab0b7c84b03e9dd",
+    "store.py": "c678a162830a87e96b664c3d55928bcd2fb94d94c47512ebd156ac9c135b90f8",
+    "supervised.py": "67dd531c43e00bdb1de40f03349a4f90371ae3779512facb19dba1b848254d25",
+    "system.py": "f34aea041cf9927b1ea1063b0f89daa42e7568e53c4313bb58ed77a9dd64f140",
+    "workflow_contracts.py": "b4d8399461d3eed43821eddd4b59f72885ff1be3a40115f41f65b8d7a117eff4",
+    "workflows.py": "2007ca34e7a503eabacb50f5417f4d2ce62ba7e4a0e13af4659506cdebd94bf2"
+  },
+  "source_snapshot": "e68b2fc3e3a013b2d8b4d01b2a53c36a51420094",
+  "schema": 1,
+  "kind": "native ordinary-user installed candidate",
+  "cloud": false,
+  "uid": 1000,
+  "results": [
+    {
+      "argv": [
+        "/home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python",
+        "-B",
+        "/home/sabih/.cache/linxai-development/gate-a-source/scripts/test.py",
+        "all"
+      ],
+      "returncode": 0,
+      "seconds": 31.387,
+      "stdout_tail": "SUMMARY group=all run=212 skipped=10 failures=0 errors=0\n",
+      "stderr_tail": "vironmentTests.test_capability_report_does_not_infer_kernel_control) ... ok\ntest_default_setup_only_syncs_locked_app_and_prints_help (test_dev_environment.DevelopmentEnvironmentTests.test_default_setup_only_syncs_locked_app_and_prints_help) ... ok\ntest_lock_contains_pinned_application_and_optional_dependencies (test_dev_environment.DevelopmentEnvironmentTests.test_lock_contains_pinned_application_and_optional_dependencies) ... ok\ntest_manifest_separates_optional_features_and_uses_no_pypi_bcc (test_dev_environment.DevelopmentEnvironmentTests.test_manifest_separates_optional_features_and_uses_no_pypi_bcc) ... ok\ntest_offline_and_explicit_extra_forwarded (test_dev_environment.DevelopmentEnvironmentTests.test_offline_and_explicit_extra_forwarded) ... ok\ntest_test_runner_uses_explicit_groups_not_repository_wide_discovery (test_dev_environment.DevelopmentEnvironmentTests.test_test_runner_uses_explicit_groups_not_repository_wide_discovery) ... ok\ntest_wrong_uv_version_and_source_as_environment_rejected (test_dev_environment.DevelopmentEnvironmentTests.test_wrong_uv_version_and_source_as_environment_rejected) ... ok\ntest_capability_probe_separates_presence_from_acceptance (test_gate_a.GateAOfflineTests.test_capability_probe_separates_presence_from_acceptance) ... ok\ntest_existing_prefix_preserved_even_if_empty (test_gate_a.GateAOfflineTests.test_existing_prefix_preserved_even_if_empty) ... ok\ntest_installer_refuses_root_and_setid_before_install (test_gate_a.GateAOfflineTests.test_installer_refuses_root_and_setid_before_install) ... ok\ntest_launcher_forwards_exact_arguments_without_interpolation (test_gate_a.GateAOfflineTests.test_launcher_forwards_exact_arguments_without_interpolation) ... ok\ntest_locked_noneditable_setup_verifies_isolated_import (test_gate_a.GateAOfflineTests.test_locked_noneditable_setup_verifies_isolated_import) ... ok\ntest_managed_uninstall_refuses_unrelated_entries_and_altered_receipt (test_gate_a.GateAOfflineTests.test_managed_uninstall_refuses_unrelated_entries_and_altered_receipt) ... ok\ntest_missing_service_fails_validation_without_dispatch (test_gate_a.GateAOfflineTests.test_missing_service_fails_validation_without_dispatch) ... ok\ntest_missing_tool_fails_validation_without_dispatch (test_gate_a.GateAOfflineTests.test_missing_tool_fails_validation_without_dispatch) ... ok\ntest_root_console_entry_refused_before_ledger_creation (test_gate_a.GateAOfflineTests.test_root_console_entry_refused_before_ledger_creation) ... ok\ntest_authorized_exact_operation_and_correlation (test_broker.BrokerTests.test_authorized_exact_operation_and_correlation) ... ok\ntest_bad_checks_execution_postconditions_and_audit (test_broker.BrokerTests.test_bad_checks_execution_postconditions_and_audit) ... ok\ntest_broker_unavailable_explicit_and_never_local_fallback (test_broker.BrokerTests.test_broker_unavailable_explicit_and_never_local_fallback) ... ok\ntest_changed_target_state_and_expired_authorization_require_revalidation (test_broker.BrokerTests.test_changed_target_state_and_expired_authorization_require_revalidation) ... ok\ntest_denied_cancelled_and_unavailable_authentication (test_broker.BrokerTests.test_denied_cancelled_and_unavailable_authentication) ... ok\ntest_oversized_duplicate_and_incomplete_frames (test_broker.BrokerTests.test_oversized_duplicate_and_incomplete_frames) ... ok\ntest_persistence_failure_after_dispatch_preserves_side_effect_state (test_broker.BrokerTests.test_persistence_failure_after_dispatch_preserves_side_effect_state) ... ok\ntest_polkit_uses_os_peer_triple_exact_details_and_no_password_io (test_broker.BrokerTests.test_polkit_uses_os_peer_triple_exact_details_and_no_password_io) ... ok\ntest_real_socket_peer_credentials (test_broker.BrokerTests.test_real_socket_peer_credentials) ... ok\ntest_replay_and_wire_authority_claims_denied (test_broker.BrokerTests.test_replay_and_wire_authority_claims_denied) ... ok\ntest_wrong_user_and_unconfigured_service_never_dispatch (test_broker.BrokerTests.test_wrong_user_and_unconfigured_service_never_dispatch) ... ok\ntest_cancel_queued_never_dispatches_and_capacity_is_bounded (test_application.ApplicationTests.test_cancel_queued_never_dispatches_and_capacity_is_bounded) ... ok\ntest_changed_preview_consumed_preview_and_expiry_rejected (test_application.ApplicationTests.test_changed_preview_consumed_preview_and_expiry_rejected) ... ok\ntest_natural_language_read_preview_confirm_verified_result (test_application.ApplicationTests.test_natural_language_read_preview_confirm_verified_result) ... ok\ntest_reconciliation_reads_current_state_without_inventing_original_success (test_application.ApplicationTests.test_reconciliation_reads_current_state_without_inventing_original_success) ... ok\ntest_restart_marks_dispatch_unknown_and_never_replays (test_application.ApplicationTests.test_restart_marks_dispatch_unknown_and_never_replays) ... ok\ntest_uncertain_privileged_response_requires_reconciliation (test_application.ApplicationTests.test_uncertain_privileged_response_requires_reconciliation) ... ok\ntest_unsupported_plan_and_unavailable_model_do_not_execute (test_application.ApplicationTests.test_unsupported_plan_and_unavailable_model_do_not_execute) ... ok\ntest_untrusted_model_command_risk_and_sudo_are_not_authority (test_application.ApplicationTests.test_untrusted_model_command_risk_and_sudo_are_not_authority) ... ok\ntest_benign_near_matches_and_root_reads_not_suspicious (test_security_monitor.SecurityMonitorTests.test_benign_near_matches_and_root_reads_not_suspicious) ... ok\ntest_bounded_buffer_reports_loss_and_restart (test_security_monitor.SecurityMonitorTests.test_bounded_buffer_reports_loss_and_restart) ... ok\ntest_detection_runs_while_model_is_blocked_and_ui_absent (test_security_monitor.SecurityMonitorTests.test_detection_runs_while_model_is_blocked_and_ui_absent) ... ok\ntest_malformed_event_and_unavailable_source_are_explicit (test_security_monitor.SecurityMonitorTests.test_malformed_event_and_unavailable_source_are_explicit) ... ok\ntest_missing_bcc_marks_capture_unavailable_without_loading (test_security_monitor.SecurityMonitorTests.test_missing_bcc_marks_capture_unavailable_without_loading) ... ok\ntest_stable_subject_includes_host_boot_uid_pid_and_start (test_security_monitor.SecurityMonitorTests.test_stable_subject_includes_host_boot_uid_pid_and_start) ... ok\ntest_suspicious_event_to_durable_incident_without_model (test_security_monitor.SecurityMonitorTests.test_suspicious_event_to_durable_incident_without_model) ... ok\ntest_auto_owner_limits_are_root_config_and_user_wire_cannot_grant_them (test_response_policy.ResponsePolicyTests.test_auto_owner_limits_are_root_config_and_user_wire_cannot_grant_them) ... ok\ntest_crash_restore_requires_validated_root_policy_auto_limits_and_original_expiry (test_response_policy.ResponsePolicyTests.test_crash_restore_requires_validated_root_policy_auto_limits_and_original_expiry) ... ok\ntest_existing_service_lifecycle_executes_exact_response_and_correlates (test_response_policy.ResponsePolicyTests.test_existing_service_lifecycle_executes_exact_response_and_correlates) ... ok\ntest_failed_containment_never_promotes_and_policy_ids_cannot_replay (test_response_policy.ResponsePolicyTests.test_failed_containment_never_promotes_and_policy_ids_cannot_replay) ... ok\ntest_first_response_verification_recurrence_expiry_and_revocation (test_response_policy.ResponsePolicyTests.test_first_response_verification_recurrence_expiry_and_revocation) ... ok\ntest_known_policy_recurrence_does_not_call_model (test_response_policy.ResponsePolicyTests.test_known_policy_recurrence_does_not_call_model) ... ok\ntest_model_target_changes_and_authority_claims_rejected (test_response_policy.ResponsePolicyTests.test_model_target_changes_and_authority_claims_rejected) ... ok\ntest_scope_wrong_user_stale_or_forged_evidence_and_unqualified_kernel (test_response_policy.ResponsePolicyTests.test_scope_wrong_user_stale_or_forged_evidence_and_unqualified_kernel) ... ok\ntest_absolute_deadline_prevents_drip_feed_extension (test_local_http.ModelTransportTests.test_absolute_deadline_prevents_drip_feed_extension) ... ok\ntest_fixed_loopback_no_proxy_and_bounded_json (test_local_http.ModelTransportTests.test_fixed_loopback_no_proxy_and_bounded_json) ... ok\ntest_redirect_and_oversized_payload_are_rejected (test_local_http.ModelTransportTests.test_redirect_and_oversized_payload_are_rejected) ... ok\ntest_python_recipe_and_remote_natural_language_use_same_registry (test_workflows.WorkflowTests.test_python_recipe_and_remote_natural_language_use_same_registry) ... ok\ntest_strict_ssh_array_and_no_caller_command_or_recursive_request (test_workflows.WorkflowTests.test_strict_ssh_array_and_no_caller_command_or_recursive_request) ... ok\ntest_unknown_platform_explicit_and_no_model_for_unknown_remote (test_workflows.WorkflowTests.test_unknown_platform_explicit_and_no_model_for_unknown_remote) ... ok\ntest_workspace_unknown_assets_paths_and_interface_parameters_fail (test_workflows.WorkflowTests.test_workspace_unknown_assets_paths_and_interface_parameters_fail) ... ok\ntest_account_fields_and_missing_mandatory_authorization_rejected (test_auth_voice.AuthVoiceTests.test_account_fields_and_missing_mandatory_authorization_rejected) ... ok\ntest_face_proof_cannot_authorize_another_operation (test_auth_voice.AuthVoiceTests.test_face_proof_cannot_authorize_another_operation) ... ok\ntest_fresh_account_operation_provider_and_nonce_required (test_auth_voice.AuthVoiceTests.test_fresh_account_operation_provider_and_nonce_required) ... ok\ntest_local_transcription_no_download_and_bounded_wer (test_auth_voice.AuthVoiceTests.test_local_transcription_no_download_and_bounded_wer) ... ok\ntest_read_only_owner_cannot_inject_credentials_or_camera_proof (test_auth_voice.AuthVoiceTests.test_read_only_owner_cannot_inject_credentials_or_camera_proof) ... ok\ntest_revocation_and_enrollment_invalidate_qualification (test_auth_voice.AuthVoiceTests.test_revocation_and_enrollment_invalidate_qualification) ... ok\ntest_unavailable_face_falls_back_to_os_auth_enrollment_always_password (test_auth_voice.AuthVoiceTests.test_unavailable_face_falls_back_to_os_auth_enrollment_always_password) ... ok\ntest_vad_bounds_and_silence_fail_closed (test_auth_voice.AuthVoiceTests.test_vad_bounds_and_silence_fail_closed) ... ok\ntest_wrong_account_unqualified_simulation_never_authorizes (test_auth_voice.AuthVoiceTests.test_wrong_account_unqualified_simulation_never_authorizes) ... ok\ntest_manifested_source_tar_is_deterministic (test_candidate.CandidateTests.test_manifested_source_tar_is_deterministic) ... ok\ntest_noneditable_build_excludes_stale_build_outputs (test_candidate.CandidateTests.test_noneditable_build_excludes_stale_build_outputs) ... ok\ntest_nonregular_and_missing_predecessors_rejected (test_candidate.CandidateTests.test_nonregular_and_missing_predecessors_rejected) ... ok\ntest_secrets_generated_data_and_traversal_rejected (test_candidate.CandidateTests.test_secrets_generated_data_and_traversal_rejected) ... ok\ntest_typed_remote_metadata_does_not_import_legacy_paramiko (test_candidate.CandidateTests.test_typed_remote_metadata_does_not_import_legacy_paramiko) ... ok\ntest_altered_approval_and_admin_dispatch_are_denied (tests.test_linux_integration.LinuxIntegrationTests.test_altered_approval_and_admin_dispatch_are_denied) ... ok\ntest_directory_create (tests.test_linux_integration.LinuxIntegrationTests.test_directory_create) ... ok\ntest_disk_usage (tests.test_linux_integration.LinuxIntegrationTests.test_disk_usage) ... ok\ntest_file_create_content_and_audit_correlation (tests.test_linux_integration.LinuxIntegrationTests.test_file_create_content_and_audit_correlation) ... ok\ntest_foreign_owned_workspace_rejected_before_dispatch (tests.test_linux_integration.LinuxIntegrationTests.test_foreign_owned_workspace_rejected_before_dispatch) ... ok\ntest_installed_console_launcher_as_ordinary_user (tests.test_linux_integration.LinuxIntegrationTests.test_installed_console_launcher_as_ordinary_user) ... ok\ntest_listening_ports (tests.test_linux_integration.LinuxIntegrationTests.test_listening_ports) ... ok\ntest_memory_usage (tests.test_linux_integration.LinuxIntegrationTests.test_memory_usage) ... ok\ntest_service_status_read_only (tests.test_linux_integration.LinuxIntegrationTests.test_service_status_read_only) ... skipped 'systemd is not running; a systemctl binary alone is insufficient'\ntest_traversal_overwrite_and_symlink_rejected (tests.test_linux_integration.LinuxIntegrationTests.test_traversal_overwrite_and_symlink_rejected) ... ok\ntest_unavailable_service_or_manager_explicitly_fails (tests.test_linux_integration.LinuxIntegrationTests.test_unavailable_service_or_manager_explicitly_fails) ... ok\ntest_audit_rotation_is_bounded_and_shared_across_writers (tests.test_native_runtime.NativeRuntimeTests.test_audit_rotation_is_bounded_and_shared_across_writers) ... ok\ntest_audit_unsafe_archive_and_oversize_record_fail_before_append (tests.test_native_runtime.NativeRuntimeTests.test_audit_unsafe_archive_and_oversize_record_fail_before_append) ... ok\ntest_output_and_time_budgets (tests.test_native_runtime.NativeRuntimeTests.test_output_and_time_budgets) ... ok\ntest_private_sqlite_persistence_duplicate_and_size_bounds (tests.test_native_runtime.NativeRuntimeTests.test_private_sqlite_persistence_duplicate_and_size_bounds) ... ok\ntest_supervised_exact_argv_and_literal_stdin (tests.test_native_runtime.NativeRuntimeTests.test_supervised_exact_argv_and_literal_stdin) ... ok\ntest_client_authority_fields_and_wrong_identity_rejected (tests.test_native_agent.NativeAgentTests.test_client_authority_fields_and_wrong_identity_rejected) ... ok\ntest_real_read_survives_client_disconnect_and_reopen (tests.test_native_agent.NativeAgentTests.test_real_read_survives_client_disconnect_and_reopen) ... ok\ntest_second_agent_cannot_unlink_socket_or_reconcile_running_jobs (tests.test_native_agent.NativeAgentTests.test_second_agent_cannot_unlink_socket_or_reconcile_running_jobs) ... ok\ntest_actual_remote_peer_protocol_and_persistent_replay_without_ssh (tests.test_native_workflows.NativeWorkflowTests.test_actual_remote_peer_protocol_and_persistent_replay_without_ssh) ... ok\ntest_development_device_diff_apply_verified_restore_and_replay_denial (tests.test_native_workflows.NativeWorkflowTests.test_development_device_diff_apply_verified_restore_and_replay_denial) ... ok\ntest_real_python_project_is_reproducible_and_preserves_edits (tests.test_native_workflows.NativeWorkflowTests.test_real_python_project_is_reproducible_and_preserves_edits) ... ok\ntest_symlink_device_and_stale_revision_do_not_mutate_target (tests.test_native_workflows.NativeWorkflowTests.test_symlink_device_and_stale_revision_do_not_mutate_target) ... ok\ntest_enforcement_acceptance_pending (tests.test_opt_in.PrivilegedTests.test_enforcement_acceptance_pending) ... skipped 'opt in with LINXAI_TEST_PRIVILEGED=1 in a controlled Linux lab'\ntest_os_interpreter_bcc_import (tests.test_opt_in.PrivilegedTests.test_os_interpreter_bcc_import) ... skipped 'opt in with LINXAI_TEST_PRIVILEGED=1 in a controlled Linux lab'\ntest_candidate_qt_toolkit (tests.test_opt_in.DesktopTests.test_candidate_qt_toolkit) ... skipped 'opt in with LINXAI_TEST_DESKTOP=1'\ntest_changed_input_cannot_accept_stale_async_preview (tests.test_desktop.DesktopTests.test_changed_input_cannot_accept_stale_async_preview) ... skipped 'opt in for installed Qt desktop tests'\ntest_nonblocking_preview_and_confirm_with_deterministic_backend (tests.test_desktop.DesktopTests.test_nonblocking_preview_and_confirm_with_deterministic_backend) ... skipped 'opt in for installed Qt desktop tests'\ntest_voice_reaches_preview_without_confirmation (tests.test_desktop.DesktopTests.test_voice_reaches_preview_without_confirmation) ... skipped 'opt in for installed Qt desktop tests'\ntest_camera_frame (tests.test_opt_in.HardwareTests.test_camera_frame) ... skipped 'opt in with LINXAI_TEST_HARDWARE=1; may open camera'\ntest_voice_acceptance (tests.test_opt_in.HardwareTests.test_voice_acceptance) ... skipped 'opt in with LINXAI_TEST_HARDWARE=1; may open camera'\ntest_existing_local_model_response (tests.test_opt_in.RealModelTests.test_existing_local_model_response) ... skipped 'opt in with LINXAI_TEST_MODEL=1; uses existing loopback Ollama only'\n\n----------------------------------------------------------------------\nRan 212 tests in 30.107s\n\nOK (skipped=10)\n"
+    },
+    {
+      "argv": [
+        "/home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python",
+        "-I",
+        "/home/sabih/.cache/linxai-development/gate-a-source/scripts/install_app.py",
+        "--prefix",
+        "/home/sabih/.linxai-candidate-gyjyqnu7/installed candidate",
+        "--offline",
+        "--desktop"
+      ],
+      "returncode": 0,
+      "seconds": 8.591,
+      "stdout_tail": "usage: cli.py [-h] [--ask ASK] [--confirm PREVIEW_ID] [--digest DIGEST]\n              [--jobs] [--parameters PARAMETERS] [--workspace WORKSPACE]\n              [--audit-path AUDIT_PATH]\n              [action]\n\nLINxAI typed operations (ordinary Linux user)\n\npositional arguments:\n  action\n\noptions:\n  -h, --help            show this help message and exit\n  --ask ASK             Natural-language preview through the running agent;\n                        never executes without --confirm\n  --confirm PREVIEW_ID\n  --digest DIGEST       Exact digest returned by preview\n  --jobs\n  --parameters PARAMETERS\n                        JSON parameter object; no command/identity/approval\n                        fields\n  --workspace WORKSPACE\n                        Explicit permitted POSIX workspace for create actions\n  --audit-path AUDIT_PATH\n                        JSONL path in an owned private directory\nReady: /home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/venv/bin/python\nInstalled typed CLI: /home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/bin/linxai\nAdd /home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/bin to your PATH explicitly if desired.\n",
+      "stderr_tail": "Using CPython 3.12.3 interpreter at: /home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python\nCreating virtual environment at: /home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/venv\nResolved 47 packages in 215ms\n   Building linxai @ file:///tmp/linxai-wheel-source-mae3rriz\n      Built linxai @ file:///tmp/linxai-wheel-source-mae3rriz\nPrepared 1 package in 3.41s\nInstalled 8 packages in 2.38s\n + linxai==0.1.0 (from file:///tmp/linxai-wheel-source-mae3rriz)\n + psutil==7.1.3\n + pyside6==6.10.0\n + pyside6-addons==6.10.0\n + pyside6-essentials==6.10.0\n + pyyaml==6.0.3\n + shiboken6==6.10.0\n + uv==0.13.3\n"
+    },
+    {
+      "argv": [
+        "/home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/venv/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import json,pathlib,operations,voice.pipeline\nfrom operations.registry import ACTIONS\nfrom security.face import FaceAuthority\nfrom operations.broker import FACE_ADMIN\nfrom vps.server_types import VPSServer\nassert FACE_ADMIN <= ACTIONS.keys()\nassert len(ACTIONS)>=20\nassert pathlib.Path(operations.__file__).is_relative_to(pathlib.Path(__import__('sys').prefix))\nprint(json.dumps({'module':operations.__file__,'actions':sorted(ACTIONS),'voice':'installed; hardware unopened'}))"
+      ],
+      "returncode": 0,
+      "seconds": 0.228,
+      "stdout_tail": "{\"module\": \"/home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/venv/lib/python3.12/site-packages/operations/__init__.py\", \"actions\": [\"auth.face.enroll\", \"auth.face.revoke\", \"device.initialize\", \"device.inspect\", \"device.interface.restore\", \"device.interface.set\", \"directory.create\", \"disk.usage\", \"environment.python\", \"file.create\", \"memory.usage\", \"ports.listen\", \"project.scaffold\", \"remote.operation\", \"response.network.block\", \"response.policy.revoke\", \"service.restart\", \"service.start\", \"service.status\", \"service.stop\"], \"voice\": \"installed; hardware unopened\"}\n",
+      "stderr_tail": ""
+    },
+    {
+      "argv": [
+        "/home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/bin/linxai",
+        "memory.usage",
+        "--audit-path",
+        "/home/sabih/.linxai-candidate-gyjyqnu7/cli-audit.jsonl"
+      ],
+      "returncode": 0,
+      "seconds": 0.759,
+      "stdout_tail": "{\"audit_complete\": true, \"executed\": true, \"fingerprint\": \"92e35c0df897d6ec8e419de5a9295eb9e96f4ec55d868cba55ab2f3077abbf81\", \"operation_id\": \"8f2c8687-ada6-4bb6-823f-5969f91ddd8a\", \"reason\": \"All required postconditions verified\", \"recovery\": \"unsupported\", \"restoration\": null, \"status\": \"succeeded\", \"stderr\": \"\", \"stdout\": \"               total        used        free      shared  buff/cache   available\\nMem:      8217899008   463716352  7610691584     3055616   300978176  7754182656\\nSwap:     2147483648           0  2147483648\\n\", \"verified\": true}\n",
+      "stderr_tail": ""
+    },
+    {
+      "argv": [
+        "/home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/venv/bin/python",
+        "-I",
+        "-B",
+        "/home/sabih/.cache/linxai-development/gate-a-source/scripts/installed_workflow.py",
+        "--root",
+        "/home/sabih/.linxai-candidate-gyjyqnu7"
+      ],
+      "returncode": 0,
+      "seconds": 3.307,
+      "stdout_tail": "{\"agent_job\": \"61c84ff4-7ce3-4d83-9d27-a9bdd122f566\", \"operation\": \"a630f715-d365-4ae3-ac28-36cf621ebc88\", \"project_operation\": \"0af2164b-0927-4515-aad1-4f4436ebcc1e\", \"source\": \"installed wheel\", \"errors\": []}\n",
+      "stderr_tail": ""
+    },
+    {
+      "argv": [
+        "/home/sabih/.linxai-candidate-gyjyqnu7/installed candidate/venv/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "from PySide6.QtWidgets import QApplication\nfrom ui.desktop import build_window\nclass Client:\n def call(self,method,**fields):return {'jobs':[]} if method=='jobs' else {}\napp=QApplication([]);window=build_window(Client());assert window.tabs.count()==5\nwindow.timer.stop();window.pool.waitForDone(3000);app.processEvents();window.close()\nprint('Installed Qt window constructed; physical desktop/hardware untested')"
+      ],
+      "returncode": 0,
+      "seconds": 4.139,
+      "stdout_tail": "Installed Qt window constructed; physical desktop/hardware untested\n",
+      "stderr_tail": ""
+    },
+    {
+      "argv": [
+        "/home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python",
+        "-I",
+        "/home/sabih/.cache/linxai-development/gate-a-source/scripts/install_app.py",
+        "--prefix",
+        "/home/sabih/.linxai-candidate-gyjyqnu7/installed candidate",
+        "--uninstall"
+      ],
+      "returncode": 0,
+      "seconds": 0.171,
+      "stdout_tail": "",
+      "stderr_tail": ""
+    }
+  ],
+  "target_pending": [
+    "systemd service success",
+    "polkit/account authentication",
+    "real BCC and enforcement",
+    "SSH/vendor lab",
+    "camera/spoof/microphone/WER",
+    "real model",
+    "24-hour stress",
+    "owner acceptance"
+  ],
+  "status": "IMPLEMENTED\u2014LAB ACCEPTANCE PENDING"
+}

@@ -53,3 +53,8 @@ models/
 *.safetensors
 
 .handoff-work/
+
+# Acceptance artifacts are generated evidence, never implicit source changes
+*-acceptance.json
+soak-report*.json
+gate-a-lab.json

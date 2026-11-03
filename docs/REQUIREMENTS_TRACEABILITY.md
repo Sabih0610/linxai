@@ -2,82 +2,82 @@
 
 The left column preserves the original inventory IDs 1–72. Historical descriptions/statuses and original PDF source labels are retained in REQUIREMENTS_INVENTORY.md. The checked-in simplified SRS.md has FR-01–12/NFR-01–07, a different namespace from the original PDF FR-01–36. Its broad references below are mappings, not replacements or claims that the PDF is present.
 
-Gate IDs A–H refer to the architecture acceptance roadmap. Test evidence must identify an actual test/run and supported environment before changing a row to accepted. Current evidence is in CAPABILITY_REPORT_2026-11-02.md and VERIFICATION.md; none of these rows claims full acceptance.
+Current table updated for the integrated B–H development candidate on 2 November 2026. Every row separates implementation, automated evidence and remaining acceptance; none implies whole-requirement PASS. Gate IDs A–H refer to the architecture acceptance roadmap. Test evidence must identify an actual test/run and supported environment before changing a row to accepted. Current evidence is in CAPABILITY_REPORT_2026-11-02.md and VERIFICATION.md; none of these rows claims full acceptance.
 
-| Original item | Feature | Gate | Current boundary | Simplified repo SRS mapping |
-| --- | --- | --- | --- | --- |
-| 1 | Natural Language Command-Line Interface | C | Legacy AI/context/fast paths and typed boundary present; complete natural-language migration pending | FR-01–03 |
-| 2 | Offline AI Model Integration | C | Legacy AI/context/fast paths and typed boundary present; complete natural-language migration pending | FR-01–03 |
-| 3 | Command Intent Classification | C | Legacy AI/context/fast paths and typed boundary present; complete natural-language migration pending | FR-01–03 |
-| 4 | AI Prompt Engineering | C | Legacy AI/context/fast paths and typed boundary present; complete natural-language migration pending | FR-01–03 |
-| 5 | LangGraph AI Workflow | C | LangGraph graph not established by source; do not infer it from dependencies | FR-01–03 |
-| 6 | Structured JSON Execution Plans | C | Legacy AI/context/fast paths and typed boundary present; complete natural-language migration pending | FR-01–03 |
-| 7 | SQLite Context Memory | C | Legacy AI/context/fast paths and typed boundary present; complete natural-language migration pending | FR-01–03 |
-| 8 | Context-Aware Follow-Up Commands | C | Legacy AI/context/fast paths and typed boundary present; complete natural-language migration pending | FR-01–03 |
-| 9 | Text Normalization | C | Legacy AI/context/fast paths and typed boundary present; complete natural-language migration pending | FR-01–03 |
-| 10 | Microphone Audio Capture | G | Voice runtime missing; hardware/WER and pipeline integration pending | FR-11 |
-| 11 | Voice Activity Detection (VAD) | G | Voice runtime missing; hardware/WER and pipeline integration pending | FR-11 |
-| 12 | Offline Speech-to-Text | G | Voice runtime missing; hardware/WER and pipeline integration pending | FR-11 |
-| 13 | Voice-to-AI Pipeline Integration | G | Voice runtime missing; hardware/WER and pipeline integration pending | FR-11 |
-| 14 | Technical Vocabulary Recognition Testing | G | Voice runtime missing; hardware/WER and pipeline integration pending | FR-11 |
-| 15 | Network Port Conflict Detection | A/B/C | CIE and action-derived checks present; native breadth/legacy migration incomplete | FR-04 |
-| 16 | Service Status Validation | A/B/C | CIE and action-derived checks present; native breadth/legacy migration incomplete | FR-04 |
-| 17 | Process and Resource State Validation | A/B/C | CIE and action-derived checks present; native breadth/legacy migration incomplete | FR-04 |
-| 18 | File, User, and Permission Checks | A/B/C | CIE and action-derived checks present; native breadth/legacy migration incomplete | FR-04 |
-| 19 | Firewall and Dependency Conflict Handling | A/B/C | CIE and action-derived checks present; native breadth/legacy migration incomplete | FR-04 |
-| 20 | Approve / Block / Warn Decisions | A/B/C | CIE and action-derived checks present; native breadth/legacy migration incomplete | FR-04 |
-| 21 | Automatic Conflict Resolution and Alternative Suggestions | A/B/C | CIE and action-derived checks present; native breadth/legacy migration incomplete | FR-04 |
-| 22 | System Execution Controller | B/C/G | New bounded service tested; broker/legacy/authentication gaps remain | FR-05–06; NFR-03 |
-| 23 | Command Timeout Handling | B/C/G | New bounded service tested; broker/legacy/authentication gaps remain | FR-05–06; NFR-03 |
-| 24 | Destructive Command Protection | B/C/G | New bounded service tested; broker/legacy/authentication gaps remain | FR-05–06; NFR-03 |
-| 25 | Structured Execution Results | B/C/G | New bounded service tested; broker/legacy/authentication gaps remain | FR-05–06; NFR-03 |
-| 26 | Sudo Privilege Management | B/C/G | Administrative service dispatch deliberately blocked pending trusted broker | FR-05–06; NFR-03 |
-| 27 | Facial Recognition Authentication | B/C/G | Face prototype only; account binding/spoof/password fallback acceptance pending | FR-05–06; NFR-03 |
-| 28 | Face Liveness Detection | B/C/G | Liveness claim unverified | FR-05–06; NFR-03 |
-| 29 | Custom PAM and Authentication Socket Integration | B/C/G | PAM/socket prototype is not trusted operation authorization | FR-05–06; NFR-03 |
-| 30 | eBPF Monitoring Daemon | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 31 | Process Execution Monitoring (`execve`) | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 32 | Network Connection Monitoring (`connect`) | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 33 | File Access Monitoring (`openat`) | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 34 | BCC Probe Loading | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 35 | Kernel Event Buffering | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 36 | Suspicious Activity Detection | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 37 | Credential File Access Detection | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 38 | Suspicious Network and Exfiltration Detection | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 39 | Reverse Shell and Attack Tool Detection | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 40 | Kernel Security Alert Memory | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 41 | Security-Aware Future Command Warnings | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 42 | Security Event Causal Tracking | D/E | Monitoring source present; independent detection/adaptive policy/enforcement acceptance pending | FR-07; NFR-02–03 |
-| 43 | Attack Simulation Module | D/E | Historical attack tests absent from latest tree; recover selectively, never routine discovery | FR-07; NFR-02–03 |
-| 44 | Low-Overhead eBPF Monitoring | D/E | Overhead target unmeasured in current environment | FR-07; NFR-02–03 |
-| 45 | Active Kernel Threat Interception | D/E | Kernel prevention/enforcement not demonstrated | FR-07; NFR-02–03 |
-| 46 | CPU and Memory Monitoring | F/H | Resource prototype present; stable identity and measured benefit pending | FR-08 |
-| 47 | Process Classification | F/H | Resource prototype present; stable identity and measured benefit pending | FR-08 |
-| 48 | Automatic Process Priority Optimization | F/H | Resource prototype present; stable identity and measured benefit pending | FR-08 |
-| 49 | Automatic Priority Restoration | F/H | Resource prototype present; stable identity and measured benefit pending | FR-08 |
-| 50 | Predictive Resource Management | F/H | Reactive threshold code is not a predictive model | FR-08 |
-| 51 | Resource Optimization Performance Validation | F/H | Resource prototype present; stable identity and measured benefit pending | FR-08 |
-| 52 | Remote Server Configuration | F | Standalone remote source present; unified policy/host identity/device lab acceptance pending | FR-09 |
-| 53 | SSH-Based Remote Authentication | F | Standalone remote source present; unified policy/host identity/device lab acceptance pending | FR-09 |
-| 54 | Remote Command Execution | F | Standalone remote source present; unified policy/host identity/device lab acceptance pending | FR-09 |
-| 55 | Remote Command Safety Guard | F | Standalone remote source present; unified policy/host identity/device lab acceptance pending | FR-09 |
-| 56 | Remote Server Status Monitoring | F | Standalone remote source present; unified policy/host identity/device lab acceptance pending | FR-09 |
-| 57 | Multi-Server Management Verification | F | Standalone remote source present; unified policy/host identity/device lab acceptance pending | FR-09 |
-| 58 | Centralized JSON Lines Audit Logger | C/D/H | Operation ledger implemented; full cross-module incident/durable audit integration pending | FR-10; NFR-04 |
-| 59 | Standardized Audit Records | C/D/H | Operation ledger implemented; full cross-module incident/durable audit integration pending | FR-10; NFR-04 |
-| 60 | Cross-Module Audit Integration | C/D/H | Operation ledger implemented; full cross-module incident/durable audit integration pending | FR-10; NFR-04 |
-| 61 | Command-Line Log Viewer | C/D/H | Operation ledger implemented; full cross-module incident/durable audit integration pending | FR-10; NFR-04 |
-| 62 | AI Explain Mode | C/D/H | Operation ledger implemented; full cross-module incident/durable audit integration pending | FR-10; NFR-04 |
-| 63 | Native Ubuntu Installer | A/C/D | Inherited system installer unsafe for routine setup; isolated typed launcher now supplied | FR-12; NFR-06–07 |
-| 64 | Modular Component Installers | A/C/D | Reproducible dev setup added; legacy deployment/full application integration incomplete | FR-12; NFR-06–07 |
-| 65 | Systemd Monitoring Service | A/C/D | Sensor source/unit file present; independent ownership/readiness/transport still pending | FR-12; NFR-06–07 |
-| 66 | Configuration Management | A/C/D | Reproducible dev setup added; legacy deployment/full application integration incomplete | FR-12; NFR-06–07 |
-| 67 | Module Status Interface | A/C/D | Reproducible dev setup added; legacy deployment/full application integration incomplete | FR-12; NFR-06–07 |
-| 68 | Partial End-to-End Integration | A/C/D | Reproducible dev setup added; legacy deployment/full application integration incomplete | FR-12; NFR-06–07 |
-| 69 | Full Eight-Module Integration | A/C/D | Full integration not complete | FR-12; NFR-06–07 |
-| 70 | Native Linux Compatibility Testing | A/C/D | Ordinary-user WSL smoke evidence is separate from final desktop/hardware/platform acceptance | FR-12; NFR-06–07 |
-| 71 | Comprehensive Testing and Stabilization | H | Offline test-method count is not requirement acceptance coverage | FR-12; NFR-05–06 |
-| 72 | 24-Hour System Stress Testing | H | 24-hour/99-percent availability acceptance not demonstrated | FR-12; NFR-05–06 |
+| Original item | Feature | Gate | Current implementation | Automated evidence | Target / remaining acceptance | Simplified repo SRS mapping |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Natural Language Command-Line Interface | C | Implemented bounded text → validated typed preview | test_application; test_safety_regressions; native/installed agent | Broader multi-step/model language corpus | FR-01–03 |
+| 2 | Offline AI Model Integration | C | Implemented local-only optional bounded Ollama planning | test_local_http; prompt/schema regressions; deterministic substitutes | Existing real-model group, prompt-injection/model evaluation | FR-01–03 |
+| 3 | Command Intent Classification | C | Implemented bounded text → validated typed preview | test_application; test_safety_regressions; native/installed agent | Broader multi-step/model language corpus | FR-01–03 |
+| 4 | AI Prompt Engineering | C | Implemented local-only optional bounded Ollama planning | test_local_http; prompt/schema regressions; deterministic substitutes | Existing real-model group, prompt-injection/model evaluation | FR-01–03 |
+| 5 | LangGraph AI Workflow | C | UNKNOWN / implementation missing: no LangGraph graph established | Source inspection; dependency presence is not evidence | Resolve original graph criteria/source and implement without bypassing typed service | FR-01–03 |
+| 6 | Structured JSON Execution Plans | C | Implemented bounded text → validated typed preview | test_application; test_safety_regressions; native/installed agent | Broader multi-step/model language corpus | FR-01–03 |
+| 7 | SQLite Context Memory | C | PARTIAL: private durable jobs and five bounded history summaries; legacy context retained | test_application; tests.test_native_agent; installed candidate | Nuanced follow-ups and conversation migration/corpus | FR-01–03 |
+| 8 | Context-Aware Follow-Up Commands | C | PARTIAL: private durable jobs and five bounded history summaries; legacy context retained | test_application; tests.test_native_agent; installed candidate | Nuanced follow-ups and conversation migration/corpus | FR-01–03 |
+| 9 | Text Normalization | C | Implemented bounded text → validated typed preview | test_application; test_safety_regressions; native/installed agent | Broader multi-step/model language corpus | FR-01–03 |
+| 10 | Microphone Audio Capture | G | Implemented bounded local PCM/VAD/Whisper → preview; hardware acceptance pending | test_auth_voice; Qt voice-to-preview stand-in | Opt-in accept_voice.py with real mic, existing local model and vocabulary references/WER | FR-11 |
+| 11 | Voice Activity Detection (VAD) | G | Implemented bounded local PCM/VAD/Whisper → preview; hardware acceptance pending | test_auth_voice; Qt voice-to-preview stand-in | Opt-in accept_voice.py with real mic, existing local model and vocabulary references/WER | FR-11 |
+| 12 | Offline Speech-to-Text | G | Implemented bounded local PCM/VAD/Whisper → preview; hardware acceptance pending | test_auth_voice; Qt voice-to-preview stand-in | Opt-in accept_voice.py with real mic, existing local model and vocabulary references/WER | FR-11 |
+| 13 | Voice-to-AI Pipeline Integration | G | Implemented bounded local PCM/VAD/Whisper → preview; hardware acceptance pending | test_auth_voice; Qt voice-to-preview stand-in | Opt-in accept_voice.py with real mic, existing local model and vocabulary references/WER | FR-11 |
+| 14 | Technical Vocabulary Recognition Testing | G | Implemented bounded local PCM/VAD/Whisper → preview; hardware acceptance pending | test_auth_voice; Qt voice-to-preview stand-in | Opt-in accept_voice.py with real mic, existing local model and vocabulary references/WER | FR-11 |
+| 15 | Network Port Conflict Detection | A/B/C | Implemented server-derived typed port checks | test_action_registry; test_broker; native ports | Actual conditional service/auth lab | FR-04 |
+| 16 | Service Status Validation | A/B/C | Implemented systemd state checks and missing-manager denial | test_gate_a; native missing-manager check | service.status success skipped: WSL has no running systemd | FR-04 |
+| 17 | Process and Resource State Validation | A/B/C | PARTIAL: resource reads, private ownership/confinement and required checks | test_operations_service; native filesystem/resource checks | Complete process/user/dependency-state breadth | FR-04 |
+| 18 | File, User, and Permission Checks | A/B/C | PARTIAL: resource reads, private ownership/confinement and required checks | test_operations_service; native filesystem/resource checks | Complete process/user/dependency-state breadth | FR-04 |
+| 19 | Firewall and Dependency Conflict Handling | A/B/C | PARTIAL / missing typed firewall/dependency resolution and alternatives | Existing legacy CIE retained; unsupported operations rejected | Add bounded typed conflicts/alternatives and target acceptance; no shell fallback | FR-04 |
+| 20 | Approve / Block / Warn Decisions | A/B/C | Implemented exact approval/checks → supervised argv → verified correlated result | Foundation/registry/service/broker suites; native time/output/argv tests | Full legacy route migration and real privileged operation acceptance | FR-04 |
+| 21 | Automatic Conflict Resolution and Alternative Suggestions | A/B/C | PARTIAL / missing typed firewall/dependency resolution and alternatives | Existing legacy CIE retained; unsupported operations rejected | Add bounded typed conflicts/alternatives and target acceptance; no shell fallback | FR-04 |
+| 22 | System Execution Controller | B/C/G | Implemented exact approval/checks → supervised argv → verified correlated result | Foundation/registry/service/broker suites; native time/output/argv tests | Full legacy route migration and real privileged operation acceptance | FR-05–06; NFR-03 |
+| 23 | Command Timeout Handling | B/C/G | Implemented exact approval/checks → supervised argv → verified correlated result | Foundation/registry/service/broker suites; native time/output/argv tests | Full legacy route migration and real privileged operation acceptance | FR-05–06; NFR-03 |
+| 24 | Destructive Command Protection | B/C/G | Implemented exact approval/checks → supervised argv → verified correlated result | Foundation/registry/service/broker suites; native time/output/argv tests | Full legacy route migration and real privileged operation acceptance | FR-05–06; NFR-03 |
+| 25 | Structured Execution Results | B/C/G | Implemented exact approval/checks → supervised argv → verified correlated result | Foundation/registry/service/broker suites; native time/output/argv tests | Full legacy route migration and real privileged operation acceptance | FR-05–06; NFR-03 |
+| 26 | Sudo Privilege Management | B/C/G | Implemented protected peer-bound broker and polkit mechanism | test_broker; native SO_PEERCRED; real root-startup denial historical | accept_broker.py against explicitly prepared polkit/service fixture | FR-05–06; NFR-03 |
+| 27 | Facial Recognition Authentication | B/C/G | PARTIAL: protected account template/proof; heuristic liveness unqualified, primary off | test_auth_voice doubles; no actual camera/spoof evidence | accept_face.py controlled repeated account/photo/video/missing-camera suite; assurance review | FR-05–06; NFR-03 |
+| 28 | Face Liveness Detection | B/C/G | PARTIAL: protected account template/proof; heuristic liveness unqualified, primary off | test_auth_voice doubles; no actual camera/spoof evidence | accept_face.py controlled repeated account/photo/video/missing-camera suite; assurance review | FR-05–06; NFR-03 |
+| 29 | Custom PAM and Authentication Socket Integration | B/C/G | PARTIAL: protected broker/face socket replaces UI trust; legacy custom PAM unmigrated | Strict protocol/account/operation tests; no PAM configuration changed | Original custom PAM criteria/source reconciliation; trusted target authentication acceptance | FR-05–06; NFR-03 |
+| 30 | eBPF Monitoring Daemon | D/E | Implemented independently supervised protected capture path; native hooks unrun | test_security_monitor; normalized BCC source inspected | OS BCC/target-kernel compile/attach/capture and accept_monitor.py | FR-07; NFR-02–03 |
+| 31 | Process Execution Monitoring (`execve`) | D/E | Implemented independently supervised protected capture path; native hooks unrun | test_security_monitor; normalized BCC source inspected | OS BCC/target-kernel compile/attach/capture and accept_monitor.py | FR-07; NFR-02–03 |
+| 32 | Network Connection Monitoring (`connect`) | D/E | Implemented independently supervised protected capture path; native hooks unrun | test_security_monitor; normalized BCC source inspected | OS BCC/target-kernel compile/attach/capture and accept_monitor.py | FR-07; NFR-02–03 |
+| 33 | File Access Monitoring (`openat`) | D/E | Implemented independently supervised protected capture path; native hooks unrun | test_security_monitor; normalized BCC source inspected | OS BCC/target-kernel compile/attach/capture and accept_monitor.py | FR-07; NFR-02–03 |
+| 34 | BCC Probe Loading | D/E | Implemented independently supervised protected capture path; native hooks unrun | test_security_monitor; normalized BCC source inspected | OS BCC/target-kernel compile/attach/capture and accept_monitor.py | FR-07; NFR-02–03 |
+| 35 | Kernel Event Buffering | D/E | Implemented independently supervised protected capture path; native hooks unrun | test_security_monitor; normalized BCC source inspected | OS BCC/target-kernel compile/attach/capture and accept_monitor.py | FR-07; NFR-02–03 |
+| 36 | Suspicious Activity Detection | D/E | PARTIAL deterministic sensitive-file/temp-exec/unusual-TCP heuristics; entry outcomes unknown | test_security_monitor simulated events | Native benign/adversarial detection corpus, outcomes/false positives; no generic exfil/reverse-shell claim | FR-07; NFR-02–03 |
+| 37 | Credential File Access Detection | D/E | PARTIAL deterministic sensitive-file/temp-exec/unusual-TCP heuristics; entry outcomes unknown | test_security_monitor simulated events | Native benign/adversarial detection corpus, outcomes/false positives; no generic exfil/reverse-shell claim | FR-07; NFR-02–03 |
+| 38 | Suspicious Network and Exfiltration Detection | D/E | PARTIAL deterministic sensitive-file/temp-exec/unusual-TCP heuristics; entry outcomes unknown | test_security_monitor simulated events | Native benign/adversarial detection corpus, outcomes/false positives; no generic exfil/reverse-shell claim | FR-07; NFR-02–03 |
+| 39 | Reverse Shell and Attack Tool Detection | D/E | PARTIAL deterministic sensitive-file/temp-exec/unusual-TCP heuristics; entry outcomes unknown | test_security_monitor simulated events | Native benign/adversarial detection corpus, outcomes/false positives; no generic exfil/reverse-shell claim | FR-07; NFR-02–03 |
+| 40 | Kernel Security Alert Memory | D/E | Implemented bounded incident/event private persistence | test_security_monitor; private Store native tests | Target continuous capture/loss/restart evidence | FR-07; NFR-02–03 |
+| 41 | Security-Aware Future Command Warnings | D/E | PARTIAL: Security view/context records; incident-aware future-command warnings incomplete | Incident/view contracts only | Connect validated incident warnings to future previews without authority escalation | FR-07; NFR-02–03 |
+| 42 | Security Event Causal Tracking | D/E | PARTIAL host/boot/UID/PID/start/executable/lineage identity | Schema/forged/stale evidence tests; no BCC capture run | Actual target identity/return/lineage correlation | FR-07; NFR-02–03 |
+| 43 | Attack Simulation Module | D/E | PARTIAL: harmless explicit native monitor/policy acceptance fixtures | Deterministic simulated attack/near-match contracts | Run actual controlled fixtures; recover historical attack tests selectively | FR-07; NFR-02–03 |
+| 44 | Low-Overhead eBPF Monitoring | D/E | PENDING: no monitoring overhead benchmark | No measured performance claim | Dedicated target baseline/monitored workloads, loss/latency/overhead data | FR-07; NFR-02–03 |
+| 45 | Active Kernel Threat Interception | D/E | Implemented bounded IPv4 TCP BPF LSM provider/qualified policies; target unrun | test_response_policy explicit simulated kernel | Protected accept_policy.py near-match/expiry/revoke/recurrence actual-kernel qualification | FR-07; NFR-02–03 |
+| 46 | CPU and Memory Monitoring | F/H | PARTIAL: installed memory/disk reads; CPU/process monitor retained legacy | Native reads and legacy source inspection | Integrated process/resource state and measured CPU monitoring | FR-08 |
+| 47 | Process Classification | F/H | PARTIAL: legacy classification/reactive renicing/restoration outside supported typed route | No new priority mutation evidence; unsafe route not invoked | Stable identity, prior-state capture, typed independently authorized priority actions/restoration | FR-08 |
+| 48 | Automatic Process Priority Optimization | F/H | PARTIAL: legacy classification/reactive renicing/restoration outside supported typed route | No new priority mutation evidence; unsafe route not invoked | Stable identity, prior-state capture, typed independently authorized priority actions/restoration | FR-08 |
+| 49 | Automatic Priority Restoration | F/H | PARTIAL: legacy classification/reactive renicing/restoration outside supported typed route | No new priority mutation evidence; unsafe route not invoked | Stable identity, prior-state capture, typed independently authorized priority actions/restoration | FR-08 |
+| 50 | Predictive Resource Management | F/H | MISSING: predictive resource model is not implemented | Reactive legacy thresholds are not prediction | Original predictive criteria/data and bounded validated predictive implementation | FR-08 |
+| 51 | Resource Optimization Performance Validation | F/H | PENDING: optimization benefit unmeasured | No benchmark or five-load result fabricated | Five controlled load scenarios, responsiveness/overhead measurements | FR-08 |
+| 52 | Remote Server Configuration | F | PARTIAL: strict configured SSH typed peer path; no raw command fallback | test_workflows; actual local peer pipes/replay; SSH not used | Actual pinned-host SSH/account/multi-server lab and target monitoring | FR-09 |
+| 53 | SSH-Based Remote Authentication | F | PARTIAL: strict configured SSH typed peer path; no raw command fallback | test_workflows; actual local peer pipes/replay; SSH not used | Actual pinned-host SSH/account/multi-server lab and target monitoring | FR-09 |
+| 54 | Remote Command Execution | F | PARTIAL: strict configured SSH typed peer path; no raw command fallback | test_workflows; actual local peer pipes/replay; SSH not used | Actual pinned-host SSH/account/multi-server lab and target monitoring | FR-09 |
+| 55 | Remote Command Safety Guard | F | PARTIAL: strict configured SSH typed peer path; no raw command fallback | test_workflows; actual local peer pipes/replay; SSH not used | Actual pinned-host SSH/account/multi-server lab and target monitoring | FR-09 |
+| 56 | Remote Server Status Monitoring | F | PARTIAL: strict configured SSH typed peer path; no raw command fallback | test_workflows; actual local peer pipes/replay; SSH not used | Actual pinned-host SSH/account/multi-server lab and target monitoring | FR-09 |
+| 57 | Multi-Server Management Verification | F | PARTIAL: strict configured SSH typed peer path; no raw command fallback | test_workflows; actual local peer pipes/replay; SSH not used | Actual pinned-host SSH/account/multi-server lab and target monitoring | FR-09 |
+| 58 | Centralized JSON Lines Audit Logger | C/D/H | Implemented bounded private JSONL, durable IDs/fingerprints and generation rotation | Service/broker correlation; native concurrent rotation/symlink/fsync tests | Root deployment audit/durability/retention acceptance; user ledger not tamper-proof | FR-10; NFR-04 |
+| 59 | Standardized Audit Records | C/D/H | Implemented bounded private JSONL, durable IDs/fingerprints and generation rotation | Service/broker correlation; native concurrent rotation/symlink/fsync tests | Root deployment audit/durability/retention acceptance; user ledger not tamper-proof | FR-10; NFR-04 |
+| 60 | Cross-Module Audit Integration | C/D/H | PARTIAL: correlated jobs/incident/policy records; CLI jobs and Activity/preview explanations | test_application; native/installed agent; Qt offscreen | Full historical module/log/explain integration and usable target review | FR-10; NFR-04 |
+| 61 | Command-Line Log Viewer | C/D/H | PARTIAL: correlated jobs/incident/policy records; CLI jobs and Activity/preview explanations | test_application; native/installed agent; Qt offscreen | Full historical module/log/explain integration and usable target review | FR-10; NFR-04 |
+| 62 | AI Explain Mode | C/D/H | PARTIAL: correlated jobs/incident/policy records; CLI jobs and Activity/preview explanations | test_application; native/installed agent; Qt offscreen | Full historical module/log/explain integration and usable target review | FR-10; NFR-04 |
+| 63 | Native Ubuntu Installer | A/C/D | Implemented locked ordinary-user app/profile install, guarded launchers, protected artifact separation | Fresh installed wheel/agent/project/Qt/uninstall; root denial historical | Target upgrade/service/desktop install acceptance | FR-12; NFR-06–07 |
+| 64 | Modular Component Installers | A/C/D | Implemented locked ordinary-user app/profile install, guarded launchers, protected artifact separation | Fresh installed wheel/agent/project/Qt/uninstall; root denial historical | Target upgrade/service/desktop install acceptance | FR-12; NFR-06–07 |
+| 65 | Systemd Monitoring Service | A/C/D | Implemented independent sensor/monitor/policy unit templates; not enabled here | Single-instance and daemon protocol/loss tests | Actual systemd lifecycle/reboot with UI/model stopped | FR-12; NFR-06–07 |
+| 66 | Configuration Management | A/C/D | Implemented bounded private assets/state and explicit component health | Agent/security/storage/config contracts; native IPC | Target configuration/health and operational recovery procedures | FR-12; NFR-06–07 |
+| 67 | Module Status Interface | A/C/D | Implemented bounded private assets/state and explicit component health | Agent/security/storage/config contracts; native IPC | Target configuration/health and operational recovery procedures | FR-12; NFR-06–07 |
+| 68 | Partial End-to-End Integration | A/C/D | Implemented supported end-to-end ordinary-user workflows | Installed agent job/project, dev-device apply/verify/restore, native socket/process/files | Actual broker/kernel/hardware/remote integration | FR-12; NFR-06–07 |
+| 69 | Full Eight-Module Integration | A/C/D | PARTIAL: integrated bounded modules; full eight-module breadth incomplete | Supported installed paths verified; no full-completion claim | Close resource/recipe/legacy scope and all target evidence | FR-12; NFR-06–07 |
+| 70 | Native Linux Compatibility Testing | A/C/D | PARTIAL native Ubuntu 24.04 WSL user/runtime evidence; Windows offline separately | Current VERIFICATION.md and candidate native report | Dedicated Linux desktop/kernel/hardware/platform acceptance; Cloud/CI unrun | FR-12; NFR-06–07 |
+| 71 | Comprehensive Testing and Stabilization | H | PARTIAL automated negative/native/installed tests and reviewable commits | Current suite plus candidate/Qt evidence; historical counts labelled | Target regression/load/security stabilization and owner acceptance | FR-12; NFR-05–06 |
+| 72 | 24-Hour System Stress Testing | H | PENDING: short real read/audit soak runner only; not full-system 24-hour evidence | scripts/soak.py limited workload; actual short run recorded separately | 24-hour integrated representative target stress, availability and bounded-loss measurements | FR-12; NFR-05–06 |
 
 
 ## Gate A evidence overlay — 2 November 2026
@@ -102,19 +102,20 @@ These are scope descriptions, not invented original requirement IDs. Source IDs
 not recoverable from the inventory/PDF remain **unknown**. Gates map the work;
 no row claims acceptance merely because prototype source or a mock exists.
 
-| Agreed scope | Gate / current evidence | Remaining acceptance |
+| Agreed scope | Current implementation / automated evidence | Target or remaining acceptance |
 | --- | --- | --- |
-| Linux desktop natural-language administration | A/C; typed local backend and isolated installation tested | Desktop, AI-to-action workflow, durable jobs/API, complete legacy migration |
-| Development environment provisioning and DevOps | F; existing prototypes only | Typed provisioning/deployment contracts, authorization, verification and isolated lab |
-| Remote Linux operations | F; inherited SSH module retained | Trusted peer/host identity, shared service routing and multi-host lab |
-| Router, switch and port management | F; local port inspection tested in A | Device-specific typed adapters, transport/policy and actual device lab |
-| SOC workflows and independent monitoring/deterministic detection | D/F; inherited sensor/detection prototypes retained | Model/UI-independent supervision, transport, bounded queues/data and deterministic lab evidence |
-| AI incident analysis, bounded response and verified containment | C/E; typed action constraints preserved | Incident boundary, broker/enforcement integration and real containment tests |
-| Validated response-policy memory and owner-configured automatic response | E; auto-response remains disabled | Scoped/versioned/expiring policies, deterministic matching, independent owner limits, replay/expiry/containment tests |
-| Trusted OS authorization outside model/UI | B; privileged actions explicitly blocked | Trusted broker/protocol, real OS auth, independent identity/policy and lab service operation |
-| Account-bound face authentication with password fallback | B/G; prototype retained | Protected enrollment, trusted account binding, spoof/liveness testing and OS password fallback |
-| Voice input | G; candidate dependencies separated | Runtime implementation, real microphone/VAD/offline recognition and measured language tests |
-| Resources, audit, recovery and release quality | C/F/H; typed audit and refusal of unsupported restoration tested | Stable identity, measured resource benefit, validated state restoration, durable audit, long-run/load/release tests |
+| Linux desktop natural-language administration | C/G/H; typed agent preview/job/result and real Qt offscreen/installed workflow | Physical desktop, OS-auth and wider multi-step language corpus |
+| Development environment provisioning and DevOps | F; actual typed Python project/interpreter, idempotency and edit preservation | Node/MERN/repository/deployment recipes remain partial; target workflows |
+| Remote Linux operations | F; strict configured SSH path plus actual local peer/replay protocol | Real pinned-host SSH/account/multi-host acceptance |
+| Router, switch and port management | F; local ports and development-device diff/apply/verify/validated restoration | Selected vendor interface/transport/commit-confirm and real device lab |
+| SOC and independent monitoring/deterministic detection | D; independent sensor/monitor/health/incident paths, bounded simulated contracts | Actual kernel capture, lost events, outcomes/false positives/lifecycle |
+| AI incident analysis, bounded response, verified containment | E; model-selected exact scope → independent broker/provider; simulated verification | Actual auth/containment and benign target suite |
+| Validated response-policy memory and owner automatic response | E; independent scoped provenance/expiry/revoke/known-policy recurrence tests | Actual qualified kernel enforcement; owner automatic flag stays false by default |
+| Trusted OS authorization outside AI/UI | B; root-owned peer/allowlist/polkit path, denied/replay/change tests | Prepared service/polkit lab; no privileged deployment occurred |
+| Account-bound face with trusted password fallback | G; protected per-account proofs and fallback contract tests | Real camera/spoof/account assurance and original custom PAM reconciliation; primary off |
+| Voice input | G; bounded local-only PCM/VAD/transcription → Qt preview, deterministic tests | Actual microphone/technical corpus/WER and equipment acceptance |
+| Resources/audit/recovery/release | H; bounded audit and installed packaging; captured development-device restoration | Typed resource optimization/prediction, benchmarks and 24-hour full-system stress incomplete |
+
 
 The project target remains a Linux desktop; standalone monitoring and enforcement
 must continue without desktop/model. A passive capability probe proves neither

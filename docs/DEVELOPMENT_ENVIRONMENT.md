@@ -1,6 +1,6 @@
 # Reproducible application development environment
 
-Updated 2 November 2026. Gate A application deployment is documented in INSTALLATION.md; development setup stays separate. Gate A application deployment is documented in INSTALLATION.md; development setup stays separate. This repository setup is lightweight and does not run
+Updated 2 November 2026. Current integrated installation is documented in RELEASE_CANDIDATE.md; development setup stays separate. This repository setup is lightweight and does not run
 the inherited system installer. Final deployment is an ordinary-user Linux desktop
 application with separately supervised privileged components. Cloud/WSL/hosted CI
 are development environments, not proof of desktop, hardware or kernel acceptance.
@@ -66,8 +66,8 @@ cache directory. Any partially created `.venv-linux` remains ignored and unneede
 | `ai` | requests 2.32.5 and locked transitive dependencies | Local Ollama HTTP adapter; does not install/start Ollama or pull weights |
 | `desktop` | PySide6 6.10.0 and locked Qt inputs | Candidate toolkit only; owner has not confirmed it as final framework |
 | `remote` | Paramiko 4.0.0 and locked transitive inputs | Legacy remote module; routing/host-identity acceptance remain incomplete |
-| `hardware` | numpy 2.2.6, opencv-contrib-python 4.12.0.88 | Face prototype; no enrollment/camera capture at install/start |
-| `voice` | faster-whisper 1.2.1, webrtcvad-wheels 2.0.14, sounddevice 0.5.3 | Candidate dependencies; voice pipeline source still missing, no automatic weights/audio capture |
+| `hardware` | numpy 2.2.6, opencv-contrib-python 4.12.0.88 | Protected account provider uses separate OS bindings; app extra for development; no capture at install/start |
+| `voice` | faster-whisper 1.2.1, webrtcvad-wheels 2.0.14, sounddevice 0.5.3 | Implemented bounded local PCM/VAD/Whisper input; no automatic weights/audio capture; hardware/WER pending |
 | `sensor` | No PyPI package; OS profile in `requirements/sensor-os.json` | BCC belongs to the sensor OS/interpreter, not the app venv |
 
 Request extras explicitly, for example `python3 scripts/setup_dev.py --extra ai`.

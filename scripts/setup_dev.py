@@ -1,5 +1,8 @@
 """Create only an isolated app environment; never provision host services/devices."""
+from contextlib import contextmanager
 import argparse
+import tempfile
+import tomllib
 import os
 from pathlib import Path
 import shutil
@@ -9,6 +12,29 @@ import venv
 
 UV_VERSION = "0.13.3"
 ROOT = Path(__file__).resolve().parent.parent
+
+
+
+@contextmanager
+def clean_build_source():
+    """Never reuse or delete checkout build/lib or stale egg-info during wheel builds."""
+    metadata=tomllib.loads((ROOT/"pyproject.toml").read_text(encoding="utf-8"))
+    patterns=metadata["tool"]["setuptools"]["packages"]["find"]["include"]
+    with tempfile.TemporaryDirectory(prefix="linxai-wheel-source-") as directory:
+        target=Path(directory)
+        files=[ROOT/name for name in ("pyproject.toml","uv.lock","README.md","main.py")]
+        for pattern in patterns:
+            for package in ROOT.glob(pattern):
+                if not package.is_dir():continue
+                for path in package.rglob("*"):
+                    relative=path.relative_to(ROOT)
+                    if any(part in {"__pycache__","build","dist","models","node_modules"} or part.startswith(".") for part in relative.parts):continue
+                    if path.is_file() and path.suffix in {".py",".c",".sh",".json"}:files.append(path)
+        for path in files:
+            if path.is_symlink():raise ValueError("Symlink in application build inputs")
+            output=target/path.relative_to(ROOT);output.parent.mkdir(parents=True,exist_ok=True)
+            output.write_bytes(path.read_bytes())
+        yield target
 
 
 def main(argv=None):
@@ -55,7 +81,11 @@ def main(argv=None):
         command += ["--extra", extra]
     if args.offline:
         command.append("--offline")
-    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    if args.no_editable:
+        with clean_build_source() as source:
+            subprocess.run(command, cwd=source, env=env, check=True)
+    else:
+        subprocess.run(command, cwd=ROOT, env=env, check=True)
     subprocess.run([str(binary), "-I", "-B", "-m", "operations.cli", "--help"], cwd=ROOT, check=True)
     print(f"Ready: {binary}")
     if not args.no_editable:

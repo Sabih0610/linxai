@@ -1,0 +1,173 @@
+{
+  "actions": [
+    "auth.face.enroll",
+    "auth.face.revoke",
+    "device.initialize",
+    "device.inspect",
+    "device.interface.restore",
+    "device.interface.set",
+    "directory.create",
+    "disk.usage",
+    "environment.python",
+    "file.create",
+    "memory.usage",
+    "ports.listen",
+    "project.scaffold",
+    "remote.operation",
+    "response.network.block",
+    "response.policy.revoke",
+    "service.restart",
+    "service.start",
+    "service.status",
+    "service.stop"
+  ],
+  "camera_nodes": [],
+  "environment_kind": "WSL",
+  "euid": 1000,
+  "gui": {
+    "display_configured": true,
+    "usable": "not tested by passive inventory",
+    "wayland_configured": true,
+    "wayland_socket_present": true,
+    "x11_socket_present": true
+  },
+  "installed_distributions": {
+    "PySide6": null,
+    "PyYAML": "6.0.3",
+    "linxai": "0.1.0",
+    "psutil": "7.1.3",
+    "requests": null,
+    "uv": "0.13.3"
+  },
+  "integration": {
+    "camera": {
+      "capture": "NOT TESTED; nodes do not prove camera usability"
+    },
+    "microphone": {
+      "alsa_cards": null,
+      "alsa_pcm": null,
+      "capture": "NOT TESTED; devices are not opened",
+      "sound_nodes": [],
+      "tools": {
+        "arecord": null,
+        "pactl": null,
+        "wpctl": null
+      }
+    },
+    "os_authentication": {
+      "authorization": "NOT TESTED; no broker installed by this probe",
+      "pam_configuration_present": true,
+      "pam_library": "libpam.so.0",
+      "system_bus_socket_present": false,
+      "tools": {
+        "loginctl": "/usr/bin/loginctl",
+        "pkaction": "/usr/bin/pkaction",
+        "pkexec": null
+      }
+    },
+    "sensor": {
+      "bcc_in_app_is_not_os_bcc": true,
+      "os_bcc_spec": {
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "False"
+      },
+      "os_interpreter": "/usr/bin/python3",
+      "os_python_version": {
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "Python 3.12.3"
+      },
+      "provisioning": "separate explicit lab task",
+      "requirements": "requirements/sensor-os.json"
+    }
+  },
+  "kernel": {
+    "attach_or_enforcement": "NOT TESTED; root/capabilities/config flags do not prove dedicated-kernel control",
+    "btf_vmlinux": true,
+    "flags": {
+      "CONFIG_BPF": "y",
+      "CONFIG_BPF_EVENTS": "y",
+      "CONFIG_BPF_LSM": "y",
+      "CONFIG_BPF_SYSCALL": "y",
+      "CONFIG_KPROBES": "y",
+      "source": "/proc/config.gz"
+    },
+    "process_status": {
+      "CapEff": "0000000000000000",
+      "NoNewPrivs": "0"
+    },
+    "securityfs_lsm": null
+  },
+  "operations_sha256": {
+    "operations/__init__.py": "ca1da33b1330fb8a2e627633f1e0a353b4ab486040c298569bdc64ae4751ef5c",
+    "operations/_create_program.py": "0d2528e76c636cc98bc7441b79acd405c808c6065635502eb16ccaff4c7d68f6",
+    "operations/_policy_program.py": "72828ecd84559765c3c524d9ad33907f0d89d8dfd792a2420503217c30eb2aa6",
+    "operations/_workflow_program.py": "f8fdcf66f7cad662bbc4f00dc80fe27a98a318f458057b3c14415454931a7ab4",
+    "operations/agent.py": "18c0a1c96444b63443cf2a177886283e60ee8563241738a29e05067331cfe80c",
+    "operations/audit.py": "aa49b84aba1ef42e9730c19b1e74f6280a4e1e71cf29a0dc1ff995c7fa0e028b",
+    "operations/broker.py": "8aa9c8056359724dceec7a8422fb702f1721419cdec99ae0e84e712c1e88060f",
+    "operations/cli.py": "8fc5e160db929409584af946066d4f08cab8b457c0d6bf08af3c1c41d2b014f2",
+    "operations/face_contracts.py": "24143026463b4ef39faeb51a0e5d064f1d1a1d834986b5c2bc81adde04472609",
+    "operations/ipc.py": "53d922227f37ed5534d759a4acacfb17a13b00b8889c73770e5ebca063afb719",
+    "operations/jobs.py": "cdbb22e988fb42dabb278c082cd5a312de3c468896a526522ea1768af2576c31",
+    "operations/plans.py": "ba6a5ca991130297c5ff50a6d25295ddde018d805f264ac02b31982c6a318415",
+    "operations/registry.py": "f5094f1d630f28c7934a66bbcc8dae868703d51532a33a53106a4fdc239a7e6d",
+    "operations/remote_peer.py": "d040eedd1cf96eee91212ffedd40e0cebee3b53abfa4eb61868679a81ff55f7a",
+    "operations/response_contracts.py": "c99c01376b0251c88c959da5fa979eaf86a76cb4df87ca4b9994429c22d8f6d8",
+    "operations/service.py": "ff5ebbcc69b5f730f932635e7f17ec88c04adb5755e213db5ab0b7c84b03e9dd",
+    "operations/store.py": "c678a162830a87e96b664c3d55928bcd2fb94d94c47512ebd156ac9c135b90f8",
+    "operations/supervised.py": "67dd531c43e00bdb1de40f03349a4f90371ae3779512facb19dba1b848254d25",
+    "operations/system.py": "f34aea041cf9927b1ea1063b0f89daa42e7568e53c4313bb58ed77a9dd64f140",
+    "operations/workflow_contracts.py": "b4d8399461d3eed43821eddd4b59f72885ff1be3a40115f41f65b8d7a117eff4",
+    "operations/workflows.py": "2007ca34e7a503eabacb50f5417f4d2ce62ba7e4a0e13af4659506cdebd94bf2"
+  },
+  "optional_imports": {
+    "PySide6": false,
+    "bcc": false,
+    "cv2": false,
+    "faster_whisper": false,
+    "requests": false,
+    "sounddevice": false
+  },
+  "os": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "os_release": "PRETTY_NAME=\"Ubuntu 24.04.3 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.3 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo\n",
+  "pid1": "init(Ubuntu-24.",
+  "python": {
+    "executable": "/home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python",
+    "isolated": true,
+    "version": "3.12.3 (main, Aug 14 2025, 17:47:21) [GCC 13.3.0]"
+  },
+  "recorded_utc": "2026-11-03T00:36:54.672625+00:00",
+  "release": "6.6.87.2-microsoft-standard-WSL2",
+  "revision": {
+    "returncode": 128,
+    "stderr": "fatal: not a git repository (or any of the parent directories): .git",
+    "stdout": ""
+  },
+  "schema": 2,
+  "systemd_runtime": false,
+  "tools": {
+    "bpftool": null,
+    "df": "/usr/bin/df",
+    "free": "/usr/bin/free",
+    "git": "/usr/bin/git",
+    "ollama": null,
+    "pip": "/usr/bin/pip",
+    "ss": "/usr/bin/ss",
+    "systemctl": "/usr/bin/systemctl",
+    "uv": null
+  },
+  "uid": 1000,
+  "working_source_snapshot": {
+    "files_checked": 183,
+    "mismatches": [],
+    "parent_commit": "e68b2fc3e3a013b2d8b4d01b2a53c36a51420094",
+    "source": "E:\\FYP\\code 2\\linxai"
+  },
+  "worktree": {
+    "returncode": 128,
+    "stderr": "fatal: not a git repository (or any of the parent directories): .git",
+    "stdout": ""
+  }
+}

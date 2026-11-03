@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "scope": "actual ordinary-user disk/memory operations and bounded audit only",
+  "requested_seconds": 10,
+  "elapsed_seconds": 10.000766,
+  "passed": 11,
+  "failed": 0,
+  "completed": true,
+  "interrupted": false,
+  "retained_audit_bytes": 54425,
+  "last_errors": [],
+  "full_24_hour_release_stress": "NOT DEMONSTRATED by this limited workload"
+}

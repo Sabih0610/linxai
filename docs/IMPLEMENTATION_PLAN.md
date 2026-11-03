@@ -1,4 +1,4 @@
-# Current execution status — integrated candidate (2 November 2026)
+# Current execution status — integrated candidate (3 November 2026)
 
 This section governs continued implementation; older entries below are historical.
 Owner acceptance will occur after an integrated candidate exists. Unavailable
@@ -21,9 +21,9 @@ A gate is PASS only with all required acceptance evidence; code plus mocks is no
 | E | Scoped response → broker → independent policy authority/native adapter → verified policy → recurrence/expiry/revoke implemented | Windows 162 run/3 skips; WSL 186 run/8 skips passed; all enforcement effects simulated | Actual BPF LSM qualification, response/recurrence/benign/revoke and OS auth acceptance pending |
 | F | Python provisioning, strict SSH typed peer and development-device diff/apply/restore integrated; broader recipes/resources remain PARTIAL | Windows 166/3 skips; four actual isolated native workflow tests passed | Real SSH auth/multi-host/vendor device and broader provisioning acceptance pending |
 | G | Protected account-bound enrollment/provider, password fallback and bounded local voice-to-preview implemented; biometric assurance PARTIAL | Windows 175 run/3 skips; WSL 203 run/8 skips; no hardware | Real OS auth, camera/spoof/microphone/WER pending; primary face defaults off |
-| H | Planned: packaged integrated candidate and full evidence matrix | Pending | Fresh target, sustained load and owner acceptance pending |
+| H | PARTIAL: integrated development candidate, clean-source wheel/trusted bundle tooling, full 1–72 evidence matrix and user guide | Current Windows 180/3 skips; native WSL 212/10 skips; all seven fresh installed steps passed; Qt 3 passed | Full recipe/resource/legacy scope and dedicated target/24-hour/hardware/owner acceptance pending |
 
-Current checkpoint: B–G production paths and deterministic/native workflows implemented; integrate H packaging, installed workflows and current full requirements evidence. F recipe/resource breadth and G biometric assurance remain partial.
+Current checkpoint: B–G supported paths and H installed development candidate verified. Package/review the committed candidate; continue typed recipe/resource and legacy gaps listed in RELEASE_CANDIDATE.md. Full release status remains PARTIAL; target acceptance remains separate. F recipe/resource breadth and G biometric assurance remain partial.
 Keep the full original 1–72 inventory and expanded desktop/network/adaptive scope.
 
 # LINxAI implementation plan

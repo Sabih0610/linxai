@@ -1,3 +1,13 @@
+> Current continuation baseline (3 November 2026): the selected E:\FYP\code 2\linxai
+> tree remains authoritative. B–H native development uses a SHA256-manifested copy
+> under an ordinary Ubuntu 24.04 WSL user (UID 1000), not /opt/linxai. The latest
+> native capability report has zero snapshot mismatches and 20 actions. WSL kernel
+> 6.6.87.2-microsoft-standard-WSL2 has no running systemd or demonstrated BCC/LSM/
+> camera/microphone acceptance. See docs/evidence/candidate and VERIFICATION.md.
+> The original Multipass VM/mount and /opt/linxai source relationship below remain
+> unresolved; no mount, permissions, PAM or service changes were used as a workaround.
+> Historical Windows/VM results below are retained, not relabelled as current tests.
+
 # LINxAI development environment baseline
 
 Recorded 1 November 2026 (Asia/Karachi, UTC+05:00).
