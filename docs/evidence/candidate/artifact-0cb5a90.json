@@ -1,0 +1,91 @@
+{
+  "verifier_sha256": "95c8e730205742fcb066e76768ef60f7b5159a0479083d68223b6b94cfa29ee4",
+  "schema": 1,
+  "results": [
+    {
+      "argv": [
+        "/home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python",
+        "-I",
+        "/home/sabih/.linxai-artifact-m0qtr_od/source/scripts/install_app.py",
+        "--offline",
+        "--prefix",
+        "/home/sabih/.linxai-artifact-m0qtr_od/app",
+        "--desktop"
+      ],
+      "returncode": 0,
+      "seconds": 7.669,
+      "stdout_tail": "usage: cli.py [-h] [--ask ASK] [--confirm PREVIEW_ID] [--digest DIGEST]\n              [--jobs] [--parameters PARAMETERS] [--workspace WORKSPACE]\n              [--audit-path AUDIT_PATH]\n              [action]\n\nLINxAI typed operations (ordinary Linux user)\n\npositional arguments:\n  action\n\noptions:\n  -h, --help            show this help message and exit\n  --ask ASK             Natural-language preview through the running agent;\n                        never executes without --confirm\n  --confirm PREVIEW_ID\n  --digest DIGEST       Exact digest returned by preview\n  --jobs\n  --parameters PARAMETERS\n                        JSON parameter object; no command/identity/approval\n                        fields\n  --workspace WORKSPACE\n                        Explicit permitted POSIX workspace for create actions\n  --audit-path AUDIT_PATH\n                        JSONL path in an owned private directory\nReady: /home/sabih/.linxai-artifact-m0qtr_od/app/venv/bin/python\nInstalled typed CLI: /home/sabih/.linxai-artifact-m0qtr_od/app/bin/linxai\nAdd /home/sabih/.linxai-artifact-m0qtr_od/app/bin to your PATH explicitly if desired.\n",
+      "stderr_tail": "Using CPython 3.12.3 interpreter at: /home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python\nCreating virtual environment at: /home/sabih/.linxai-artifact-m0qtr_od/app/venv\nResolved 47 packages in 443ms\n   Building linxai @ file:///tmp/linxai-wheel-source-ep44l8_z\n      Built linxai @ file:///tmp/linxai-wheel-source-ep44l8_z\nPrepared 1 package in 2.82s\nInstalled 8 packages in 1.81s\n + linxai==0.1.0 (from file:///tmp/linxai-wheel-source-ep44l8_z)\n + psutil==7.1.3\n + pyside6==6.10.0\n + pyside6-addons==6.10.0\n + pyside6-essentials==6.10.0\n + pyyaml==6.0.3\n + shiboken6==6.10.0\n + uv==0.13.3\n"
+    },
+    {
+      "argv": [
+        "/home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python",
+        "-m",
+        "uv",
+        "pip",
+        "install",
+        "--offline",
+        "--no-deps",
+        "--reinstall",
+        "--python",
+        "/home/sabih/.linxai-artifact-m0qtr_od/app/venv/bin/python",
+        "/mnt/e/FYP/code 2/linxai/dist/candidate-0cb5a90/linxai-0.1.0-py3-none-any.whl"
+      ],
+      "returncode": 0,
+      "seconds": 0.385,
+      "stdout_tail": "",
+      "stderr_tail": "Using Python 3.12.3 environment at: app/venv\nResolved 1 package in 29ms\nPrepared 1 package in 82ms\nUninstalled 1 package in 59ms\nInstalled 1 package in 8ms\n - linxai==0.1.0 (from file:///tmp/linxai-wheel-source-ep44l8_z)\n + linxai==0.1.0 (from file:///mnt/e/FYP/code%202/linxai/dist/candidate-0cb5a90/linxai-0.1.0-py3-none-any.whl)\n"
+    },
+    {
+      "argv": [
+        "/home/sabih/.linxai-artifact-m0qtr_od/app/venv/bin/python",
+        "-I",
+        "-B",
+        "/home/sabih/.linxai-artifact-m0qtr_od/source/scripts/installed_workflow.py",
+        "--root",
+        "/home/sabih/.linxai-artifact-m0qtr_od"
+      ],
+      "returncode": 0,
+      "seconds": 4.119,
+      "stdout_tail": "{\"agent_job\": \"5e38ad7c-7a14-4a8d-9c15-d7ecc9a83071\", \"operation\": \"e2d25ff1-9452-4ebf-83d6-92f75a8944fb\", \"project_operation\": \"bbf9b75b-ce40-43dc-8ed5-03e6687fc414\", \"source\": \"installed wheel\", \"errors\": []}\n",
+      "stderr_tail": ""
+    },
+    {
+      "argv": [
+        "/home/sabih/.linxai-artifact-m0qtr_od/app/bin/linxai",
+        "memory.usage",
+        "--audit-path",
+        "/home/sabih/.linxai-artifact-m0qtr_od/cli-audit.jsonl"
+      ],
+      "returncode": 0,
+      "seconds": 0.624,
+      "stdout_tail": "{\"audit_complete\": true, \"executed\": true, \"fingerprint\": \"3ec2e15a720ba87664c95ac3365ad841acea84d8248fb65f411868a3ddae03ad\", \"operation_id\": \"2ad5b106-2d52-4b04-9042-6df8c440db36\", \"reason\": \"All required postconditions verified\", \"recovery\": \"unsupported\", \"restoration\": null, \"status\": \"succeeded\", \"stderr\": \"\", \"stdout\": \"               total        used        free      shared  buff/cache   available\\nMem:      8217899008   471056384  7589294080     3055616   314998784  7746842624\\nSwap:     2147483648           0  2147483648\\n\", \"verified\": true}\n",
+      "stderr_tail": ""
+    },
+    {
+      "argv": [
+        "/home/sabih/.cache/linxai-development/venv-2026-11-02/bin/python",
+        "-I",
+        "/home/sabih/.linxai-artifact-m0qtr_od/source/scripts/install_app.py",
+        "--prefix",
+        "/home/sabih/.linxai-artifact-m0qtr_od/app",
+        "--uninstall"
+      ],
+      "returncode": 0,
+      "seconds": 0.126,
+      "stdout_tail": "",
+      "stderr_tail": ""
+    }
+  ],
+  "target_acceptance": "pending; artifact workflow is not privileged/kernel/hardware acceptance",
+  "commit": "0cb5a907a38639d3adc516dfc20b7c3149a23a28",
+  "artifact_hashes": {
+    ".gitignore": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+    "linxai-0.1.0-py3-none-any.whl": "16b3c1a244049ac67b76e6b4fd3f7e2a7dd2e4ca099b52ec613111e1e4f7645f",
+    "source.tar": "50f5f1251b9786d842efd0fc2b10347df62b2d9171141e4416fad3b9ba9e9ef6",
+    "trusted-components.tar": "b77dee6473d89689da76a5fffb4ac2219de80546007bf94a983ff294ae1281a0"
+  },
+  "source_files": 196,
+  "package_verification": "passed",
+  "status": "ARTIFACT CHECKS PASSED; TARGET ACCEPTANCE PENDING"
+}

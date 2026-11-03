@@ -7,12 +7,13 @@ Completed supported paths: A ordinary-user install; B authenticated bounded brok
 C NL preview/durable jobs/agent/Qt; D independent capture/detection/incidents; E scoped
 root-authorized response/policy/qualification path; F Python/strict SSH peer/development
 device workflow; G protected face/password fallback and local voice-to-preview;
-H clean-source packaging and installed candidate runner. F breadth, G biometric
+H clean-source packaging, exact-wheel verifier and installed candidate runner. F breadth, G biometric
 assurance and H full release remain PARTIAL; implementation is not acceptance.
 
 Current automated results: Windows 186 run/183 pass/3 skips; WSL 220 run/210 pass/
 10 skips; Qt offscreen 3 pass; fresh installed candidate seven steps passed; short
-10-second read/audit soak 11 verified operations/0 failures. Cloud/hosted new CI,
+10-second read/audit soak 11 verified operations/0 failures. Two fixed-code builds
+were byte-identical; the exact 0cb5a90 wheel passed all five Linux artifact steps. Cloud/hosted new CI,
 real root authentication/kernel/SSH/vendor/camera/microphone/model and 24-hour tests
 have NOT run. See VERIFICATION.md and current source hashes in native evidence.
 
@@ -42,3 +43,8 @@ Next concrete continuation:
    Prepared target acceptance runners are accept_broker.py, accept_monitor.py,
    accept_policy.py, accept_face.py and accept_voice.py. Do independent coding while
    target hardware is unavailable; never convert simulations into acceptance claims.
+
+Current tested code checkpoint: 0cb5a907a38639d3adc516dfc20b7c3149a23a28.
+The final evidence-only commit preserves those application/protected bytes. See
+artifact-0cb5a90.json and reproducible-0cb5a90.json. Remote branch was read at
+33fc8a9; local implementation is not on GitHub until deliberately published.

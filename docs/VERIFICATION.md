@@ -435,3 +435,18 @@ benchmark. Installed/artifact verification of this new committed source follows
 separately; the 0945a13 artifact record is historical. No security deadline or
 success assertion was removed, and no unavailable target feature was simulated
 and relabelled native.
+
+
+Final fixed code checkpoint: **0cb5a907a38639d3adc516dfc20b7c3149a23a28**.
+Two offline builds produced identical wheel/source/protected-archive hashes in the
+same environment. Exact packaged wheel SHA256 is
+16b3c1a244049ac67b76e6b4fd3f7e2a7dd2e4ca099b52ec613111e1e4f7645f.
+Five actual Linux artifact steps all passed: locked dependency installation, exact
+wheel replacement, installed agent/project workflow, CLI memory read and managed
+uninstall. See artifact-0cb5a90.json and reproducible-0cb5a90.json. This new wheel
+contains the resolved-target/queued-work/factory binding and storage fixes; the
+0945a13 artifact is superseded. A later evidence-only commit changes documentation
+without changing tested application/protected code. Gate H remains PARTIAL because
+original implementation breadth and real target/hardware acceptance are unfinished.
+Remote read verified branch codex/cloud-handoff-2026-11-02 still at 33fc8a9; current
+local implementation commits were not pushed. Cloud/new hosted CI were not executed.

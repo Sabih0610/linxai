@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "commit": "0cb5a907a38639d3adc516dfc20b7c3149a23a28",
+  "two_offline_builds": "identical SHA256 for every artifact in this environment",
+  "artifacts": {
+    ".gitignore": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+    "linxai-0.1.0-py3-none-any.whl": "16b3c1a244049ac67b76e6b4fd3f7e2a7dd2e4ca099b52ec613111e1e4f7645f",
+    "source.tar": "50f5f1251b9786d842efd0fc2b10347df62b2d9171141e4416fad3b9ba9e9ef6",
+    "trusted-components.tar": "b77dee6473d89689da76a5fffb4ac2219de80546007bf94a983ff294ae1281a0"
+  },
+  "scope": "reproducibility of these builds; not a signed provenance or cross-platform determinism claim"
+}
