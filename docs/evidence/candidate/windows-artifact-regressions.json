@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "kind": "Windows offline logic tests; not Linux integration",
+  "summary": "SUMMARY group=offline run=182 skipped=3 failures=0 errors=0",
+  "returncode": 0,
+  "stdout_tail": "SUMMARY group=offline run=182 skipped=3 failures=0 errors=0\n",
+  "stderr_tail": "not_call_model (test_response_policy.ResponsePolicyTests.test_known_policy_recurrence_does_not_call_model) ... ok\ntest_model_target_changes_and_authority_claims_rejected (test_response_policy.ResponsePolicyTests.test_model_target_changes_and_authority_claims_rejected) ... ok\ntest_scope_wrong_user_stale_or_forged_evidence_and_unqualified_kernel (test_response_policy.ResponsePolicyTests.test_scope_wrong_user_stale_or_forged_evidence_and_unqualified_kernel) ... ok\ntest_absolute_deadline_prevents_drip_feed_extension (test_local_http.ModelTransportTests.test_absolute_deadline_prevents_drip_feed_extension) ... ok\ntest_fixed_loopback_no_proxy_and_bounded_json (test_local_http.ModelTransportTests.test_fixed_loopback_no_proxy_and_bounded_json) ... ok\ntest_redirect_and_oversized_payload_are_rejected (test_local_http.ModelTransportTests.test_redirect_and_oversized_payload_are_rejected) ... ok\ntest_python_recipe_and_remote_natural_language_use_same_registry (test_workflows.WorkflowTests.test_python_recipe_and_remote_natural_language_use_same_registry) ... ok\ntest_strict_ssh_array_and_no_caller_command_or_recursive_request (test_workflows.WorkflowTests.test_strict_ssh_array_and_no_caller_command_or_recursive_request) ... ok\ntest_unknown_platform_explicit_and_no_model_for_unknown_remote (test_workflows.WorkflowTests.test_unknown_platform_explicit_and_no_model_for_unknown_remote) ... ok\ntest_workspace_unknown_assets_paths_and_interface_parameters_fail (test_workflows.WorkflowTests.test_workspace_unknown_assets_paths_and_interface_parameters_fail) ... ok\ntest_account_fields_and_missing_mandatory_authorization_rejected (test_auth_voice.AuthVoiceTests.test_account_fields_and_missing_mandatory_authorization_rejected) ... ok\ntest_face_proof_cannot_authorize_another_operation (test_auth_voice.AuthVoiceTests.test_face_proof_cannot_authorize_another_operation) ... ok\ntest_fresh_account_operation_provider_and_nonce_required (test_auth_voice.AuthVoiceTests.test_fresh_account_operation_provider_and_nonce_required) ... ok\ntest_local_transcription_no_download_and_bounded_wer (test_auth_voice.AuthVoiceTests.test_local_transcription_no_download_and_bounded_wer) ... ok\ntest_read_only_owner_cannot_inject_credentials_or_camera_proof (test_auth_voice.AuthVoiceTests.test_read_only_owner_cannot_inject_credentials_or_camera_proof) ... ok\ntest_revocation_and_enrollment_invalidate_qualification (test_auth_voice.AuthVoiceTests.test_revocation_and_enrollment_invalidate_qualification) ... ok\ntest_unavailable_face_falls_back_to_os_auth_enrollment_always_password (test_auth_voice.AuthVoiceTests.test_unavailable_face_falls_back_to_os_auth_enrollment_always_password) ... ok\ntest_vad_bounds_and_silence_fail_closed (test_auth_voice.AuthVoiceTests.test_vad_bounds_and_silence_fail_closed) ... ok\ntest_wrong_account_unqualified_simulation_never_authorizes (test_auth_voice.AuthVoiceTests.test_wrong_account_unqualified_simulation_never_authorizes) ... ok\ntest_changed_artifact_is_rejected_before_installation (test_candidate.CandidateTests.test_changed_artifact_is_rejected_before_installation) ... ok\ntest_manifested_source_tar_is_deterministic (test_candidate.CandidateTests.test_manifested_source_tar_is_deterministic) ... ok\ntest_noneditable_build_excludes_stale_build_outputs (test_candidate.CandidateTests.test_noneditable_build_excludes_stale_build_outputs) ... ok\ntest_nonregular_and_missing_predecessors_rejected (test_candidate.CandidateTests.test_nonregular_and_missing_predecessors_rejected) ... ok\ntest_secrets_generated_data_and_traversal_rejected (test_candidate.CandidateTests.test_secrets_generated_data_and_traversal_rejected) ... ok\ntest_self_consistent_protected_archive_cannot_change_committed_code (test_candidate.CandidateTests.test_self_consistent_protected_archive_cannot_change_committed_code) ... ok\ntest_typed_remote_metadata_does_not_import_legacy_paramiko (test_candidate.CandidateTests.test_typed_remote_metadata_does_not_import_legacy_paramiko) ... ok\n\n----------------------------------------------------------------------\nRan 182 tests in 4.463s\n\nOK (skipped=3)\n",
+  "operations_sha256": {
+    "__init__.py": "ca1da33b1330fb8a2e627633f1e0a353b4ab486040c298569bdc64ae4751ef5c",
+    "_create_program.py": "0d2528e76c636cc98bc7441b79acd405c808c6065635502eb16ccaff4c7d68f6",
+    "_policy_program.py": "72828ecd84559765c3c524d9ad33907f0d89d8dfd792a2420503217c30eb2aa6",
+    "_workflow_program.py": "f8fdcf66f7cad662bbc4f00dc80fe27a98a318f458057b3c14415454931a7ab4",
+    "agent.py": "18c0a1c96444b63443cf2a177886283e60ee8563241738a29e05067331cfe80c",
+    "audit.py": "aa49b84aba1ef42e9730c19b1e74f6280a4e1e71cf29a0dc1ff995c7fa0e028b",
+    "broker.py": "8aa9c8056359724dceec7a8422fb702f1721419cdec99ae0e84e712c1e88060f",
+    "cli.py": "8fc5e160db929409584af946066d4f08cab8b457c0d6bf08af3c1c41d2b014f2",
+    "face_contracts.py": "24143026463b4ef39faeb51a0e5d064f1d1a1d834986b5c2bc81adde04472609",
+    "ipc.py": "53d922227f37ed5534d759a4acacfb17a13b00b8889c73770e5ebca063afb719",
+    "jobs.py": "cdbb22e988fb42dabb278c082cd5a312de3c468896a526522ea1768af2576c31",
+    "plans.py": "ba6a5ca991130297c5ff50a6d25295ddde018d805f264ac02b31982c6a318415",
+    "registry.py": "f5094f1d630f28c7934a66bbcc8dae868703d51532a33a53106a4fdc239a7e6d",
+    "remote_peer.py": "d040eedd1cf96eee91212ffedd40e0cebee3b53abfa4eb61868679a81ff55f7a",
+    "response_contracts.py": "c99c01376b0251c88c959da5fa979eaf86a76cb4df87ca4b9994429c22d8f6d8",
+    "service.py": "ff5ebbcc69b5f730f932635e7f17ec88c04adb5755e213db5ab0b7c84b03e9dd",
+    "store.py": "c678a162830a87e96b664c3d55928bcd2fb94d94c47512ebd156ac9c135b90f8",
+    "supervised.py": "67dd531c43e00bdb1de40f03349a4f90371ae3779512facb19dba1b848254d25",
+    "system.py": "f34aea041cf9927b1ea1063b0f89daa42e7568e53c4313bb58ed77a9dd64f140",
+    "workflow_contracts.py": "b4d8399461d3eed43821eddd4b59f72885ff1be3a40115f41f65b8d7a117eff4",
+    "workflows.py": "2007ca34e7a503eabacb50f5417f4d2ce62ba7e4a0e13af4659506cdebd94bf2"
+  },
+  "base_commit": "0945a13c3d3814dc62c4bf0c5e8b8b3b1688d037",
+  "working_changes": "artifact verifier and two added regressions; source preserved"
+}

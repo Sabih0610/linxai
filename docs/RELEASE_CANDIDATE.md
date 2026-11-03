@@ -69,7 +69,8 @@ The Assets view supports configured development-device diff/apply/verify/restore
 Security shows independent monitor health/incidents/policies and response previews.
 Face enrollment/revocation use the Security preview buttons and OS password prompt.
 Unavailable monitoring/broker/model/hardware is displayed as unavailable, never
-assumed successful. A frozen preview binds exact target/parameters; editing input
+assumed successful. A frozen preview binds the full registry-prepared target/parameters/checks; queued
+work and the execution service are checked again, and restart expires previews. Editing input
 invalidates asynchronous results. Voice creates a preview and never confirms it.
 
 `linxai --ask 'show memory usage'`, `--confirm ID --digest DIGEST` and `--jobs`
@@ -103,6 +104,7 @@ QT_QPA_PLATFORM=offscreen LINXAI_TEST_DESKTOP=1 .venv/bin/python -B -m unittest 
 .venv/bin/python -B scripts/soak.py --seconds 30 --report soak-report.json
 # After reviewing and committing all source/tests/docs:
 .venv/bin/python -B scripts/package_candidate.py --offline --output dist/candidate-COMMIT
+.venv/bin/python -B scripts/verify_candidate.py dist/candidate-COMMIT --desktop --report artifact-acceptance.json
 ```
 
 The candidate runner performs actual isolated installed-wheel imports, a
@@ -118,7 +120,11 @@ Packaging requires a clean committed Git tree, rejects symlink/generated/sensiti
 source members and builds from canonical committed bytes in fresh temporary
 storage. Artifacts are an application wheel, `source.tar`, separate protected
 `trusted-components.tar` and a SHA256 manifest with repository/branch/commit and
-every source hash. The source archive includes lockfile, tests, user/service
+every source hash. The verifier checks every artifact hash, wheel package bytes and protected component
+bytes against the committed source archive, then installs the exact hashed wheel in
+a disposable ordinary-user prefix and runs the real agent/project workflow. This
+prevents passing source tests from masking a stale or mismatched packaged registry.
+The source archive includes lockfile, tests, user/service
 templates and documentation. Dependencies remain locked in uv.lock; weights,
 credentials, environments and biometric material are excluded. Artifact generation
 does not install, publish, sign, merge or enable anything. Verify hashes before

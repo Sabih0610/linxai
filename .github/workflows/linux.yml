@@ -22,6 +22,8 @@ jobs:
           .venv/bin/python -c "import subprocess,sys; code=subprocess.call([sys.executable,'-B','scripts/run_candidate.py','--offline','--report','candidate-acceptance.json']); raise SystemExit(0 if code in (0,3) else code)"
       - name: Package the exact committed source and protected components
         run: .venv/bin/python -B scripts/package_candidate.py --offline --output dist/candidate
+      - name: Verify and execute the exact packaged wheel
+        run: .venv/bin/python -B scripts/verify_candidate.py dist/candidate --report artifact-acceptance.json
       - name: Installed application and explicit root-refusal lab
         run: .venv/bin/python -B scripts/run_gate_a_lab.py --check-root-rejection --report gate-a-lab.json
       - name: Optional groups report skipped unless explicitly opted in
@@ -40,4 +42,5 @@ jobs:
             capabilities.json
             gate-a-lab.json
             candidate-acceptance.json
+            artifact-acceptance.json
             dist/candidate/

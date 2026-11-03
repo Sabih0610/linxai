@@ -35,6 +35,36 @@ class CandidateTests(unittest.TestCase):
         result=subprocess.run([sys.executable,'-B','-c',"import sys;sys.modules['paramiko']=None;from vps.server_types import VPSServer;assert 'vps.manager' not in sys.modules;print('typed SSH metadata independent')"],shell=False,capture_output=True,text=True,timeout=5,cwd=Path(__file__).parent)
         self.assertEqual(result.returncode,0,result.stderr)
 
+    def artifact_fixture(self,root,protected=b"trusted"):
+        import hashlib,json,zipfile
+        package=load_script('package_candidate')
+        files={name:b"fixture" for name in ('AGENTS.md','uv.lock','operations/registry.py','operations/service.py','operations/broker.py','ui/desktop.py','voice/pipeline.py','docs/REQUIREMENTS_INVENTORY.md')}
+        files['deployment/broker_entry.py']=b"trusted"
+        package.write_tar(root/'source.tar',files)
+        with zipfile.ZipFile(root/'app.whl','w') as archive:
+            for name,data in files.items():
+                if name.endswith('.py') and not name.startswith('deployment/'):archive.writestr(name,data)
+        name='usr/lib/linxai-trusted/broker_entry.py'
+        entries={name:protected,'usr/share/doc/linxai/broker-manifest.json':json.dumps({name:hashlib.sha256(protected).hexdigest()}).encode()}
+        package.write_tar(root/'trusted-components.tar',entries)
+        manifest={'schema':1,'commit':'f'*40,'source_files':{name:hashlib.sha256(data).hexdigest() for name,data in files.items()},
+            'artifacts':{path.name:hashlib.sha256(path.read_bytes()).hexdigest() for path in root.iterdir()}}
+        (root/'manifest.json').write_text(json.dumps(manifest))
+
+    def test_changed_artifact_is_rejected_before_installation(self):
+        verifier=load_script('verify_candidate')
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);self.artifact_fixture(root)
+            self.assertEqual(verifier.verify(root)[0]['commit'],'f'*40)
+            (root/'app.whl').write_bytes(b"tampered")
+            with self.assertRaisesRegex(ValueError,'hash mismatch'):verifier.verify(root)
+
+    def test_self_consistent_protected_archive_cannot_change_committed_code(self):
+        verifier=load_script('verify_candidate')
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);self.artifact_fixture(root,protected=b"changed")
+            with self.assertRaisesRegex(ValueError,'differs from committed source'):verifier.verify(root)
+
     def test_manifested_source_tar_is_deterministic(self):
         package=load_script('package_candidate')
         with tempfile.TemporaryDirectory() as directory:
