@@ -66,7 +66,7 @@ class Jobs:
             target.update(asset=asset_name, **{key: asset[key] for key in ("platform", "host", "port", "username", "expected_uid", "path") if key in asset})
         row = {"id": str(uuid4()), "uid": self.uid, "state": "preview", "request": request, "target": target,
                "digest": digest(request, self.registry.permitted_workspace, self.uid, prepared),
-               "plan": {key: plan[key] for key in ("intent", "target", "port", "pre_conditions") if plan and key in plan},
+               "plan": {key: plan[key] for key in ("intent", "target", "port", "pre_conditions", "workflow") if plan and key in plan},
                "expires": self.clock() + 60, "created": self.clock(), "text": text[:8192],
                "privilege": prepared.contract.privilege.value,
                "mandatory_checks": [r.identifier for r in prepared.mandatory_checks],

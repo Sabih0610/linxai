@@ -85,8 +85,18 @@ class Planner:
         self.registry, self.model = registry, model or OllamaPlanner()
 
     def propose(self, text, context=()):
+        """Run the planning state graph (requirement 5); see ai/workflow.py."""
+        from .workflow import run_planning
+        return run_planning(self, text, context)
+
+    @staticmethod
+    def check_text(text):
         if not isinstance(text, str) or not text.strip() or len(text.encode()) > 8192 or "\x00" in text:
             raise ValueError("Request must be bounded nonempty text")
+        return text
+
+    def deterministic(self, text, context=()):
+        """Context follow-ups, scoped remote requests and fixed recipes; None if none apply."""
         resolved = follow_up(text, context)
         if resolved is not None:
             self.registry.prepare(resolved["action"], resolved["parameters"])
@@ -113,9 +123,4 @@ class Planner:
             request={"action":"environment.python" if recipe.group(1).lower()=="environment" else "project.scaffold","parameters":{"path":recipe.group(2)}}
             self.registry.prepare(request["action"],request["parameters"])
             return request,{"intent":"env_setup","target":recipe.group(2),"command":"","stack":"python"}
-        plan = classify_fast(text)
-        if plan is None:
-            plan = self.model.generate(text, context)
-        plan = validate_plan(plan)
-        prepared = adapt_plan(plan, self.registry)
-        return typed_request(prepared), plan
+        return None
