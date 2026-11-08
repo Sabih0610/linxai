@@ -136,9 +136,14 @@ class Planner:
             request={"action":"process.list","parameters":{}}
             self.registry.prepare(request["action"],request["parameters"])
             return request,{"intent":"process_list","target":"processes","command":""}
-        recipe=re.fullmatch(r"(?:create|provision) (?:a )?python (environment|project) (?:at|in) (.+)",text.strip(),re.IGNORECASE)
+        recipe=re.fullmatch(r"(?:create|provision|scaffold) (?:a |an )?(python|node(?:\.?js)?|express) (environment|project|app) (?:at|in) (.+)",text.strip(),re.IGNORECASE)
         if recipe:
-            request={"action":"environment.python" if recipe.group(1).lower()=="environment" else "project.scaffold","parameters":{"path":recipe.group(2)}}
+            stack,kind,path=recipe.group(1).lower(),recipe.group(2).lower(),recipe.group(3)
+            if stack=="python":
+                action="environment.python" if kind=="environment" else "project.scaffold"
+            else:
+                action="project.node"
+            request={"action":action,"parameters":{"path":path}}
             self.registry.prepare(request["action"],request["parameters"])
-            return request,{"intent":"env_setup","target":recipe.group(2),"command":"","stack":"python"}
+            return request,{"intent":"env_setup","target":path,"command":"","stack":"python" if stack=="python" else "node"}
         return None

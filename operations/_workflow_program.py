@@ -41,7 +41,38 @@ def atomic(path,data,exclusive=False):
         if temp.exists():temp.unlink()
 def encoded(value):return json.dumps(value,sort_keys=True,separators=(',',':')).encode()
 def revision(value):return hashlib.sha256(encoded(value)).hexdigest()
-if action in ('environment.python','project.scaffold'):
+if action=='project.node':
+    root=pathlib.Path(request['workspace']);chain(root,True)
+    relative=pathlib.PurePosixPath(params['path'])
+    if relative.is_absolute() or any(part in ('','.','..') for part in relative.parts):raise ValueError('Invalid relative project')
+    project=root.joinpath(*relative.parts);chain(project.parent)
+    existing=project.exists()
+    if existing:chain(project,True)
+    runtime='/usr/bin/node'
+    expected={'schema':1,'recipe':'node-stdlib-v1','runtime':runtime}
+    templates={'package.json':b'{\n  "name": "linxai-node-project",\n  "version": "0.1.0",\n  "private": true,\n  "type": "module",\n  "scripts": {"start": "node index.js"},\n  "engines": {"node": ">=18"}\n}\n',
+               'index.js':b'import http from "node:http";\nconst port = Number(process.env.PORT || 3000);\nhttp.createServer((req, res) => {\n  res.writeHead(200, {"content-type": "application/json"});\n  res.end(JSON.stringify({status: "ok"}));\n}).listen(port, "127.0.0.1", () => console.log("listening on 127.0.0.1:" + port));\n',
+               'README.md':b'# Managed Node.js project\nRun with npm start (or node index.js). Dependencies are not downloaded.\n',
+               '.gitignore':b'node_modules/\n'}
+    marker=project/'.linxai-node.json'
+    for name,data in templates.items():
+        if os.path.lexists(project/name) and read(project/name)!=data:raise ValueError('Existing recipe file differs; no overwrite')
+    if os.path.lexists(marker) and json.loads(read(marker)).get('recipe')!=expected['recipe']:raise ValueError('Existing project is not this managed recipe; review')
+    before={'project_exists':existing,'parent':chain(project.parent),'managed':os.path.lexists(marker),'recipe':expected,
+            'runtime_present':os.path.isfile(runtime)}
+    if mode=='check':print(json.dumps(before));raise SystemExit(0)
+    if mode=='apply':
+        if not existing:project.mkdir(mode=0o700)
+        chain(project,True)
+        for name,data in templates.items():
+            if not os.path.lexists(project/name):atomic(project/name,data,True)
+        if not os.path.lexists(marker):atomic(marker,encoded(expected),True)
+    elif not os.path.lexists(marker):raise ValueError('Node project missing')
+    for name,data in templates.items():
+        if read(project/name)!=data:raise ValueError('Node project verification failed')
+    if json.loads(read(marker))!=expected:raise ValueError('Node project marker differs')
+    print(json.dumps({'verified':True,'project':str(project),'recipe':expected,'created':not existing,'runtime_present':os.path.isfile(runtime)}))
+elif action in ('environment.python','project.scaffold'):
     root=pathlib.Path(request['workspace']);chain(root,True)
     relative=pathlib.PurePosixPath(params['path'])
     if relative.is_absolute() or any(part in ('','.','..') for part in relative.parts):raise ValueError('Invalid relative project')

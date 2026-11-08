@@ -530,3 +530,10 @@ dev-environment tests error by design (supported range 3.11–3.13).
 Pending admin step (cannot be automated: the owner types the password at the VM
 console): deploy the current bundle and polkit policy, start the sensor, then
 `run-restore.sh` (49), sensor overhead (44) and the 24 h soak (72).
+
+Node recipe: `tests.test_native_workflows` on the VM ran 5 tests; the new
+`project.node` test passed (real worker, `node --check` on the generated file,
+owner edit refused). VM offline group: 242 run, 0 skipped, 0 failures. VM `linux`
+group: 26 run, 2 failures that are environment prerequisites, not regressions —
+the installed console launcher is absent (locked setup not run on the VM) and the
+remote-peer test needs the installed `operations` package on the peer interpreter.

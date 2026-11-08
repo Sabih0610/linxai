@@ -19,6 +19,10 @@ class WorkflowTests(unittest.TestCase):
         model=Mock();planner=Planner(self.registry,model)
         request,_=planner.propose('create a python project in demo')
         self.assertEqual(request,{'action':'project.scaffold','parameters':{'path':'demo'}})
+        for text in ('create a node project in web','scaffold a nodejs app in web','create an express app in web'):
+            request,_=planner.propose(text)
+            self.assertEqual(request,{'action':'project.node','parameters':{'path':'web'}})
+        with self.assertRaises(ValueError):self.registry.prepare('project.node',{'path':'../escape'})
         request,_=planner.propose('on lab show memory usage')
         self.assertEqual(request['action'],'remote.operation')
         self.assertEqual(request['parameters']['action'],'memory.usage')

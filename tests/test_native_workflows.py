@@ -40,6 +40,22 @@ class NativeWorkflowTests(unittest.TestCase):
         blocked=self.action('project.scaffold',{'path':'demo'})
         self.assertEqual(blocked.status,'validation_failed',blocked)
         self.assertFalse(blocked.executed);self.assertEqual(readme.read_text(),'owner edit')
+    def test_real_node_project_is_idempotent_and_preserves_edits(self):
+        first=self.action('project.node',{'path':'web'})
+        self.assertEqual(first.status,'succeeded',first)
+        package=json.loads((self.workspace/'web/package.json').read_text())
+        self.assertEqual(package['scripts']['start'],'node index.js')
+        index=self.workspace/'web/index.js'
+        self.assertEqual(index.stat().st_mode&0o777,0o600)
+        second=self.action('project.node',{'path':'web'})
+        self.assertEqual(second.status,'succeeded',second)
+        if Path('/usr/bin/node').is_file():
+            check=subprocess.run(['/usr/bin/node','--check',str(index)],capture_output=True,text=True,timeout=10)
+            self.assertEqual(check.returncode,0,check.stderr)
+        index.write_text('owner edit')
+        blocked=self.action('project.node',{'path':'web'})
+        self.assertEqual(blocked.status,'validation_failed',blocked)
+        self.assertFalse(blocked.executed);self.assertEqual(index.read_text(),'owner edit')
     def test_development_device_diff_apply_verified_restore_and_replay_denial(self):
         self.assertEqual(self.action('device.initialize',{'asset':'switch'}).status,'succeeded')
         inspected=self.action('device.inspect',{'asset':'switch'});revision=json.loads(inspected.stdout)['revision']

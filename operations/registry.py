@@ -108,6 +108,7 @@ ACTIONS: Mapping[str, ActionContract] = MappingProxyType({
         ActionContract("auth.face.revoke", FaceParameters, _ADMIN, 10),
         ActionContract("environment.python", Project, _UNPRIVILEGED, 30),
         ActionContract("project.scaffold", Project, _UNPRIVILEGED, 30),
+        ActionContract("project.node", Project, _UNPRIVILEGED, 30),
         ActionContract("device.initialize", Device, _UNPRIVILEGED, 10),
         ActionContract("device.inspect", Device, _UNPRIVILEGED, 10),
         ActionContract("device.interface.set", Interface, _UNPRIVILEGED, 10, recovery_supported=True),

@@ -32,7 +32,7 @@ class Remote:
     action:str
     parameters_json:str
 
-WORKFLOWS=frozenset({'environment.python','project.scaffold','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})
+WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})
 TYPES=(Project,Device,Interface,Restore,Remote)
 
 
@@ -41,7 +41,7 @@ def prepare(registry,identifier,parameters,contract):
     if registry.actor_uid is None:raise InvalidParameters('Backend OS actor required')
     assets=json.loads(registry.assets_json)
     asset={}
-    if identifier in {'environment.python','project.scaffold'}:
+    if identifier in {'environment.python','project.scaffold','project.node'}:
         if set(parameters)!={'path'}:raise InvalidParameters('Exact project path required')
         typed=Project(registry.relative_path(parameters['path']))
         payload={'action':identifier,'parameters':asdict(typed),'workspace':registry.permitted_workspace}
