@@ -13,43 +13,70 @@ from .events import detect, validate
 from .sensor import SensorClient
 
 
+BATCH = 32          # sensor serves at most 32 events per poll
+DRAIN_POLLS = 16    # polls per wake while the sensor still has a full batch
+EVENT_LIMIT, INCIDENT_LIMIT = 2000, 1000
+
+
 class Monitor:
     def __init__(self, store, source):
         self.store, self.source = store, source
         self.status = self.store.get("monitor", "status") or {"cursor": 0, "epoch": None, "events": 0, "incidents": 0, "invalid": 0, "gaps": 0}
+        self.last_batch = 0
 
     def tick(self):
+        self.last_batch = 0
         try:
             batch = self.source.poll(self.status["cursor"], self.status["epoch"])
-            if batch.get("schema") != 1 or not isinstance(batch.get("events"), list) or len(batch["events"]) > 32:
+            if batch.get("schema") != 1 or not isinstance(batch.get("events"), list) or len(batch["events"]) > BATCH:
                 raise ValueError("Malformed sensor batch")
             if type(batch.get("cursor")) is not int or batch["cursor"] < 0 or type(batch.get("gap")) is not int or batch["gap"] < 0:
                 raise ValueError("Invalid batch cursor/loss")
             if not isinstance(batch.get("health"), dict) or batch["health"].get("state") not in {"starting", "ready", "degraded", "unavailable"}:
                 raise ValueError("Invalid capture health")
-            self.status.update(state=batch["health"]["state"], health=batch["health"], trusted_source=bool(self.source.trusted),
-                               epoch=batch["epoch"], updated=time.time())
-            self.status["gaps"] += batch["gap"]
+            pending = dict(self.status)
+            pending.update(state=batch["health"]["state"], health=batch["health"], trusted_source=bool(self.source.trusted),
+                           epoch=batch["epoch"], updated=time.time())
+            pending["gaps"] += batch["gap"]
+            events, incidents, seen = [], [], set()
             for event in batch["events"]:
                 try:
                     validate(event)
                     if not self.source.trusted: event["source"] = "simulated"
-                    if self.store.get("event", event["id"]): continue
-                    self.store.prune("event", 1999)
-                    self.store.put("event", event["id"], event, replace=False, limit=2000)
+                    if event["id"] in seen or self.store.get("event", event["id"]): continue
+                    seen.add(event["id"])
+                    events.append(event)
                     incident = detect(event)
-                    if incident:
-                        self.store.prune("incident", 999)
-                        self.store.put("incident", incident["id"], incident, replace=False)
-                        self.status["incidents"] += 1
-                    self.status["events"] += 1
+                    if incident: incidents.append(incident)
                 except Exception:
-                    self.status["invalid"] += 1
-                    self.status["state"] = "degraded"
-            self.status["cursor"] = batch["cursor"]
+                    pending["invalid"] += 1
+                    pending["state"] = "degraded"
+            pending["events"] += len(events)
+            pending["incidents"] += len(incidents)
+            pending["cursor"] = batch["cursor"]
+            pending.pop("error", None)
+            records = ([("event", e["id"], e, False, EVENT_LIMIT) for e in events]
+                       + [("incident", i["id"], i, False, INCIDENT_LIMIT) for i in incidents]
+                       + [("monitor", "status", pending, True, 1000)])
+            prune = {}
+            if events: prune["event"] = max(0, EVENT_LIMIT - len(events))
+            if incidents: prune["incident"] = max(0, INCIDENT_LIMIT - len(incidents))
+            # One durable transaction per batch: events, incidents and the advanced
+            # cursor commit together, so a failure retries the whole batch.
+            self.store.write_batch(records, prune=prune)
+            self.status = pending
+            self.last_batch = len(batch["events"])
         except Exception as exc:
             self.status.update(state="unavailable", error=type(exc).__name__, updated=time.time())
-        self.store.put("monitor", "status", self.status)
+            self.store.put("monitor", "status", self.status)
+        return self.status
+
+    def drain(self, stop=None):
+        """Poll until the sensor has no full batch left (bounded per wake)."""
+        for _ in range(DRAIN_POLLS):
+            self.tick()
+            if self.last_batch < BATCH or (stop is not None and stop.is_set()):
+                break
         return self.status
 
 
@@ -71,7 +98,7 @@ def main(argv=None):
     monitor = Monitor(store, SensorClient())
     try:
         while not stop.is_set():
-            monitor.tick()
+            monitor.drain(stop)
             stop.wait(0.5)
     finally:
         store.close()

@@ -20,6 +20,10 @@ class MemoryStore:
         keys = [key for key in self.rows if key[0] == kind]
         for key in keys[:max(0,len(keys)-keep)]: self.rows.pop(key)
     def list(self, kind, limit=100): return [copy.deepcopy(v) for (k, _), v in list(self.rows.items())[::-1] if k == kind][:limit]
+    def write_batch(self, records=(), *, prune=None):
+        self.batches = getattr(self, "batches", 0) + 1
+        for kind, keep in (prune or {}).items(): self.prune(kind, keep)
+        for kind, key, value, _replace, _limit in records: self.put(kind, key, value)
 
 
 class ApplicationTests(unittest.TestCase):

@@ -6,6 +6,30 @@ import time
 from uuid import UUID, uuid4
 
 KINDS = frozenset({"process_exec", "network_connect", "file_open"})
+# File opens are only evidence for the deterministic file rule; every other open
+# on a running host is high-volume noise that starved the capture path on target.
+WATCHED_FILES = frozenset({"/etc/shadow", "/etc/sudoers"})
+AF_INET = 2
+
+
+def admit(record):
+    """Cheap pre-queue relevance filter for raw sensor records. Returns False for
+    records no rule or response can use: unwatched file opens and connects that
+    are not IPv4 with a real port (AF_UNIX/IPv6 arrive as 0.0.0.0:0). Process
+    executions are always kept. Unknown shapes are kept so normalize() can count
+    them as invalid instead of hiding them."""
+    if not isinstance(record, dict):
+        return True
+    payload = record.get("payload")
+    if not isinstance(payload, dict):
+        return True
+    kind = record.get("event_type")
+    if kind == "file_open":
+        return payload.get("filename") in WATCHED_FILES
+    if kind == "network_connect":
+        family = payload.get("family")
+        return (family is None or family == AF_INET) and payload.get("dest_port") not in (0, None)
+    return True
 
 
 def integer(value, minimum=0):
@@ -68,7 +92,7 @@ def validate(event):
 def detect(event):
     validate(event)
     rule = None
-    if event["kind"] == "file_open" and event["uid"] != 0 and event["target"]["path"] in {"/etc/shadow", "/etc/sudoers"}:
+    if event["kind"] == "file_open" and event["uid"] != 0 and event["target"]["path"] in WATCHED_FILES:
         rule = "sensitive_file_attempt"
     elif event["kind"] == "process_exec" and event["target"]["path"].startswith(("/tmp/", "/dev/shm/")):
         rule = "temporary_executable_attempt"

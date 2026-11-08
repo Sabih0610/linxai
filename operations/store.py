@@ -58,6 +58,36 @@ class Store:
             sql = "INSERT OR REPLACE" if replace else "INSERT"
             self.db.execute(f"{sql} INTO records VALUES (?,?,?,?)", (kind, key, value, time.time()))
 
+    def write_batch(self, records=(), *, prune=None):
+        """Apply retention and several writes in ONE durable transaction.
+
+        records: iterable of (kind, key, body, replace, limit). prune: {kind: keep}
+        applied first. Same per-record bounds and admission limits as put(); any
+        violation rolls back the whole batch. Durability settings are unchanged;
+        this only removes per-record fsync cost on high-rate evidence paths."""
+        prepared = []
+        for kind, key, body, replace, limit in records:
+            value = json.dumps(body, allow_nan=False, separators=(",", ":"))
+            if len(value.encode()) > 196608 or len(str(key)) > 128 or len(kind) > 32:
+                raise ValueError("Stored payload exceeds bound")
+            prepared.append((kind, key, value, replace, limit))
+        retention = dict(prune or {})
+        for keep in retention.values():
+            if type(keep) is not int or not 0 <= keep <= 10000:
+                raise ValueError("Invalid retention bound")
+        if not prepared and not retention:
+            return
+        with self.lock, self.db:
+            for kind, keep in retention.items():
+                self.db.execute("DELETE FROM records WHERE kind=? AND id NOT IN (SELECT id FROM records WHERE kind=? ORDER BY updated DESC LIMIT ?)", (kind, kind, keep))
+            now = time.time()
+            for kind, key, value, replace, limit in prepared:
+                existing = self.db.execute("SELECT 1 FROM records WHERE kind=? AND id=?", (kind, key)).fetchone()
+                if not existing and self.db.execute("SELECT count(*) FROM records WHERE kind=?", (kind,)).fetchone()[0] >= limit:
+                    raise ValueError("Storage admission limit reached; archive records before admitting more")
+                sql = "INSERT OR REPLACE" if replace else "INSERT"
+                self.db.execute(f"{sql} INTO records VALUES (?,?,?,?)", (kind, key, value, now))
+
     def get(self, kind, key):
         with self.lock:
             row = self.db.execute("SELECT body FROM records WHERE kind=? AND id=?", (kind, key)).fetchone()

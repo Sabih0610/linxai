@@ -16,46 +16,95 @@ from operations import ipc
 from operations.broker import Peer
 from operations.store import Store
 from operations.supervised import SupervisedLinuxAdapter
-from .events import normalize
+from .events import admit, normalize
+
+EVIDENCE_LIMIT = 2000   # root event evidence rows
+STALE_AFTER = 3.0       # seconds without a capture-loop iteration
+LOSS_WINDOW = 10.0      # seconds a capture loss keeps health degraded
 
 
 class Buffer:
-    def __init__(self, host, boot, store=None, *, capacity=2048, source="simulated"):
-        self.host, self.boot, self.store, self.source = host, boot, store, source
+    def __init__(self, host, boot, store=None, *, capacity=2048, source="simulated", clock=time.monotonic):
+        self.host, self.boot, self.store, self.source, self.clock = host, boot, store, source, clock
         self.events, self.lock = deque(maxlen=capacity), threading.RLock()
         self.epoch, self.sequence = str(uuid4()), 0
+        self.last_loss = None
+        # status["state"] is the capture lifecycle (starting/ready/unavailable);
+        # poll() derives the reported health from it plus staleness and recent loss.
         self.status = {"state": "starting", "kernel_lost": 0, "queue_dropped": 0, "buffer_evicted": 0,
-                       "invalid": 0, "hooks": [], "source": source, "last_poll": None}
+                       "invalid": 0, "filtered": 0, "store_errors": 0, "hooks": [], "source": source,
+                       "last_poll": None}
+
+    def loss(self, counter, amount=1):
+        """Count a capture loss (kernel/queue/invalid/storage) and mark it recent."""
+        with self.lock:
+            self.status[counter] += int(amount)
+            self.last_loss = self.clock()
+
+    def filtered(self, amount=1):
+        with self.lock: self.status["filtered"] += int(amount)
 
     def publish(self, record):
+        """Normalize and publish one record; raises on invalid input (counted)."""
         try:
             event = normalize(record, self.host, self.boot, source=self.source)
-            if self.store:
-                self.store.prune("event", 1999)
-                self.store.put("event", event["id"], event, replace=False, limit=2000)
-            with self.lock:
+        except Exception:
+            self.loss("invalid")
+            raise
+        self._commit([event])
+        return event
+
+    def publish_many(self, records):
+        """Normalize a batch, persist it in one transaction and publish it.
+        Invalid records are counted individually without dropping the rest."""
+        events = []
+        for record in records:
+            try:
+                events.append(normalize(record, self.host, self.boot, source=self.source))
+            except Exception:
+                self.loss("invalid")
+        self._commit(events)
+        return events
+
+    def _commit(self, events):
+        if not events:
+            return
+        if self.store:
+            try:
+                self.store.write_batch([("event", e["id"], e, False, EVIDENCE_LIMIT) for e in events],
+                                       prune={"event": max(0, EVIDENCE_LIMIT - len(events))})
+            except Exception:
+                # Root evidence persistence failed; live transport still delivers
+                # the events so detection continues, and health reports the loss.
+                self.loss("store_errors")
+        with self.lock:
+            for event in events:
                 if len(self.events) == self.events.maxlen: self.status["buffer_evicted"] += 1
                 self.sequence += 1
                 event["sequence"] = self.sequence
                 self.events.append(event)
-            return event
-        except Exception:
-            with self.lock: self.status["invalid"] += 1
-            raise
+
+    def health(self):
+        with self.lock:
+            health, now = dict(self.status), self.clock()
+            stale = health["last_poll"] is not None and now - health["last_poll"] > STALE_AFTER
+            recent_loss = self.last_loss is not None and now - self.last_loss < LOSS_WINDOW
+            if health["state"] == "ready" and (stale or recent_loss):
+                health["state"] = "degraded"
+            health["capture_stale"], health["recent_loss"] = stale, recent_loss
+            return health
 
     def poll(self, cursor, epoch):
         if type(cursor) is not int or cursor < 0 or (epoch is not None and not isinstance(epoch, str)):
             raise ValueError("Invalid sensor cursor")
         with self.lock:
-            if self.status["last_poll"] is not None and time.monotonic() - self.status["last_poll"] > 3:
-                self.status.update(state="degraded", capture_stale=True)
             reset = epoch != self.epoch
             if reset: cursor = 0
             oldest = self.events[0]["sequence"] if self.events else self.sequence + 1
             gap = max(0, oldest - cursor - 1)
             events = [dict(event) for event in self.events if event["sequence"] > cursor][:32]
             return {"schema": 1, "epoch": self.epoch, "cursor": events[-1]["sequence"] if events else max(cursor, self.sequence),
-                    "reset": reset, "gap": gap, "events": events, "health": dict(self.status)}
+                    "reset": reset, "gap": gap, "events": events, "health": self.health()}
 
 
 class SensorClient:
@@ -90,12 +139,16 @@ def _capture(buffer, stop):
     incoming = queue.Queue(maxsize=1024)
     class Collector(eBPFDaemon):
         def _write_event(self, event_type, payload):
+            record = {"event_type": event_type, "payload": payload}
+            if not admit(record):
+                buffer.filtered()
+                return
             try:
-                incoming.put_nowait({"event_type": event_type, "payload": payload})
+                incoming.put_nowait(record)
             except queue.Full:
-                buffer.status["queue_dropped"] += 1
+                buffer.loss("queue_dropped")
         def _on_lost(self, cpu, lost=None):
-            buffer.status["kernel_lost"] += int(cpu if lost is None else lost)
+            buffer.loss("kernel_lost", cpu if lost is None else lost)
     collector = Collector("/var/lib/linxai-sensor/unused.jsonl", filter_noise=False)
     probes = []
     try:
@@ -104,13 +157,17 @@ def _capture(buffer, stop):
         buffer.status.update(state="ready", hooks=["execve", "connect", "openat"])
         while not stop.is_set():
             for probe in probes: probe.perf_buffer_poll(timeout=50)
+            batch = []
             for _ in range(256):
-                try: record = incoming.get_nowait()
+                try: batch.append(incoming.get_nowait())
                 except queue.Empty: break
-                try: buffer.publish(record)
-                except Exception: buffer.status["state"] = "degraded"
-                finally: incoming.task_done()
-            buffer.status["last_poll"] = time.monotonic()
+            try:
+                buffer.publish_many(batch)
+            except Exception:
+                buffer.loss("invalid", len(batch))
+            finally:
+                for _ in batch: incoming.task_done()
+            with buffer.lock: buffer.status["last_poll"] = buffer.clock()
     except BaseException as exc:
         buffer.status.update(state="unavailable", error=type(exc).__name__)
     finally:
