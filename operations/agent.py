@@ -41,6 +41,33 @@ class Agent:
         self.responses = Responses(self.registry, self.jobs, model)
         self.response_worker = ResponseWorker(lambda: Store(self.state / "security.sqlite"), self.responses)
 
+    def explain(self, method, request):
+        """Log viewer (requirement 61) and deterministic explain mode (62)."""
+        from .explain import explain_anomaly, explain_incident, explain_job, tail_jsonl
+        ledger = self.state / "operations.jsonl"
+        if method == "logs":
+            limit = request["limit"]
+            if type(limit) is not int or not 1 <= limit <= 200:
+                raise ValueError("limit must be 1..200")
+            return {"records": tail_jsonl(ledger, limit), "incidents": (self.recent_incidents() or [])[:10]}
+        key = str(request["id"])[:64]
+        row = self.store.get("job", key)
+        if row:
+            audit = tail_jsonl(ledger, 200, operation_id=row.get("operation_id")) if row.get("operation_id") else []
+            return {"kind": "job", "id": key, "explanation": explain_job(row, audit)}
+        database = self.state / "security.sqlite"
+        if database.exists():
+            security = Store(database)
+            try:
+                incident, anomaly = security.get("incident", key), security.get("anomaly", key)
+            finally:
+                security.close()
+            if incident:
+                return {"kind": "incident", "id": key, "explanation": explain_incident(incident)}
+            if anomaly:
+                return {"kind": "anomaly", "id": key, "explanation": explain_anomaly(anomaly)}
+        raise ValueError("No job, incident or anomaly with that id")
+
     def recent_incidents(self):
         """Read-only incident snapshot for preview warnings; None if no monitor state."""
         database = self.state / "security.sqlite"
@@ -59,7 +86,8 @@ class Agent:
             raise ValueError("API version 1 required")
         method = request.get("method")
         fields = {"preview": {"text"}, "confirm": {"id", "digest"}, "cancel": {"id"}, "reconcile": {"id"},
-                  "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set(), "propose_response": {"incident_id"}, "revoke_policy": {"policy_id"}, "typed_preview": {"request"}, "restore_job": {"id"}, "device_inspect": {"asset"}, "device_preview": {"asset","interface","enabled"}}
+                  "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set(), "propose_response": {"incident_id"}, "revoke_policy": {"policy_id"}, "typed_preview": {"request"}, "restore_job": {"id"}, "device_inspect": {"asset"}, "device_preview": {"asset","interface","enabled"},
+                  "logs": {"limit"}, "explain": {"id"}}
         if method not in fields or set(request) != {"version", "method"} | fields[method]:
             raise ValueError("Unsupported API request or authority fields")
         if method in {"device_inspect","device_preview"}:
@@ -89,9 +117,11 @@ class Agent:
         if method == "revoke_policy":
             return self.jobs.preview({"action": "response.policy.revoke", "parameters": {"policy_id": request["policy_id"]}}, text="Revoke scoped policy")
         if method == "preview":
-            history = [{"text": row.get("text", ""), "plan": row.get("plan", {})} for row in reversed(self.store.list("job", 5))]
+            history = [{"text": row.get("text", ""), "plan": row.get("plan", {}), "request": row.get("request")} for row in reversed(self.store.list("job", 5))]
             typed, plan = self.planner.propose(request["text"], history)
             return self.jobs.preview(typed, text=request["text"], plan=plan)
+        if method in {"logs", "explain"}:
+            return self.explain(method, request)
         if method == "confirm":
             return self.jobs.confirm(request["id"], request["digest"])
         if method == "reconcile":

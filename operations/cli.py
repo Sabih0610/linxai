@@ -48,6 +48,8 @@ def main(argv=None):
     parser.add_argument("--confirm", metavar="PREVIEW_ID")
     parser.add_argument("--digest", help="Exact digest returned by preview")
     parser.add_argument("--jobs", action="store_true")
+    parser.add_argument("--logs", type=int, metavar="N", help="Show the last N correlated operation audit records")
+    parser.add_argument("--explain", metavar="ID", help="Explain a job, incident or anomaly in plain English")
     parser.add_argument("--parameters", default="{}", help="JSON parameter object; no command/identity/approval fields")
     parser.add_argument("--workspace", help="Explicit permitted POSIX workspace for create actions")
     parser.add_argument("--audit-path", help="JSONL path in an owned private directory")
@@ -61,15 +63,21 @@ def main(argv=None):
         result = OperationResult(str(uuid4()), "identity_denied", str(exc), audit_complete=False)
         print(json.dumps(asdict(result), sort_keys=True))
         return 2
-    selected = sum((bool(args.action), args.ask is not None, args.confirm is not None, args.jobs))
+    selected = sum((bool(args.action), args.ask is not None, args.confirm is not None, args.jobs,
+                    args.logs is not None, args.explain is not None))
     if selected != 1:
-        parser.error("Select exactly one action, --ask, --confirm or --jobs")
-    if args.ask is not None or args.confirm is not None or args.jobs:
+        parser.error("Select exactly one action, --ask, --confirm, --jobs, --logs or --explain")
+    if args.ask is not None or args.confirm is not None or args.jobs or args.logs is not None or args.explain is not None:
         from .agent import AgentClient
         client = AgentClient()
         try:
+            if args.explain is not None:
+                value = client.call("explain", id=args.explain)
+                print("\n".join(value["explanation"]))
+                return 0
             value = (client.call("preview", text=args.ask) if args.ask is not None else
-                     client.call("confirm", id=args.confirm, digest=args.digest) if args.confirm else client.call("jobs"))
+                     client.call("confirm", id=args.confirm, digest=args.digest) if args.confirm else
+                     client.call("logs", limit=args.logs) if args.logs is not None else client.call("jobs"))
             print(json.dumps(value, sort_keys=True))
             return 0
         except Exception as exc:
