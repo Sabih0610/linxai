@@ -507,3 +507,26 @@ group ran all 209 with 0 skipped and 0 failures, including native lowering of a 
 child process (0→7, verified), refusal of a stale start time and of raising
 priority, and a verified `resource.forecast`. Broker/polkit acceptance of
 `process.priority.restore` needs the updated policy file deployed and is pending.
+
+## Measurements — resources, intents, 8 November 2026
+
+Resource benchmark (requirement 51): `scripts/bench_resources.py` pins itself to N
+CPUs and runs five background scenarios sized per CPU. In WSL2 (N=2) lowering the
+background to nice 19 through the typed action cut foreground CPU-task time by
+27–78 % and wake-up p95 by 74–87 % under oversubscription. On the VirtualBox VM
+(N=1) CPU-task time fell 31–79 %; the VM's wake-up latency is hypervisor-bound and
+inconclusive. An earlier unpinned run with 8 hogs on the 2-vCPU VM caused guest soft
+lockups (VirtualBox on Hyper-V/NEM) and was discarded; the VM had to be reset.
+
+Intent evaluation (requirement 3): `scripts/eval_intents.py`, local
+`qwen2.5:1.5b` (host Ollama; the VM is too slow for inference). Final: 15/15 unsafe
+or unsupported requests refused, 0 false actions; 100 % tuning / 73.3 % held-out
+action accuracy. Two misclassifications found in earlier runs were fixed with
+pre-model refusals (account/credential changes, destructive disk operations) and
+regression tests. Offline group on Windows (CPython 3.12): 242 run, 232 passed,
+10 skipped (Linux-only), 0 failures. With the default CPython 3.14 three
+dev-environment tests error by design (supported range 3.11–3.13).
+
+Pending admin step (cannot be automated: the owner types the password at the VM
+console): deploy the current bundle and polkit policy, start the sensor, then
+`run-restore.sh` (49), sensor overhead (44) and the 24 h soak (72).

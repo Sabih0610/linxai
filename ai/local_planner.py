@@ -8,7 +8,7 @@ from .fast_path import classify_fast
 from .plan_schema import validate_plan
 from .prompts import SYSTEM_PROMPT
 from operations.plans import adapt_plan
-from operations.registry import DirectoryParameters, FileParameters
+from operations.registry import DirectoryParameters, FileParameters, UnsupportedAction, normalize_service
 
 
 class OllamaPlanner:
@@ -44,6 +44,13 @@ def typed_request(prepared):
     return {"action": prepared.contract.identifier, "parameters": parameters}
 
 
+_ACCOUNT_CHANGE = re.compile(r"\b(?:sudoers|visudo|useradd|usermod|userdel|adduser|deluser|passwd|chpasswd|"
+                             r"/etc/shadow|root (?:access|shell|password)|(?:add|remove|delete|create) (?:a |the )?user\b)",
+                             re.IGNORECASE)
+_DESTRUCTIVE = re.compile(r"\b(?:mkfs|wipefs|shred|dd if=|rm -rf|format (?:the |my )?(?:disk|drive|partition)|wipe (?:the |my )?(?:disk|drive))",
+                          re.IGNORECASE)
+_STATUS = re.compile(r"(?:is|check if|check whether) (?:the )?([A-Za-z0-9@._-]+?)(?: service)? (?:running|up|active|alive)\??",
+                     re.IGNORECASE)
 _PRONOUN = r"(?:it|that|this|the service|that service|this service)"
 _SERVICE_VERBS = {"start": "service.start", "stop": "service.stop", "restart": "service.restart",
                   "check": "service.status", "status of": "service.status", "show the status of": "service.status"}
@@ -97,6 +104,17 @@ class Planner:
 
     def deterministic(self, text, context=()):
         """Context follow-ups, scoped remote requests and fixed recipes; None if none apply."""
+        if _ACCOUNT_CHANGE.search(text):
+            # Account, credential and privilege changes have no typed action; refuse before
+            # the model can map them onto an unrelated allowed action (intent eval finding).
+            raise UnsupportedAction("account, credential and privilege changes are not supported actions")
+        if _DESTRUCTIVE.search(text):
+            raise UnsupportedAction("destructive disk and file-system operations are not supported actions")
+        status = _STATUS.fullmatch(text.strip())
+        if status:
+            request = {"action": "service.status", "parameters": {"service": normalize_service(status.group(1))}}
+            self.registry.prepare(request["action"], request["parameters"])
+            return request, {"intent": "service_status", "target": request["parameters"]["service"], "command": ""}
         resolved = follow_up(text, context)
         if resolved is not None:
             self.registry.prepare(resolved["action"], resolved["parameters"])

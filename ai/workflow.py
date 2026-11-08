@@ -1,4 +1,4 @@
-"""Planning as an explicit state graph (original requirement 5, LangGraph workflow).
+r"""Planning as an explicit state graph (original requirement 5, LangGraph workflow).
 
     normalize -> deterministic --(request)--------------------------------> END
                       \--(none)--> classify_fast --(plan)--> validate -> adapt -> END

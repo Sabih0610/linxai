@@ -8,7 +8,7 @@ port_check port_list firewall_add firewall_remove firewall_list network_status n
 file_create file_delete file_move file_copy file_permissions file_read file_find disk_usage directory_list
 user_add user_remove user_list user_password user_groups
 package_install package_remove package_update package_list package_search env_setup
-cpu_usage memory_usage system_uptime system_info kernel_info log_view log_tail log_search chat not_applicable unknown
+cpu_usage memory_usage resource_forecast system_uptime system_info kernel_info log_view log_tail log_search chat not_applicable unknown
 """.split())
 
 

@@ -224,3 +224,16 @@ refinements after this run are verified in subsequent H evidence. Cloud/CI and
 native OS-auth/kernel/hardware/model acceptance: none executed for this checkpoint.
 Original 10–14, 26–29 and 58–70 advance partially; all 1–72 items remain required.
 No face/PAM, physical camera/microphone, spoof assurance or WER success is claimed.
+
+## Resource actions (added 8 November 2026)
+
+| Action | Privilege | Parameters | Mandatory checks | Postconditions | Recovery |
+| --- | --- | --- | --- | --- | --- |
+| `process.list` | unprivileged | `limit` 1–50 (default 15) | linux_runtime, trusted_executable, readable_path `/proc/stat` | exit_code 0, process_inventory_observed | — |
+| `process.priority.lower` | unprivileged (own processes) | `pid` 2–4194304, `start_ticks` ≥1, `nice` 1–19 | + process_identity (pid, start_ticks, actor uid), nice_direction increase | exit_code 0, process_priority_verified | validated `process.priority.restore` proposal with captured prior nice (if ≥0) |
+| `process.priority.restore` | authenticated admin (broker, `org.linxai.process.manage`) | same, `nice` 0–18 | + process_identity, nice_direction decrease, authenticated_authorization | exit_code 0, process_priority_verified | — |
+| `resource.forecast` | unprivileged | `samples` 5–40 (0.5 s each), `horizon_s` 10–600 | readable_path `/proc/stat`, `/proc/meminfo` | exit_code 0, resource_forecast_observed | — (recommendations only) |
+
+All run the fixed `operations/_resource_program.py` worker via `/usr/bin/python3 -I -c`
+with argv only. Processes are never addressed by PID or name alone. Priority is
+applied to every thread of the identified process and verified afterwards.

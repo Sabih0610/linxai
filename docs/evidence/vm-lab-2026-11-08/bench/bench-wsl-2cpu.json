@@ -1,0 +1,83 @@
+{
+  "cpus": 12,
+  "pinned_cpus": [
+    0,
+    1
+  ],
+  "idle": {
+    "cpu_task_s": 0.1459,
+    "wake_p95_ms": 0.82
+  },
+  "scenarios": {
+    "one_hog_per_cpu": {
+      "background": 2,
+      "loaded": {
+        "cpu_task_s": 0.2664,
+        "wake_p95_ms": 0.415
+      },
+      "optimized": {
+        "cpu_task_s": 0.1435,
+        "wake_p95_ms": 0.384
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 46.1,
+      "wake_p95_improvement_pct": 7.5
+    },
+    "two_hogs_per_cpu": {
+      "background": 4,
+      "loaded": {
+        "cpu_task_s": 0.3734,
+        "wake_p95_ms": 2.986
+      },
+      "optimized": {
+        "cpu_task_s": 0.1634,
+        "wake_p95_ms": 0.388
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 56.2,
+      "wake_p95_improvement_pct": 87.0
+    },
+    "four_hogs_per_cpu": {
+      "background": 8,
+      "loaded": {
+        "cpu_task_s": 0.6577,
+        "wake_p95_ms": 3.224
+      },
+      "optimized": {
+        "cpu_task_s": 0.1435,
+        "wake_p95_ms": 0.845
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 78.2,
+      "wake_p95_improvement_pct": 73.8
+    },
+    "mixed_cpu_io": {
+      "background": 4,
+      "loaded": {
+        "cpu_task_s": 0.3647,
+        "wake_p95_ms": 2.861
+      },
+      "optimized": {
+        "cpu_task_s": 0.1439,
+        "wake_p95_ms": 0.398
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 60.5,
+      "wake_p95_improvement_pct": 86.1
+    },
+    "bursty": {
+      "background": 4,
+      "loaded": {
+        "cpu_task_s": 0.195,
+        "wake_p95_ms": 3.22
+      },
+      "optimized": {
+        "cpu_task_s": 0.143,
+        "wake_p95_ms": 0.782
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 26.7,
+      "wake_p95_improvement_pct": 75.7
+    }
+  }
+}

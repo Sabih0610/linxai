@@ -8,7 +8,7 @@ file_create, file_delete, file_move, file_copy, file_permissions, file_read, fil
 user_add, user_remove, user_list, user_password, user_groups,
 package_install, package_remove, package_update, package_list, package_search,
 env_setup,
-cpu_usage, memory_usage, system_uptime, system_info, kernel_info,
+cpu_usage, memory_usage, resource_forecast, system_uptime, system_info, kernel_info,
 log_view, log_tail, log_search, chat, not_applicable, unknown
 
 RETURN THIS JSON FORMAT ONLY:
@@ -31,7 +31,12 @@ RULES:
 - For file_create, omit filler words like "the", "folder", "directory", and "dir" from the location unless they are quoted as part of a real name.
 - For file_create with user-provided file content, put the content in the "content" slot.
 - list directory contents → directory_list
-- cpu load/usage → cpu_usage
+- cpu load/usage / what is using the most cpu / top processes → cpu_usage
+- which programs/processes are running → process_list
+- predict/forecast resource use / will the system run out of memory or cpu soon → resource_forecast
+- free disk space / is the disk full → disk_usage
+- free RAM / free memory / running out of memory now → memory_usage
+- is X up / is X running → service_status, target=X
 - uptime/how long running → system_uptime
 - how long has the server/system/machine been running → system_uptime, command="uptime -p"
 - which process/service has been running for/about a duration → process_list, command="ps -eo comm,etime,pid --sort=start_time"

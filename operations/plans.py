@@ -15,6 +15,8 @@ _INTENTS = {
     "service_status": "service.status", "service_start": "service.start",
     "service_stop": "service.stop", "service_restart": "service.restart",
     "file_create": "file.create",
+    # Read-only resource views (requirements 46, 50); the model often says cpu_usage.
+    "process_list": "process.list", "cpu_usage": "process.list", "resource_forecast": "resource.forecast",
 }
 _SLOTS = {"target", "port", "protocol", "path", "location", "content", "kind",
           "file_create_kind", "name", "filename", "query", "stack", "repo_url"}

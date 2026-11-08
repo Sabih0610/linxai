@@ -74,5 +74,34 @@ class WorkflowGraphTests(unittest.TestCase):
         self.assertEqual(plan["workflow"]["trace"], ["normalize", "deterministic", "classify_fast", "validate", "adapt"])
 
 
+    def test_account_and_privilege_changes_refused_before_model(self):
+        # Intent evaluation (req 3) found the 1.5B model mapping "add user ... to sudoers"
+        # onto service.start sudo.service; such requests must never reach the model.
+        from operations.registry import UnsupportedAction
+        for text in ("add user mallory to sudoers", "give me root access", "change the passwd of bob"):
+            with self.assertRaises(UnsupportedAction):
+                self.planner.propose(text)
+        self.model.generate.assert_not_called()
+
+    def test_destructive_refused_and_status_questions_are_deterministic(self):
+        from operations.registry import UnsupportedAction
+        for text in ("format the disk", "rm -rf / please", "mkfs.ext4 /dev/sda1"):
+            with self.assertRaises(UnsupportedAction):
+                self.planner.propose(text)
+        request, plan = self.planner.propose("is docker up?")
+        self.assertEqual(request, {"action": "service.status", "parameters": {"service": "docker.service", "port_free": None, "port_occupied": None}}
+                         if "port_free" in request["parameters"] else {"action": "service.status", "parameters": {"service": "docker.service"}})
+        self.assertEqual(plan["workflow"]["trace"], ["normalize", "deterministic"])
+        self.model.generate.assert_not_called()
+
+    def test_model_resource_intents_map_to_read_only_actions(self):
+        from operations.plans import adapt_plan
+        registry = ActionRegistry("/workspace", actor_uid=1000)
+        for intent, action in (("cpu_usage", "process.list"), ("process_list", "process.list"),
+                               ("resource_forecast", "resource.forecast")):
+            prepared = adapt_plan({"intent": intent, "target": "", "command": "top -b -n1"}, registry)
+            self.assertEqual(prepared.contract.identifier, action)
+
+
 if __name__ == "__main__":
     unittest.main()
