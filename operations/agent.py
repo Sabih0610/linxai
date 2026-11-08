@@ -119,7 +119,7 @@ class Agent:
                 from security.policy_daemon import PolicyClient
                 try: policies=PolicyClient().call("status")
                 except Exception: policies={"state":"unavailable; no kernel enforcement acceptance inferred"}
-                return {"status": status, "incidents": security.list("incident", 20), "policies": policies,
+                return {"status": status, "incidents": security.list("incident", 20), "anomalies": security.list("anomaly", 20), "policies": policies,
                         "enforcement": "Only independently qualified active policies assert scoped prevention"}
             finally:
                 security.close()

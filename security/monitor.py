@@ -16,13 +16,16 @@ from .sensor import SensorClient
 BATCH = 32          # sensor serves at most 32 events per poll
 DRAIN_POLLS = 16    # polls per wake while the sensor still has a full batch
 EVENT_LIMIT, INCIDENT_LIMIT = 2000, 1000
+LAKE_INTERVAL_S = 600   # medallion refresh cadence
 
 
 class Monitor:
-    def __init__(self, store, source):
+    def __init__(self, store, source, baseline=None):
         self.store, self.source = store, source
         self.status = self.store.get("monitor", "status") or {"cursor": 0, "epoch": None, "events": 0, "incidents": 0, "invalid": 0, "gaps": 0}
         self.last_batch = 0
+        # Optional learned gold baseline (security.lake); advisory anomalies only.
+        self.baseline = baseline
 
     def tick(self):
         self.last_batch = 0
@@ -38,7 +41,7 @@ class Monitor:
             pending.update(state=batch["health"]["state"], health=batch["health"], trusted_source=bool(self.source.trusted),
                            epoch=batch["epoch"], updated=time.time())
             pending["gaps"] += batch["gap"]
-            events, incidents, seen = [], [], set()
+            events, incidents, anomalies, seen = [], [], [], set()
             for event in batch["events"]:
                 try:
                     validate(event)
@@ -48,6 +51,10 @@ class Monitor:
                     events.append(event)
                     incident = detect(event)
                     if incident: incidents.append(incident)
+                    elif self.baseline and self.source.trusted:
+                        from .lake import score
+                        anomaly = score(event, self.baseline)
+                        if anomaly: anomalies.append(anomaly)
                 except Exception:
                     pending["invalid"] += 1
                     pending["state"] = "degraded"
@@ -57,8 +64,11 @@ class Monitor:
             pending.pop("error", None)
             records = ([("event", e["id"], e, False, EVENT_LIMIT) for e in events]
                        + [("incident", i["id"], i, False, INCIDENT_LIMIT) for i in incidents]
+                       + [("anomaly", a["id"], a, False, INCIDENT_LIMIT) for a in anomalies]
                        + [("monitor", "status", pending, True, 1000)])
+            pending["anomalies"] = pending.get("anomalies", 0) + len(anomalies)
             prune = {}
+            if anomalies: prune["anomaly"] = max(0, INCIDENT_LIMIT - len(anomalies))
             if events: prune["event"] = max(0, EVENT_LIMIT - len(events))
             if incidents: prune["incident"] = max(0, INCIDENT_LIMIT - len(incidents))
             # One durable transaction per batch: events, incidents and the advanced
@@ -95,11 +105,24 @@ def main(argv=None):
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
-    monitor = Monitor(store, SensorClient())
+    from .lake import Lake
+    lake_store = Store(Path(args.state) / "lake.sqlite")
+    lake = Lake(lake_store, store)
+    monitor = Monitor(store, SensorClient(), baseline=lake.model())
+    next_cycle = time.monotonic() + LAKE_INTERVAL_S
     try:
         while not stop.is_set():
             monitor.drain(stop)
+            if time.monotonic() >= next_cycle:
+                # Medallion refresh: bronze -> silver -> gold, then reload the baseline.
+                try:
+                    lake.run_cycle()
+                    monitor.baseline = lake.model()
+                except Exception as exc:
+                    monitor.status["lake_error"] = type(exc).__name__
+                next_cycle = time.monotonic() + LAKE_INTERVAL_S
             stop.wait(0.5)
     finally:
+        lake_store.close()
         store.close()
         os.close(lock)
