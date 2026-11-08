@@ -36,7 +36,7 @@ class Agent:
             adapter.cancel_event = event
             return OperationService(self.registry, adapter, LocalPolicy(self.uid), self.audit)
         self.jobs = Jobs(self.store, self.registry, self.uid, service, broker or BrokerClient(),
-                         incidents=self.recent_incidents)
+                         incidents=self.recent_incidents, conflicts=self.analyze_conflicts)
         from security.response import Responses, ResponseWorker
         self.responses = Responses(self.registry, self.jobs, model)
         self.response_worker = ResponseWorker(lambda: Store(self.state / "security.sqlite"), self.responses)
@@ -67,6 +67,11 @@ class Agent:
             if anomaly:
                 return {"kind": "anomaly", "id": key, "explanation": explain_anomaly(anomaly)}
         raise ValueError("No job, incident or anomaly with that id")
+
+    @staticmethod
+    def analyze_conflicts(action, parameters):
+        from .conflicts import analyze
+        return analyze(action, parameters)
 
     def recent_incidents(self):
         """Read-only incident snapshot for preview warnings; None if no monitor state."""

@@ -29,11 +29,13 @@ def digest(request, workspace, uid, prepared):
 
 
 class Jobs:
-    def __init__(self, store, registry, uid, service_factory, broker, *, clock=time.time, incidents=None):
+    def __init__(self, store, registry, uid, service_factory, broker, *, clock=time.time, incidents=None, conflicts=None):
         self.store, self.registry, self.uid = store, registry, uid
         self.service_factory, self.broker, self.clock = service_factory, broker, clock
         # Optional read-only source of recent monitor incidents (requirement 41).
         self.incidents = incidents
+        # Optional read-only conflict analysis (requirements 19-21): (action, parameters) -> dict.
+        self.conflicts = conflicts
         self.queue, self.lock = queue.Queue(maxsize=128), threading.RLock()
         self.degraded = None
         self.stop_event, self.cancels = threading.Event(), {}
@@ -70,6 +72,12 @@ class Jobs:
                "mandatory_checks": [r.identifier for r in prepared.mandatory_checks],
                "postconditions": [r.identifier for r in prepared.postconditions], "recovery": "unsupported"}
         row.update(self._security_context(prepared))
+        if self.conflicts is not None:
+            try:
+                row["conflicts"] = self.conflicts(prepared.contract.identifier, request["parameters"])
+            except Exception as exc:
+                row["conflicts"] = {"decision": "warn", "findings": [{"level": "warn", "code": "analysis_unavailable",
+                                                                     "detail": type(exc).__name__}], "alternatives": []}
         self.save(row)
         return row
 
@@ -99,6 +107,8 @@ class Jobs:
             expected = digest(row["request"], self.registry.permitted_workspace, self.uid, prepared)
             if approved_digest != row["digest"] or expected != row["digest"] or row["uid"] != self.uid:
                 raise PermissionError("Preview action/parameters/target changed; preview again")
+            if (row.get("conflicts") or {}).get("decision") == "block":
+                raise ValueError("Preview analysis found a certain failure; review its findings/alternatives and preview again")
             if self.queue.full():
                 raise ValueError("Job admission queue is full")
             row["state"] = "queued"
