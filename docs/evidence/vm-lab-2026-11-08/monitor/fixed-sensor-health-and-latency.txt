@@ -1,0 +1,7 @@
+steady-state 30s after backlog: events 97
+kernel->sensor latency ms: min 4 median 1589 p95 2555 max 2577
+sensor health: {"state": "ready", "kernel_lost": 0, "queue_dropped": 0, "buffer_evicted": 0, "invalid": 0, "filtered": 3863, "store_errors": 0, "hooks": ["execve", "connect", "openat"], "source": "kernel", "last_poll": 2011.281558793, "capture_stale": false, "recent_loss": false}
+monitor status: {"state": "ready", "events": 2534, "incidents": 2, "invalid": 0, "gaps": 660, "trusted_source": true}
+recent owner incidents: [('sensitive_file_attempt', '/etc/shadow'), ('temporary_executable_attempt', '/tmp/linxai-benign-capture-jxfitqxr/controlled-hello')]
+    PID %CPU   RSS     ELAPSED
+   7547 10.9 197368      02:18

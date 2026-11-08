@@ -1,0 +1,978 @@
+diff --git a/operations/store.py b/operations/store.py
+index 694e918..634c9db 100644
+--- a/operations/store.py
++++ b/operations/store.py
+@@ -58,6 +58,36 @@ class Store:
+             sql = "INSERT OR REPLACE" if replace else "INSERT"
+             self.db.execute(f"{sql} INTO records VALUES (?,?,?,?)", (kind, key, value, time.time()))
+ 
++    def write_batch(self, records=(), *, prune=None):
++        """Apply retention and several writes in ONE durable transaction.
++
++        records: iterable of (kind, key, body, replace, limit). prune: {kind: keep}
++        applied first. Same per-record bounds and admission limits as put(); any
++        violation rolls back the whole batch. Durability settings are unchanged;
++        this only removes per-record fsync cost on high-rate evidence paths."""
++        prepared = []
++        for kind, key, body, replace, limit in records:
++            value = json.dumps(body, allow_nan=False, separators=(",", ":"))
++            if len(value.encode()) > 196608 or len(str(key)) > 128 or len(kind) > 32:
++                raise ValueError("Stored payload exceeds bound")
++            prepared.append((kind, key, value, replace, limit))
++        retention = dict(prune or {})
++        for keep in retention.values():
++            if type(keep) is not int or not 0 <= keep <= 10000:
++                raise ValueError("Invalid retention bound")
++        if not prepared and not retention:
++            return
++        with self.lock, self.db:
++            for kind, keep in retention.items():
++                self.db.execute("DELETE FROM records WHERE kind=? AND id NOT IN (SELECT id FROM records WHERE kind=? ORDER BY updated DESC LIMIT ?)", (kind, kind, keep))
++            now = time.time()
++            for kind, key, value, replace, limit in prepared:
++                existing = self.db.execute("SELECT 1 FROM records WHERE kind=? AND id=?", (kind, key)).fetchone()
++                if not existing and self.db.execute("SELECT count(*) FROM records WHERE kind=?", (kind,)).fetchone()[0] >= limit:
++                    raise ValueError("Storage admission limit reached; archive records before admitting more")
++                sql = "INSERT OR REPLACE" if replace else "INSERT"
++                self.db.execute(f"{sql} INTO records VALUES (?,?,?,?)", (kind, key, value, now))
++
+     def get(self, kind, key):
+         with self.lock:
+             row = self.db.execute("SELECT body FROM records WHERE kind=? AND id=?", (kind, key)).fetchone()
+diff --git a/security/events.py b/security/events.py
+index c4ceff5..ee53700 100644
+--- a/security/events.py
++++ b/security/events.py
+@@ -1,81 +1,105 @@
+-"""Normalized untrusted evidence. Text never becomes an operation or authority."""
+-import hashlib
+-import ipaddress
+-import json
+-import time
+-from uuid import UUID, uuid4
+-
+-KINDS = frozenset({"process_exec", "network_connect", "file_open"})
+-
+-
+-def integer(value, minimum=0):
+-    if type(value) is not int or value < minimum or value > 2**64 - 1:
+-        raise ValueError("Invalid bounded event integer")
+-    return value
+-
+-
+-def text(value, limit=1024):
+-    if not isinstance(value, str) or len(value.encode()) > limit or "\x00" in value:
+-        raise ValueError("Invalid bounded event text")
+-    return value
+-
+-
+-def normalize(record, host, boot, *, source):
+-    if not isinstance(record, dict) or record.get("event_type") not in KINDS:
+-        raise ValueError("Unsupported event kind")
+-    payload = record.get("payload")
+-    if not isinstance(payload, dict) or len(json.dumps(payload)) > 8192:
+-        raise ValueError("Invalid event payload")
+-    uid, pid = integer(payload.get("uid")), integer(payload.get("pid"), 1)
+-    start = payload.get("start_ns")
+-    if start is not None: start = integer(start, 1)
+-    timestamp = payload.get("monotonic_ns")
+-    if timestamp is not None: timestamp = integer(timestamp, 1)
+-    target = {}
+-    if record["event_type"] == "network_connect":
+-        target["address"] = str(ipaddress.ip_address(payload.get("dest_ip")))
+-        target["port"] = integer(payload.get("dest_port"), 1)
+-        if target["port"] > 65535: raise ValueError("Invalid event port")
+-    else:
+-        target["path"] = text(payload.get("filename", ""))
+-    subject = hashlib.sha256(f"{host}:{boot}:{uid}:{pid}:{start}".encode()).hexdigest() if start else None
+-    return {"schema": 1, "id": str(uuid4()), "host": text(host, 128), "boot": text(boot, 128),
+-            "kind": record["event_type"], "protocol": {6:"tcp",17:"udp"}.get(payload.get("protocol"),"unknown"), "uid": uid, "pid": pid, "ppid": integer(payload.get("ppid", 0)),
+-            "start_ns": start, "subject": subject, "process": text(payload.get("process", ""), 128),
+-            "monotonic_ns": timestamp, "received_ns": time.monotonic_ns(),
+-            "received_boottime_ns": time.clock_gettime_ns(time.CLOCK_BOOTTIME) if hasattr(time,"CLOCK_BOOTTIME") else None, "target": target,
+-            "source": source, "identity_quality": "kernel_start_identity" if start and timestamp and source == "kernel" else "incomplete_or_simulated",
+-            "result": "entry_observation; syscall outcome unknown"}
+-
+-
+-def validate(event):
+-    if not isinstance(event, dict) or len(json.dumps(event)) > 16384 or event.get("schema") != 1:
+-        raise ValueError("Invalid normalized event")
+-    if str(UUID(event["id"])) != event["id"] or event["kind"] not in KINDS:
+-        raise ValueError("Invalid event identity/kind")
+-    integer(event["uid"])
+-    integer(event["pid"], 1)
+-    text(event["host"], 128)
+-    text(event["boot"], 128)
+-    if event["kind"] == "network_connect":
+-        ipaddress.ip_address(event["target"]["address"])
+-        if not 1 <= integer(event["target"]["port"], 1) <= 65535: raise ValueError("Invalid port")
+-    else:
+-        text(event["target"]["path"])
+-    return event
+-
+-
+-def detect(event):
+-    validate(event)
+-    rule = None
+-    if event["kind"] == "file_open" and event["uid"] != 0 and event["target"]["path"] in {"/etc/shadow", "/etc/sudoers"}:
+-        rule = "sensitive_file_attempt"
+-    elif event["kind"] == "process_exec" and event["target"]["path"].startswith(("/tmp/", "/dev/shm/")):
+-        rule = "temporary_executable_attempt"
+-    elif event["kind"] == "network_connect" and event["target"]["port"] in {4444, 1337}:
+-        rule = "unusual_connection_attempt"
+-    if rule is None: return None
+-    return {"schema": 1, "id": event["id"], "event_id": event["id"], "state": "observed",
+-            "rule": rule, "severity": "warning", "evidence": event,
+-            "interpretation": "Deterministic suspicion; entry observation does not prove malicious intent or prevention",
+-            "response": "none", "created": time.time()}
++"""Normalized untrusted evidence. Text never becomes an operation or authority."""
++import hashlib
++import ipaddress
++import json
++import time
++from uuid import UUID, uuid4
++
++KINDS = frozenset({"process_exec", "network_connect", "file_open"})
++# File opens are only evidence for the deterministic file rule; every other open
++# on a running host is high-volume noise that starved the capture path on target.
++WATCHED_FILES = frozenset({"/etc/shadow", "/etc/sudoers"})
++AF_INET = 2
++
++
++def admit(record):
++    """Cheap pre-queue relevance filter for raw sensor records. Returns False for
++    records no rule or response can use: unwatched file opens and connects that
++    are not IPv4 with a real port (AF_UNIX/IPv6 arrive as 0.0.0.0:0). Process
++    executions are always kept. Unknown shapes are kept so normalize() can count
++    them as invalid instead of hiding them."""
++    if not isinstance(record, dict):
++        return True
++    payload = record.get("payload")
++    if not isinstance(payload, dict):
++        return True
++    kind = record.get("event_type")
++    if kind == "file_open":
++        return payload.get("filename") in WATCHED_FILES
++    if kind == "network_connect":
++        family = payload.get("family")
++        return (family is None or family == AF_INET) and payload.get("dest_port") not in (0, None)
++    return True
++
++
++def integer(value, minimum=0):
++    if type(value) is not int or value < minimum or value > 2**64 - 1:
++        raise ValueError("Invalid bounded event integer")
++    return value
++
++
++def text(value, limit=1024):
++    if not isinstance(value, str) or len(value.encode()) > limit or "\x00" in value:
++        raise ValueError("Invalid bounded event text")
++    return value
++
++
++def normalize(record, host, boot, *, source):
++    if not isinstance(record, dict) or record.get("event_type") not in KINDS:
++        raise ValueError("Unsupported event kind")
++    payload = record.get("payload")
++    if not isinstance(payload, dict) or len(json.dumps(payload)) > 8192:
++        raise ValueError("Invalid event payload")
++    uid, pid = integer(payload.get("uid")), integer(payload.get("pid"), 1)
++    start = payload.get("start_ns")
++    if start is not None: start = integer(start, 1)
++    timestamp = payload.get("monotonic_ns")
++    if timestamp is not None: timestamp = integer(timestamp, 1)
++    target = {}
++    if record["event_type"] == "network_connect":
++        target["address"] = str(ipaddress.ip_address(payload.get("dest_ip")))
++        target["port"] = integer(payload.get("dest_port"), 1)
++        if target["port"] > 65535: raise ValueError("Invalid event port")
++    else:
++        target["path"] = text(payload.get("filename", ""))
++    subject = hashlib.sha256(f"{host}:{boot}:{uid}:{pid}:{start}".encode()).hexdigest() if start else None
++    return {"schema": 1, "id": str(uuid4()), "host": text(host, 128), "boot": text(boot, 128),
++            "kind": record["event_type"], "protocol": {6:"tcp",17:"udp"}.get(payload.get("protocol"),"unknown"), "uid": uid, "pid": pid, "ppid": integer(payload.get("ppid", 0)),
++            "start_ns": start, "subject": subject, "process": text(payload.get("process", ""), 128),
++            "monotonic_ns": timestamp, "received_ns": time.monotonic_ns(),
++            "received_boottime_ns": time.clock_gettime_ns(time.CLOCK_BOOTTIME) if hasattr(time,"CLOCK_BOOTTIME") else None, "target": target,
++            "source": source, "identity_quality": "kernel_start_identity" if start and timestamp and source == "kernel" else "incomplete_or_simulated",
++            "result": "entry_observation; syscall outcome unknown"}
++
++
++def validate(event):
++    if not isinstance(event, dict) or len(json.dumps(event)) > 16384 or event.get("schema") != 1:
++        raise ValueError("Invalid normalized event")
++    if str(UUID(event["id"])) != event["id"] or event["kind"] not in KINDS:
++        raise ValueError("Invalid event identity/kind")
++    integer(event["uid"])
++    integer(event["pid"], 1)
++    text(event["host"], 128)
++    text(event["boot"], 128)
++    if event["kind"] == "network_connect":
++        ipaddress.ip_address(event["target"]["address"])
++        if not 1 <= integer(event["target"]["port"], 1) <= 65535: raise ValueError("Invalid port")
++    else:
++        text(event["target"]["path"])
++    return event
++
++
++def detect(event):
++    validate(event)
++    rule = None
++    if event["kind"] == "file_open" and event["uid"] != 0 and event["target"]["path"] in WATCHED_FILES:
++        rule = "sensitive_file_attempt"
++    elif event["kind"] == "process_exec" and event["target"]["path"].startswith(("/tmp/", "/dev/shm/")):
++        rule = "temporary_executable_attempt"
++    elif event["kind"] == "network_connect" and event["target"]["port"] in {4444, 1337}:
++        rule = "unusual_connection_attempt"
++    if rule is None: return None
++    return {"schema": 1, "id": event["id"], "event_id": event["id"], "state": "observed",
++            "rule": rule, "severity": "warning", "evidence": event,
++            "interpretation": "Deterministic suspicion; entry observation does not prove malicious intent or prevention",
++            "response": "none", "created": time.time()}
+diff --git a/security/monitor.py b/security/monitor.py
+index cca1b83..c4d25c1 100644
+--- a/security/monitor.py
++++ b/security/monitor.py
+@@ -1,78 +1,105 @@
+-"""Independent ordinary-user deterministic incident daemon; never invokes AI."""
+-import argparse
+-import os
+-from pathlib import Path
+-import signal
+-import stat
+-import threading
+-import time
+-
+-from operations.store import Store
+-from operations.supervised import SupervisedLinuxAdapter
+-from .events import detect, validate
+-from .sensor import SensorClient
+-
+-
+-class Monitor:
+-    def __init__(self, store, source):
+-        self.store, self.source = store, source
+-        self.status = self.store.get("monitor", "status") or {"cursor": 0, "epoch": None, "events": 0, "incidents": 0, "invalid": 0, "gaps": 0}
+-
+-    def tick(self):
+-        try:
+-            batch = self.source.poll(self.status["cursor"], self.status["epoch"])
+-            if batch.get("schema") != 1 or not isinstance(batch.get("events"), list) or len(batch["events"]) > 32:
+-                raise ValueError("Malformed sensor batch")
+-            if type(batch.get("cursor")) is not int or batch["cursor"] < 0 or type(batch.get("gap")) is not int or batch["gap"] < 0:
+-                raise ValueError("Invalid batch cursor/loss")
+-            if not isinstance(batch.get("health"), dict) or batch["health"].get("state") not in {"starting", "ready", "degraded", "unavailable"}:
+-                raise ValueError("Invalid capture health")
+-            self.status.update(state=batch["health"]["state"], health=batch["health"], trusted_source=bool(self.source.trusted),
+-                               epoch=batch["epoch"], updated=time.time())
+-            self.status["gaps"] += batch["gap"]
+-            for event in batch["events"]:
+-                try:
+-                    validate(event)
+-                    if not self.source.trusted: event["source"] = "simulated"
+-                    if self.store.get("event", event["id"]): continue
+-                    self.store.prune("event", 1999)
+-                    self.store.put("event", event["id"], event, replace=False, limit=2000)
+-                    incident = detect(event)
+-                    if incident:
+-                        self.store.prune("incident", 999)
+-                        self.store.put("incident", incident["id"], incident, replace=False)
+-                        self.status["incidents"] += 1
+-                    self.status["events"] += 1
+-                except Exception:
+-                    self.status["invalid"] += 1
+-                    self.status["state"] = "degraded"
+-            self.status["cursor"] = batch["cursor"]
+-        except Exception as exc:
+-            self.status.update(state="unavailable", error=type(exc).__name__, updated=time.time())
+-        self.store.put("monitor", "status", self.status)
+-        return self.status
+-
+-
+-def main(argv=None):
+-    parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument("--state", default=str(Path.home() / ".linxai"))
+-    args = parser.parse_args(argv)
+-    identity = SupervisedLinuxAdapter().resolve_identity()
+-    if not identity.ordinary(): raise PermissionError("Monitor requires ordinary account")
+-    store = Store(Path(args.state) / "security.sqlite")
+-    import fcntl
+-    lock = os.open(Path(args.state) / "monitor.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+-    info = os.fstat(lock)
+-    if not stat.S_ISREG(info.st_mode) or info.st_uid != identity.uid or info.st_nlink != 1 or info.st_mode & 0o077:
+-        raise PermissionError("Unsafe monitor lock")
+-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+-    stop = threading.Event()
+-    signal.signal(signal.SIGTERM, lambda *_: stop.set())
+-    monitor = Monitor(store, SensorClient())
+-    try:
+-        while not stop.is_set():
+-            monitor.tick()
+-            stop.wait(0.5)
+-    finally:
+-        store.close()
+-        os.close(lock)
++"""Independent ordinary-user deterministic incident daemon; never invokes AI."""
++import argparse
++import os
++from pathlib import Path
++import signal
++import stat
++import threading
++import time
++
++from operations.store import Store
++from operations.supervised import SupervisedLinuxAdapter
++from .events import detect, validate
++from .sensor import SensorClient
++
++
++BATCH = 32          # sensor serves at most 32 events per poll
++DRAIN_POLLS = 16    # polls per wake while the sensor still has a full batch
++EVENT_LIMIT, INCIDENT_LIMIT = 2000, 1000
++
++
++class Monitor:
++    def __init__(self, store, source):
++        self.store, self.source = store, source
++        self.status = self.store.get("monitor", "status") or {"cursor": 0, "epoch": None, "events": 0, "incidents": 0, "invalid": 0, "gaps": 0}
++        self.last_batch = 0
++
++    def tick(self):
++        self.last_batch = 0
++        try:
++            batch = self.source.poll(self.status["cursor"], self.status["epoch"])
++            if batch.get("schema") != 1 or not isinstance(batch.get("events"), list) or len(batch["events"]) > BATCH:
++                raise ValueError("Malformed sensor batch")
++            if type(batch.get("cursor")) is not int or batch["cursor"] < 0 or type(batch.get("gap")) is not int or batch["gap"] < 0:
++                raise ValueError("Invalid batch cursor/loss")
++            if not isinstance(batch.get("health"), dict) or batch["health"].get("state") not in {"starting", "ready", "degraded", "unavailable"}:
++                raise ValueError("Invalid capture health")
++            pending = dict(self.status)
++            pending.update(state=batch["health"]["state"], health=batch["health"], trusted_source=bool(self.source.trusted),
++                           epoch=batch["epoch"], updated=time.time())
++            pending["gaps"] += batch["gap"]
++            events, incidents, seen = [], [], set()
++            for event in batch["events"]:
++                try:
++                    validate(event)
++                    if not self.source.trusted: event["source"] = "simulated"
++                    if event["id"] in seen or self.store.get("event", event["id"]): continue
++                    seen.add(event["id"])
++                    events.append(event)
++                    incident = detect(event)
++                    if incident: incidents.append(incident)
++                except Exception:
++                    pending["invalid"] += 1
++                    pending["state"] = "degraded"
++            pending["events"] += len(events)
++            pending["incidents"] += len(incidents)
++            pending["cursor"] = batch["cursor"]
++            pending.pop("error", None)
++            records = ([("event", e["id"], e, False, EVENT_LIMIT) for e in events]
++                       + [("incident", i["id"], i, False, INCIDENT_LIMIT) for i in incidents]
++                       + [("monitor", "status", pending, True, 1000)])
++            prune = {}
++            if events: prune["event"] = max(0, EVENT_LIMIT - len(events))
++            if incidents: prune["incident"] = max(0, INCIDENT_LIMIT - len(incidents))
++            # One durable transaction per batch: events, incidents and the advanced
++            # cursor commit together, so a failure retries the whole batch.
++            self.store.write_batch(records, prune=prune)
++            self.status = pending
++            self.last_batch = len(batch["events"])
++        except Exception as exc:
++            self.status.update(state="unavailable", error=type(exc).__name__, updated=time.time())
++            self.store.put("monitor", "status", self.status)
++        return self.status
++
++    def drain(self, stop=None):
++        """Poll until the sensor has no full batch left (bounded per wake)."""
++        for _ in range(DRAIN_POLLS):
++            self.tick()
++            if self.last_batch < BATCH or (stop is not None and stop.is_set()):
++                break
++        return self.status
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--state", default=str(Path.home() / ".linxai"))
++    args = parser.parse_args(argv)
++    identity = SupervisedLinuxAdapter().resolve_identity()
++    if not identity.ordinary(): raise PermissionError("Monitor requires ordinary account")
++    store = Store(Path(args.state) / "security.sqlite")
++    import fcntl
++    lock = os.open(Path(args.state) / "monitor.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
++    info = os.fstat(lock)
++    if not stat.S_ISREG(info.st_mode) or info.st_uid != identity.uid or info.st_nlink != 1 or info.st_mode & 0o077:
++        raise PermissionError("Unsafe monitor lock")
++    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++    stop = threading.Event()
++    signal.signal(signal.SIGTERM, lambda *_: stop.set())
++    monitor = Monitor(store, SensorClient())
++    try:
++        while not stop.is_set():
++            monitor.drain(stop)
++            stop.wait(0.5)
++    finally:
++        store.close()
++        os.close(lock)
+diff --git a/security/sensor.py b/security/sensor.py
+index 2655a5b..26729e4 100644
+--- a/security/sensor.py
++++ b/security/sensor.py
+@@ -1,180 +1,237 @@
+-"""Protected root sensor transport. BCC is imported only in explicit sensor startup."""
+-from collections import deque
+-import hashlib
+-import json
+-import os
+-from pathlib import Path
+-import queue
+-import signal
+-import socket
+-import stat
+-import threading
+-import time
+-from uuid import uuid4
+-
+-from operations import ipc
+-from operations.broker import Peer
+-from operations.store import Store
+-from operations.supervised import SupervisedLinuxAdapter
+-from .events import normalize
+-
+-
+-class Buffer:
+-    def __init__(self, host, boot, store=None, *, capacity=2048, source="simulated"):
+-        self.host, self.boot, self.store, self.source = host, boot, store, source
+-        self.events, self.lock = deque(maxlen=capacity), threading.RLock()
+-        self.epoch, self.sequence = str(uuid4()), 0
+-        self.status = {"state": "starting", "kernel_lost": 0, "queue_dropped": 0, "buffer_evicted": 0,
+-                       "invalid": 0, "hooks": [], "source": source, "last_poll": None}
+-
+-    def publish(self, record):
+-        try:
+-            event = normalize(record, self.host, self.boot, source=self.source)
+-            if self.store:
+-                self.store.prune("event", 1999)
+-                self.store.put("event", event["id"], event, replace=False, limit=2000)
+-            with self.lock:
+-                if len(self.events) == self.events.maxlen: self.status["buffer_evicted"] += 1
+-                self.sequence += 1
+-                event["sequence"] = self.sequence
+-                self.events.append(event)
+-            return event
+-        except Exception:
+-            with self.lock: self.status["invalid"] += 1
+-            raise
+-
+-    def poll(self, cursor, epoch):
+-        if type(cursor) is not int or cursor < 0 or (epoch is not None and not isinstance(epoch, str)):
+-            raise ValueError("Invalid sensor cursor")
+-        with self.lock:
+-            if self.status["last_poll"] is not None and time.monotonic() - self.status["last_poll"] > 3:
+-                self.status.update(state="degraded", capture_stale=True)
+-            reset = epoch != self.epoch
+-            if reset: cursor = 0
+-            oldest = self.events[0]["sequence"] if self.events else self.sequence + 1
+-            gap = max(0, oldest - cursor - 1)
+-            events = [dict(event) for event in self.events if event["sequence"] > cursor][:32]
+-            return {"schema": 1, "epoch": self.epoch, "cursor": events[-1]["sequence"] if events else max(cursor, self.sequence),
+-                    "reset": reset, "gap": gap, "events": events, "health": dict(self.status)}
+-
+-
+-class SensorClient:
+-    trusted = True
+-    def __init__(self, path="/run/linxai-sensor/events.sock"):
+-        self.path = Path(path)
+-    def call(self, method, **fields):
+-        SupervisedLinuxAdapter()._directories(self.path.parent, 0)
+-        info = self.path.lstat()
+-        if not stat.S_ISSOCK(info.st_mode) or info.st_uid != 0:
+-            raise PermissionError("Untrusted sensor socket")
+-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+-            sock.settimeout(5)
+-            sock.connect(str(self.path))
+-            if ipc.credentials(sock)[1] != 0: raise PermissionError("Sensor is not root")
+-            ipc.send(sock, {"version": 1, "method": method, **fields})
+-            return ipc.receive(sock)
+-    def poll(self, cursor, epoch):
+-        return self.call("poll", cursor=cursor, epoch=epoch)
+-
+-
+-def capture(buffer, stop):
+-    try:
+-        _capture(buffer, stop)
+-    except BaseException as exc:
+-        buffer.status.update(state="unavailable", error=type(exc).__name__)
+-
+-
+-def _capture(buffer, stop):
+-    # Reuse existing probes/callback decoding; bypass the legacy unbounded log writer.
+-    from ebpf.daemon import eBPFDaemon
+-    incoming = queue.Queue(maxsize=1024)
+-    class Collector(eBPFDaemon):
+-        def _write_event(self, event_type, payload):
+-            try:
+-                incoming.put_nowait({"event_type": event_type, "payload": payload})
+-            except queue.Full:
+-                buffer.status["queue_dropped"] += 1
+-        def _on_lost(self, cpu, lost=None):
+-            buffer.status["kernel_lost"] += int(cpu if lost is None else lost)
+-    collector = Collector("/var/lib/linxai-sensor/unused.jsonl", filter_noise=False)
+-    probes = []
+-    try:
+-        for loader in (collector._load_execve, collector._load_connect, collector._load_openat):
+-            probes.append(loader())
+-        buffer.status.update(state="ready", hooks=["execve", "connect", "openat"])
+-        while not stop.is_set():
+-            for probe in probes: probe.perf_buffer_poll(timeout=50)
+-            for _ in range(256):
+-                try: record = incoming.get_nowait()
+-                except queue.Empty: break
+-                try: buffer.publish(record)
+-                except Exception: buffer.status["state"] = "degraded"
+-                finally: incoming.task_done()
+-            buffer.status["last_poll"] = time.monotonic()
+-    except BaseException as exc:
+-        buffer.status.update(state="unavailable", error=type(exc).__name__)
+-    finally:
+-        for probe in probes:
+-            try: probe.cleanup()
+-            except Exception: pass
+-
+-
+-def main():
+-    from broker_entry import verify_bundle
+-    verify_bundle(Path(__file__).absolute().parent.parent)
+-    config_path = Path("/etc/linxai/broker.json")
+-    system = SupervisedLinuxAdapter()
+-    system._directories(config_path.parent, 0)
+-    info = config_path.lstat()
+-    if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+-        raise PermissionError("Unsafe owner configuration")
+-    owner_uid = json.loads(config_path.read_text())["owner_uid"]
+-    if type(owner_uid) is not int or owner_uid <= 0: raise ValueError("Ordinary owner required")
+-    state = Store("/var/lib/linxai-sensor/events.sqlite", uid=0)
+-    host = hashlib.sha256(Path("/etc/machine-id").read_bytes()).hexdigest()
+-    boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+-    buffer = Buffer(host, boot, state, source="kernel")
+-    stop = threading.Event()
+-    signal.signal(signal.SIGTERM, lambda *_: stop.set())
+-    signal.signal(signal.SIGINT, lambda *_: stop.set())
+-    path = Path("/run/linxai-sensor/events.sock")
+-    system._directories(path.parent, 0)
+-    import fcntl
+-    lock = os.open(path.parent / "collector.lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+-    if os.path.lexists(path):
+-        info = path.lstat()
+-        if not stat.S_ISSOCK(info.st_mode) or info.st_uid != 0: raise PermissionError("Unknown sensor socket entry")
+-        path.unlink()
+-    thread = threading.Thread(target=capture, args=(buffer, stop), daemon=True)
+-    thread.start()
+-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+-        server.bind(str(path))
+-        path.chmod(0o666)
+-        server.listen(4)
+-        server.settimeout(0.25)
+-        try:
+-            while not stop.is_set():
+-                try: conn, _ = server.accept()
+-                except socket.timeout: continue
+-                with conn:
+-                    try:
+-                        conn.settimeout(2)
+-                        peer_uid = ipc.credentials(conn)[1]
+-                        if peer_uid not in {0, owner_uid}: raise PermissionError("Wrong sensor peer")
+-                        if peer_uid != 0: Peer.read(conn)
+-                        request = ipc.receive(conn, timeout=2)
+-                        if request.get("version") != 1 or type(request.get("version")) is not int: raise ValueError("Version required")
+-                        if request.get("method") == "poll" and set(request) == {"version", "method", "cursor", "epoch"}:
+-                            result = buffer.poll(request["cursor"], request["epoch"])
+-                        elif request.get("method") == "event" and set(request) == {"version", "method", "id"}:
+-                            result = {"event": state.get("event", ipc.request_id(request["id"]))}
+-                        else: raise ValueError("Unsupported sensor request")
+-                        ipc.send(conn, result)
+-                    except Exception:
+-                        pass
+-        finally:
+-            stop.set()
+-            thread.join(timeout=2)
+-            path.unlink(missing_ok=True)
+-            os.close(lock)
++"""Protected root sensor transport. BCC is imported only in explicit sensor startup."""
++from collections import deque
++import hashlib
++import json
++import os
++from pathlib import Path
++import queue
++import signal
++import socket
++import stat
++import threading
++import time
++from uuid import uuid4
++
++from operations import ipc
++from operations.broker import Peer
++from operations.store import Store
++from operations.supervised import SupervisedLinuxAdapter
++from .events import admit, normalize
++
++EVIDENCE_LIMIT = 2000   # root event evidence rows
++STALE_AFTER = 3.0       # seconds without a capture-loop iteration
++LOSS_WINDOW = 10.0      # seconds a capture loss keeps health degraded
++
++
++class Buffer:
++    def __init__(self, host, boot, store=None, *, capacity=2048, source="simulated", clock=time.monotonic):
++        self.host, self.boot, self.store, self.source, self.clock = host, boot, store, source, clock
++        self.events, self.lock = deque(maxlen=capacity), threading.RLock()
++        self.epoch, self.sequence = str(uuid4()), 0
++        self.last_loss = None
++        # status["state"] is the capture lifecycle (starting/ready/unavailable);
++        # poll() derives the reported health from it plus staleness and recent loss.
++        self.status = {"state": "starting", "kernel_lost": 0, "queue_dropped": 0, "buffer_evicted": 0,
++                       "invalid": 0, "filtered": 0, "store_errors": 0, "hooks": [], "source": source,
++                       "last_poll": None}
++
++    def loss(self, counter, amount=1):
++        """Count a capture loss (kernel/queue/invalid/storage) and mark it recent."""
++        with self.lock:
++            self.status[counter] += int(amount)
++            self.last_loss = self.clock()
++
++    def filtered(self, amount=1):
++        with self.lock: self.status["filtered"] += int(amount)
++
++    def publish(self, record):
++        """Normalize and publish one record; raises on invalid input (counted)."""
++        try:
++            event = normalize(record, self.host, self.boot, source=self.source)
++        except Exception:
++            self.loss("invalid")
++            raise
++        self._commit([event])
++        return event
++
++    def publish_many(self, records):
++        """Normalize a batch, persist it in one transaction and publish it.
++        Invalid records are counted individually without dropping the rest."""
++        events = []
++        for record in records:
++            try:
++                events.append(normalize(record, self.host, self.boot, source=self.source))
++            except Exception:
++                self.loss("invalid")
++        self._commit(events)
++        return events
++
++    def _commit(self, events):
++        if not events:
++            return
++        if self.store:
++            try:
++                self.store.write_batch([("event", e["id"], e, False, EVIDENCE_LIMIT) for e in events],
++                                       prune={"event": max(0, EVIDENCE_LIMIT - len(events))})
++            except Exception:
++                # Root evidence persistence failed; live transport still delivers
++                # the events so detection continues, and health reports the loss.
++                self.loss("store_errors")
++        with self.lock:
++            for event in events:
++                if len(self.events) == self.events.maxlen: self.status["buffer_evicted"] += 1
++                self.sequence += 1
++                event["sequence"] = self.sequence
++                self.events.append(event)
++
++    def health(self):
++        with self.lock:
++            health, now = dict(self.status), self.clock()
++            stale = health["last_poll"] is not None and now - health["last_poll"] > STALE_AFTER
++            recent_loss = self.last_loss is not None and now - self.last_loss < LOSS_WINDOW
++            if health["state"] == "ready" and (stale or recent_loss):
++                health["state"] = "degraded"
++            health["capture_stale"], health["recent_loss"] = stale, recent_loss
++            return health
++
++    def poll(self, cursor, epoch):
++        if type(cursor) is not int or cursor < 0 or (epoch is not None and not isinstance(epoch, str)):
++            raise ValueError("Invalid sensor cursor")
++        with self.lock:
++            reset = epoch != self.epoch
++            if reset: cursor = 0
++            oldest = self.events[0]["sequence"] if self.events else self.sequence + 1
++            gap = max(0, oldest - cursor - 1)
++            events = [dict(event) for event in self.events if event["sequence"] > cursor][:32]
++            return {"schema": 1, "epoch": self.epoch, "cursor": events[-1]["sequence"] if events else max(cursor, self.sequence),
++                    "reset": reset, "gap": gap, "events": events, "health": self.health()}
++
++
++class SensorClient:
++    trusted = True
++    def __init__(self, path="/run/linxai-sensor/events.sock"):
++        self.path = Path(path)
++    def call(self, method, **fields):
++        SupervisedLinuxAdapter()._directories(self.path.parent, 0)
++        info = self.path.lstat()
++        if not stat.S_ISSOCK(info.st_mode) or info.st_uid != 0:
++            raise PermissionError("Untrusted sensor socket")
++        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
++            sock.settimeout(5)
++            sock.connect(str(self.path))
++            if ipc.credentials(sock)[1] != 0: raise PermissionError("Sensor is not root")
++            ipc.send(sock, {"version": 1, "method": method, **fields})
++            return ipc.receive(sock)
++    def poll(self, cursor, epoch):
++        return self.call("poll", cursor=cursor, epoch=epoch)
++
++
++def capture(buffer, stop):
++    try:
++        _capture(buffer, stop)
++    except BaseException as exc:
++        buffer.status.update(state="unavailable", error=type(exc).__name__)
++
++
++def _capture(buffer, stop):
++    # Reuse existing probes/callback decoding; bypass the legacy unbounded log writer.
++    from ebpf.daemon import eBPFDaemon
++    incoming = queue.Queue(maxsize=1024)
++    class Collector(eBPFDaemon):
++        def _write_event(self, event_type, payload):
++            record = {"event_type": event_type, "payload": payload}
++            if not admit(record):
++                buffer.filtered()
++                return
++            try:
++                incoming.put_nowait(record)
++            except queue.Full:
++                buffer.loss("queue_dropped")
++        def _on_lost(self, cpu, lost=None):
++            buffer.loss("kernel_lost", cpu if lost is None else lost)
++    collector = Collector("/var/lib/linxai-sensor/unused.jsonl", filter_noise=False)
++    probes = []
++    try:
++        for loader in (collector._load_execve, collector._load_connect, collector._load_openat):
++            probes.append(loader())
++        buffer.status.update(state="ready", hooks=["execve", "connect", "openat"])
++        while not stop.is_set():
++            for probe in probes: probe.perf_buffer_poll(timeout=50)
++            batch = []
++            for _ in range(256):
++                try: batch.append(incoming.get_nowait())
++                except queue.Empty: break
++            try:
++                buffer.publish_many(batch)
++            except Exception:
++                buffer.loss("invalid", len(batch))
++            finally:
++                for _ in batch: incoming.task_done()
++            with buffer.lock: buffer.status["last_poll"] = buffer.clock()
++    except BaseException as exc:
++        buffer.status.update(state="unavailable", error=type(exc).__name__)
++    finally:
++        for probe in probes:
++            try: probe.cleanup()
++            except Exception: pass
++
++
++def main():
++    from broker_entry import verify_bundle
++    verify_bundle(Path(__file__).absolute().parent.parent)
++    config_path = Path("/etc/linxai/broker.json")
++    system = SupervisedLinuxAdapter()
++    system._directories(config_path.parent, 0)
++    info = config_path.lstat()
++    if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
++        raise PermissionError("Unsafe owner configuration")
++    owner_uid = json.loads(config_path.read_text())["owner_uid"]
++    if type(owner_uid) is not int or owner_uid <= 0: raise ValueError("Ordinary owner required")
++    state = Store("/var/lib/linxai-sensor/events.sqlite", uid=0)
++    host = hashlib.sha256(Path("/etc/machine-id").read_bytes()).hexdigest()
++    boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
++    buffer = Buffer(host, boot, state, source="kernel")
++    stop = threading.Event()
++    signal.signal(signal.SIGTERM, lambda *_: stop.set())
++    signal.signal(signal.SIGINT, lambda *_: stop.set())
++    path = Path("/run/linxai-sensor/events.sock")
++    system._directories(path.parent, 0)
++    import fcntl
++    lock = os.open(path.parent / "collector.lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
++    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++    if os.path.lexists(path):
++        info = path.lstat()
++        if not stat.S_ISSOCK(info.st_mode) or info.st_uid != 0: raise PermissionError("Unknown sensor socket entry")
++        path.unlink()
++    thread = threading.Thread(target=capture, args=(buffer, stop), daemon=True)
++    thread.start()
++    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
++        server.bind(str(path))
++        path.chmod(0o666)
++        server.listen(4)
++        server.settimeout(0.25)
++        try:
++            while not stop.is_set():
++                try: conn, _ = server.accept()
++                except socket.timeout: continue
++                with conn:
++                    try:
++                        conn.settimeout(2)
++                        peer_uid = ipc.credentials(conn)[1]
++                        if peer_uid not in {0, owner_uid}: raise PermissionError("Wrong sensor peer")
++                        if peer_uid != 0: Peer.read(conn)
++                        request = ipc.receive(conn, timeout=2)
++                        if request.get("version") != 1 or type(request.get("version")) is not int: raise ValueError("Version required")
++                        if request.get("method") == "poll" and set(request) == {"version", "method", "cursor", "epoch"}:
++                            result = buffer.poll(request["cursor"], request["epoch"])
++                        elif request.get("method") == "event" and set(request) == {"version", "method", "id"}:
++                            result = {"event": state.get("event", ipc.request_id(request["id"]))}
++                        else: raise ValueError("Unsupported sensor request")
++                        ipc.send(conn, result)
++                    except Exception:
++                        pass
++        finally:
++            stop.set()
++            thread.join(timeout=2)
++            path.unlink(missing_ok=True)
++            os.close(lock)
+diff --git a/test_application.py b/test_application.py
+index 44be231..08e5647 100644
+--- a/test_application.py
++++ b/test_application.py
+@@ -20,6 +20,10 @@ class MemoryStore:
+         keys = [key for key in self.rows if key[0] == kind]
+         for key in keys[:max(0,len(keys)-keep)]: self.rows.pop(key)
+     def list(self, kind, limit=100): return [copy.deepcopy(v) for (k, _), v in list(self.rows.items())[::-1] if k == kind][:limit]
++    def write_batch(self, records=(), *, prune=None):
++        self.batches = getattr(self, "batches", 0) + 1
++        for kind, keep in (prune or {}).items(): self.prune(kind, keep)
++        for kind, key, value, _replace, _limit in records: self.put(kind, key, value)
+ 
+ 
+ class ApplicationTests(unittest.TestCase):
+diff --git a/test_security_monitor.py b/test_security_monitor.py
+index d205d42..3ea919a 100644
+--- a/test_security_monitor.py
++++ b/test_security_monitor.py
+@@ -1,10 +1,13 @@
+ """Deterministic evidence/incident contracts; no BPF or service installation."""
+ import copy
++import os
++import sqlite3
++import tempfile
+ import threading
+ import unittest
+ from unittest.mock import patch
+ 
+-from security.events import detect, normalize
++from security.events import admit, detect, normalize
+ from security.monitor import Monitor
+ from security.sensor import Buffer, capture
+ from test_application import MemoryStore
+@@ -90,3 +93,101 @@ class SecurityMonitorTests(unittest.TestCase):
+         with patch.dict("sys.modules", {"ebpf.daemon": None}):
+             capture(self.buffer, threading.Event())
+         self.assertEqual(self.buffer.status["state"], "unavailable")
++
++    # Target run 2026-11-08: the idle VM produced ~140 events/s; the pipeline
++    # handled ~75/s and dropped the rest. These pin the corrections.
++
++    def test_admit_drops_unwatched_opens_and_non_ipv4_connects_only(self):
++        connect = lambda **p: {"event_type": "network_connect", "payload": {"dest_ip": "0.0.0.0", "dest_port": 0, **p}}
++        self.assertTrue(admit(record("/etc/shadow")))
++        self.assertTrue(admit(record("/etc/sudoers")))
++        self.assertFalse(admit(record("/usr/lib/x86_64-linux-gnu/libc.so.6")))
++        self.assertFalse(admit(record("/etc/shadow.backup")))
++        self.assertFalse(admit(connect(family=1)))                       # AF_UNIX
++        self.assertFalse(admit(connect(family=10, dest_port=443)))       # IPv6, unsupported by rules/policy
++        self.assertTrue(admit(connect(family=2, dest_ip="10.0.2.2", dest_port=4444)))
++        self.assertTrue(admit({"event_type": "process_exec", "payload": {"filename": "/usr/bin/true"}}))
++        self.assertTrue(admit({"event_type": "file_open", "payload": None}))  # malformed reaches normalize as invalid
++
++    def test_publish_many_persists_whole_batch_in_one_transaction(self):
++        store = MemoryStore()
++        buffer = Buffer("host", "boot", store, capacity=2048, source="kernel")
++        records = [record(pid=1000 + n) for n in range(200)] + [record(pid=0)]
++        events = buffer.publish_many(records)
++        self.assertEqual(len(events), 200)
++        self.assertEqual(store.batches, 1)
++        self.assertEqual(buffer.status["invalid"], 1)
++        self.assertEqual(len([k for k in store.rows if k[0] == "event"]), 200)
++
++    def test_store_failure_still_delivers_events_and_reports_loss(self):
++        store = MemoryStore()
++        store.write_batch = lambda *a, **k: (_ for _ in ()).throw(OSError("disk full"))
++        buffer = Buffer("host", "boot", store, capacity=64, source="kernel")
++        buffer.status["state"] = "ready"
++        buffer.publish_many([record()])
++        batch = buffer.poll(0, buffer.epoch)
++        self.assertEqual(len(batch["events"]), 1)
++        self.assertEqual(batch["health"]["store_errors"], 1)
++        self.assertEqual(batch["health"]["state"], "degraded")
++
++    def test_health_recovers_after_loss_window_and_staleness_clear(self):
++        now = [100.0]
++        buffer = Buffer("host", "boot", capacity=64, source="kernel", clock=lambda: now[0])
++        buffer.status.update(state="ready", last_poll=100.0)
++        self.assertEqual(buffer.poll(0, None)["health"]["state"], "ready")
++        buffer.loss("queue_dropped", 5)
++        self.assertEqual(buffer.poll(0, None)["health"]["state"], "degraded")
++        now[0] = 104.0                                   # capture loop stalled > 3 s
++        health = buffer.poll(0, None)["health"]
++        self.assertTrue(health["capture_stale"])
++        self.assertEqual(health["state"], "degraded")
++        now[0], buffer.status["last_poll"] = 111.0, 111.0  # loop running again, loss older than window
++        health = buffer.poll(0, None)["health"]
++        self.assertEqual(health["state"], "ready")
++        self.assertEqual(health["queue_dropped"], 5)       # cumulative counters are preserved
++        buffer.status["state"] = "unavailable"
++        self.assertEqual(buffer.poll(0, None)["health"]["state"], "unavailable")
++
++    def test_monitor_drains_backlog_with_one_transaction_per_batch(self):
++        buffer, store = Buffer("host", "boot", capacity=2048), MemoryStore()
++        monitor = Monitor(store, Source(buffer))
++        buffer.publish_many([record("/etc/shadow", pid=1 + n) for n in range(100)])
++        monitor.drain()
++        self.assertEqual(monitor.status["events"], 100)
++        self.assertEqual(monitor.status["incidents"], 100)
++        self.assertEqual(monitor.status["cursor"], buffer.sequence)
++        self.assertEqual(store.batches, 4)                 # 32+32+32+4, not one write per event
++        self.assertEqual(store.get("monitor", "status")["cursor"], buffer.sequence)
++
++    @unittest.skipUnless(os.name == "posix" and hasattr(os, "getuid"), "real private Store requires Linux ownership checks")
++    def test_real_store_write_batch_is_atomic_and_applies_retention(self):
++        from operations.store import Store
++        # Store refuses world-writable parents such as /tmp; use a private home dir.
++        with tempfile.TemporaryDirectory(prefix=".linxai-store-batch-", dir=os.path.expanduser("~")) as temp:
++            os.chmod(temp, 0o700)
++            store = Store(os.path.join(temp, "state", "events.sqlite"))
++            try:
++                store.write_batch([("event", f"e{n}", {"n": n}, False, 5) for n in range(5)])
++                store.write_batch([("event", "e5", {"n": 5}, False, 5)], prune={"event": 4})
++                self.assertEqual(len(store.list("event", 100)), 5)
++                with self.assertRaises(ValueError):            # second row exceeds admission limit
++                    store.write_batch([("event", "e6", {"n": 6}, False, 6), ("event", "e7", {"n": 7}, False, 6)])
++                self.assertIsNone(store.get("event", "e6"))     # whole batch rolled back
++                with self.assertRaises(sqlite3.IntegrityError):  # duplicate key without replace
++                    store.write_batch([("incident", "i1", {}, False, 9), ("event", "e5", {}, False, 9)])
++                self.assertIsNone(store.get("incident", "i1"))
++            finally:
++                store.close()
++
++    def test_monitor_does_not_advance_cursor_when_batch_write_fails(self):
++        buffer, store = Buffer("host", "boot", capacity=64), MemoryStore()
++        monitor = Monitor(store, Source(buffer))
++        buffer.publish(record())
++        original = store.write_batch
++        store.write_batch = lambda *a, **k: (_ for _ in ()).throw(OSError("locked"))
++        self.assertEqual(monitor.tick()["state"], "unavailable")
++        self.assertEqual(monitor.status["cursor"], 0)
++        store.write_batch = original
++        monitor.tick()
++        self.assertEqual(monitor.status["incidents"], 1)
++        self.assertNotIn("error", monitor.status)

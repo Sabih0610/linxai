@@ -1,0 +1,15 @@
+date_utc=2026-11-08T03:52:41Z
+os=Ubuntu 24.04.4 LTS
+kernel=6.8.0-124-generic
+python=Python 3.12.3
+polkitd=124-2ubuntu1.24.04.3
+systemd=systemd 255 (255.4-1ubuntu8.16)
+lsm=lockdown,capability,landlock,yama,apparmor
+btf=present
+bpfcc=0.29.1+ds-1ubuntu7
+broker_tar_sha256=b77dee6473d89689da76a5fffb4ac2219de80546007bf94a983ff294ae1281a0
+broker_entry_sha256=8c6b085897880a27ea07b0aad0408915279718d1825f26fe2b038681ead95d65
+broker_py_sha256=8670219b28b031ac8494c949d762e645bb1e0c00f061e52ea3176145232f4d82
+policy_sha256=bc1a7aaaa0ec0a16a6088c87845a0d0c9bf3c169cf258b7e7e4873d16ef18cd1
+broker_config={"owner_uid":1000,"services":["linxai-lab-acceptance.service"]}
+session=seat0 tty1 no tty yes 

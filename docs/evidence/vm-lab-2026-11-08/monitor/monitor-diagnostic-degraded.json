@@ -1,0 +1,73 @@
+{
+  "kind": "DIAGNOSTIC real kernel capture while sensor degraded; not acceptance",
+  "health_before": {
+    "state": "degraded",
+    "kernel_lost": 0,
+    "queue_dropped": 8635,
+    "buffer_evicted": 955,
+    "invalid": 468,
+    "hooks": [
+      "execve",
+      "connect",
+      "openat"
+    ],
+    "source": "kernel",
+    "last_poll": 1025.486335768,
+    "capture_stale": true
+  },
+  "health_after": {
+    "state": "degraded",
+    "kernel_lost": 0,
+    "queue_dropped": 18659,
+    "buffer_evicted": 2260,
+    "invalid": 1233,
+    "hooks": [
+      "execve",
+      "connect",
+      "openat"
+    ],
+    "source": "kernel",
+    "last_poll": 1119.904228443,
+    "capture_stale": true
+  },
+  "seen_kinds": [
+    "process_exec"
+  ],
+  "events": [
+    {
+      "schema": 1,
+      "id": "8fafc693-515b-4968-b340-c2a454078eb1",
+      "host": "409e4b4dcabb0f29b3f68d973fb6e1cd5fdba5be79cf07c3859b48a886a8162f",
+      "boot": "0c11eed8-ef87-476b-8715-fc42b3f1e9a4",
+      "kind": "process_exec",
+      "protocol": "unknown",
+      "uid": 1000,
+      "pid": 5719,
+      "ppid": 5718,
+      "start_ns": 1031481545839,
+      "subject": "61dbcd66abc95075708f9133a825cfea3c5cdeff2469f1fbd1b0808b3b9048f8",
+      "process": "python3",
+      "monotonic_ns": 1031488567883,
+      "received_ns": 1098860610616,
+      "received_boottime_ns": 1098860612716,
+      "target": {
+        "path": "/tmp/linxai-benign-capture-9uac_v1j/controlled-hello"
+      },
+      "source": "kernel",
+      "identity_quality": "kernel_start_identity",
+      "result": "entry_observation; syscall outcome unknown",
+      "sequence": 3976
+    }
+  ],
+  "capture_delay_ms": [
+    67372
+  ],
+  "incidents": [],
+  "monitor_status": {
+    "state": "degraded",
+    "events": 1824,
+    "incidents": 0,
+    "invalid": 0,
+    "gaps": 660
+  }
+}

@@ -450,3 +450,60 @@ without changing tested application/protected code. Gate H remains PARTIAL becau
 original implementation breadth and real target/hardware acceptance are unfinished.
 Remote read verified branch codex/cloud-handoff-2026-11-02 still at 33fc8a9; current
 local implementation commits were not pushed. Cloud/new hosted CI were not executed.
+
+
+## Gate B target acceptance — VirtualBox Ubuntu 24.04.4 VM, 8 November 2026
+
+**PASS (bounded service route).** On a VirtualBox guest (Ubuntu 24.04.4, kernel
+6.8.0-124, systemd 255, polkitd 124) with the owner logged in on the local console
+(`tty1`, `seat0`, `Remote=no`, `Active=yes`), `LINXAI_TEST_BROKER_LAB=1 python3 -B
+scripts/accept_broker.py` exited 0. Four real one-shot polkit authentications with
+the owner's OS password authorized `service.start`, `service.restart`,
+`service.stop` and the validated restoration of `linxai-lab-acceptance.service`;
+each returned `succeeded`, `executed=true`, `verified=true`. An earlier run on the
+same target, where the lab wrapper registered the text agent for the wrong process,
+failed closed (`authentication_authorization_required`, nothing executed, no retry).
+Code was commit f3519e8 (byte-identical after CRLF normalization). Evidence:
+docs/evidence/vm-lab-2026-11-08/. Not covered: root audit ledger export, deliberate
+cancellation/wrong-password denial, desktop agent, broker reboot lifecycle.
+
+WSL finding the same day: after enabling systemd in WSL, polkit still denied every
+`allow_active`-only action because WSL has no logind seat, including from a PAM
+login session. WSL therefore cannot host Gate B approval acceptance under the
+shipped policy; it remains suitable for unprivileged Linux tests.
+
+## Gate D monitor target run — same VM, 8 November 2026
+
+**Acceptance FAIL; real capture works.** With the root BCC sensor deployed from
+an LF build of f3519e8 (hash-identical to committed blobs), all three probes
+attached on kernel 6.8.0-124 with `kernel_lost=0`, and events carried
+`kernel_start_identity`. `LINXAI_TEST_KERNEL=1 scripts/accept_monitor.py` refused
+because sensor health was `degraded`. Measured on an idle VM: ≈140 events/s
+arriving, ≈75/s published, median kernel→sensor latency 25 s, `queue_dropped`
+19622 after four minutes. A labelled diagnostic captured a `/tmp` exec 67 s late,
+lost the `/etc/shadow` attempt, and produced no incident because the monitor
+(≤32 events per 0.5 s) was 660 events behind. Causes: per-event fsync'd SQLite
+prune+insert on the capture thread, unfiltered `openat`, non-IPv4 `connect`
+events rejected as invalid, monitor rate ceiling, and sticky degraded health.
+Evidence: docs/evidence/vm-lab-2026-11-08/monitor/.
+
+**Gate D rerun after throughput fix — PASS.** Batched durable writes, a pre-queue
+relevance filter, recoverable health and a draining monitor (uncommitted patch in
+docs/evidence/vm-lab-2026-11-08/monitor/) brought the sensor to `ready` with zero
+queue/kernel/invalid/storage loss on the same VM. `LINXAI_TEST_KERNEL=1
+scripts/accept_monitor.py` exited 0: both actions captured with
+`kernel_start_identity` in ≈230 ms and both incidents produced by the independent
+monitor. Steady-state kernel→sensor latency median 1.6 s, p95 2.6 s (observation).
+Offline suite: 193 run, 189 passed, 4 skipped, 0 failures; 14/14 monitor tests on
+the VM including a real-SQLite atomic batch test.
+
+## Development checkpoint — requirements 41 and 46–50 (uncommitted), 8 November 2026
+
+Security-aware preview warnings, typed process inventory, identity-bound priority
+lowering with captured admin restoration, and a short-window resource forecast
+were added on top of the Gate D fix. Windows offline group: 209 run, 201 passed,
+8 skipped (Linux-only), 0 failures. VM (Ubuntu 24.04.4, ordinary user): the same
+group ran all 209 with 0 skipped and 0 failures, including native lowering of a real
+child process (0→7, verified), refusal of a stale start time and of raising
+priority, and a verified `resource.forecast`. Broker/polkit acceptance of
+`process.priority.restore` needs the updated policy file deployed and is pending.

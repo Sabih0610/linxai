@@ -1,0 +1,23 @@
+{
+ "state": "degraded",
+ "kernel_lost": 0,
+ "queue_dropped": 19622,
+ "buffer_evicted": 2651,
+ "invalid": 1263,
+ "hooks": [
+  "execve",
+  "connect",
+  "openat"
+ ],
+ "source": "kernel",
+ "last_poll": 1132.447715089,
+ "capture_stale": true
+}
+NRestarts=0
+MemoryCurrent=112070656
+CPUUsageNSec=69812495000
+ActiveEnterTimestamp=Sun 2026-11-08 03:58:46 UTC
+    PID %CPU   RSS     ELAPSED
+   5179 28.5 201292      04:04
+2026-11-08T03:58:46+00:00 linxai systemd[1]: Started linxai-sensor.service - LINxAI independent BCC kernel capture.
+monitor stopped

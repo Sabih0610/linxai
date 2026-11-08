@@ -1,0 +1,54 @@
+{
+  "kind": "actual target kernel capture, not enforcement",
+  "events": [
+    {
+      "schema": 1,
+      "id": "6ddee894-1324-4f61-bcec-b0aee6bc5b0e",
+      "host": "409e4b4dcabb0f29b3f68d973fb6e1cd5fdba5be79cf07c3859b48a886a8162f",
+      "boot": "0c11eed8-ef87-476b-8715-fc42b3f1e9a4",
+      "kind": "process_exec",
+      "protocol": "unknown",
+      "uid": 1000,
+      "pid": 7690,
+      "ppid": 7689,
+      "start_ns": 1947532549695,
+      "subject": "cd9549f1ff8e302831d285d9d7dc40beb99e3d893d5df16f3ce1baf4beabb77b",
+      "process": "python3",
+      "monotonic_ns": 1947532958640,
+      "received_ns": 1947765381114,
+      "received_boottime_ns": 1947765381541,
+      "target": {
+        "path": "/tmp/linxai-benign-capture-jxfitqxr/controlled-hello"
+      },
+      "source": "kernel",
+      "identity_quality": "kernel_start_identity",
+      "result": "entry_observation; syscall outcome unknown",
+      "sequence": 161
+    },
+    {
+      "schema": 1,
+      "id": "6ddd6d09-7eea-453a-bfca-37c8e97a3332",
+      "host": "409e4b4dcabb0f29b3f68d973fb6e1cd5fdba5be79cf07c3859b48a886a8162f",
+      "boot": "0c11eed8-ef87-476b-8715-fc42b3f1e9a4",
+      "kind": "file_open",
+      "protocol": "unknown",
+      "uid": 1000,
+      "pid": 7689,
+      "ppid": 0,
+      "start_ns": 1947295553185,
+      "subject": "aea97cb72c3815e6f8ad5da0f8cd2731259c273873dc7dded4d89d639bb5a46b",
+      "process": "python3",
+      "monotonic_ns": 1947543100055,
+      "received_ns": 1947765403408,
+      "received_boottime_ns": 1947765403762,
+      "target": {
+        "path": "/etc/shadow"
+      },
+      "source": "kernel",
+      "identity_quality": "kernel_start_identity",
+      "result": "entry_observation; syscall outcome unknown",
+      "sequence": 162
+    }
+  ],
+  "incident_seen": true
+}

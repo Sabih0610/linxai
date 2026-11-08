@@ -1,0 +1,37 @@
+{
+  "prior": {
+    "Id": "linxai-lab-acceptance.service",
+    "LoadState": "loaded",
+    "ActiveState": "inactive",
+    "SubState": "dead",
+    "UnitFileState": "static"
+  },
+  "results": [
+    {
+      "operation_id": "2e1c8888-fee5-47a0-94b4-a229292e3b48",
+      "status": "authentication_authorization_required",
+      "reason": "OS authorization denied, unavailable, cancelled or timed out",
+      "fingerprint": "",
+      "executed": false,
+      "verified": false,
+      "stdout": "",
+      "stderr": "",
+      "recovery": "unsupported",
+      "audit_complete": true,
+      "restoration": null
+    }
+  ],
+  "restoration": {
+    "operation_id": "95c574b3-5299-4e8b-970c-09b6d4eab28a",
+    "status": "authentication_authorization_required",
+    "reason": "OS authorization denied, unavailable, cancelled or timed out",
+    "fingerprint": "",
+    "executed": false,
+    "verified": false,
+    "stdout": "",
+    "stderr": "",
+    "recovery": "unsupported",
+    "audit_complete": true,
+    "restoration": null
+  }
+}

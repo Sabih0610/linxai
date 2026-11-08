@@ -48,3 +48,23 @@ Current tested code checkpoint: 0cb5a907a38639d3adc516dfc20b7c3149a23a28.
 The final evidence-only commit preserves those application/protected bytes. See
 artifact-0cb5a90.json and reproducible-0cb5a90.json. Remote branch was read at
 33fc8a9; local implementation is not on GitHub until deliberately published.
+
+Update 8 November 2026: Gate B broker target acceptance PASSED on the VirtualBox
+Ubuntu 24.04.4 VM (`LINxAI`, console session, real polkit + systemd); evidence in
+docs/evidence/vm-lab-2026-11-08/. WSL now runs systemd but cannot satisfy the
+shipped `allow_active` polkit policy (no logind seat). Next target runs on the same
+VM: accept_monitor.py (BCC + BTF present), then accept_policy.py after adding `bpf`
+to the kernel `lsm=` list. Build trusted bundles with core.autocrlf=false.
+Gate D target run (same day): real BCC capture attached with kernel identity, but
+accept_monitor.py FAILED because the sensor degraded under idle load (per-event
+fsync'd SQLite on the capture thread, unfiltered openat, AF_UNIX connect events
+rejected, monitor ≤64 events/s, sticky health). See
+docs/evidence/vm-lab-2026-11-08/monitor/README.md. Fix those, then rerun.
+Gate D rerun PASSED after the uncommitted throughput fix (store.write_batch,
+sensor publish_many/admit/recoverable health, draining monitor); evidence and
+patch in docs/evidence/vm-lab-2026-11-08/monitor/. Next: Gate E accept_policy.py
+(kernel has CONFIG_BPF_LSM=y; `bpf` must be added to the `lsm=` boot list).
+Development (uncommitted): requirement 41 preview warnings; 46–50 process.list,
+process.priority.lower/restore (broker, org.linxai.process.manage), resource.forecast.
+Offline 209/0 failures on Windows and on the VM (no skips there). Pending: deploy the
+new policy action and run a polkit-approved process restore on the VM.

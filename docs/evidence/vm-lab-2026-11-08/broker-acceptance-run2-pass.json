@@ -1,0 +1,63 @@
+{
+  "prior": {
+    "Id": "linxai-lab-acceptance.service",
+    "LoadState": "loaded",
+    "ActiveState": "inactive",
+    "SubState": "dead",
+    "UnitFileState": "static"
+  },
+  "results": [
+    {
+      "operation_id": "1aeb2671-f6f8-49b1-b542-b17fc0f0c6bc",
+      "status": "succeeded",
+      "reason": "All required postconditions verified",
+      "fingerprint": "3152092c38f0fcc36ec2bf680db724e48ed2bf6950b5a292fa820dbabb2d4754",
+      "executed": true,
+      "verified": true,
+      "stdout": "",
+      "stderr": "",
+      "recovery": "unsupported",
+      "audit_complete": true,
+      "restoration": null
+    },
+    {
+      "operation_id": "8a4fbbae-9659-4e3e-a870-72774095cbbc",
+      "status": "succeeded",
+      "reason": "All required postconditions verified",
+      "fingerprint": "72ebad58e98e10f9521f6941c2e8a69c477691a9406ec15142e9d1ab9818c60b",
+      "executed": true,
+      "verified": true,
+      "stdout": "",
+      "stderr": "",
+      "recovery": "unsupported",
+      "audit_complete": true,
+      "restoration": null
+    },
+    {
+      "operation_id": "02f8ae64-feb5-4c99-a6be-b9a5fca456ee",
+      "status": "succeeded",
+      "reason": "All required postconditions verified",
+      "fingerprint": "7f20cb11f27d6be5438d6ca5a7933ae3194edbbd35448e32dbbfc4c20c95022c",
+      "executed": true,
+      "verified": true,
+      "stdout": "",
+      "stderr": "",
+      "recovery": "unsupported",
+      "audit_complete": true,
+      "restoration": null
+    }
+  ],
+  "restoration": {
+    "operation_id": "a097c167-0d2c-4726-b8d2-bbb287de8481",
+    "status": "succeeded",
+    "reason": "All required postconditions verified",
+    "fingerprint": "9d0a0c472100a5e5a77e08ea15134b6b6efa9e7ae1139a53a6e0f67ec7a380ba",
+    "executed": true,
+    "verified": true,
+    "stdout": "",
+    "stderr": "",
+    "recovery": "unsupported",
+    "audit_complete": true,
+    "restoration": null
+  }
+}

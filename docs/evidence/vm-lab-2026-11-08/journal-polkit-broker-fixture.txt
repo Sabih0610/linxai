@@ -1,0 +1,21 @@
+2026-11-08T03:49:26+00:00 linxai systemd[1]: Started linxai-broker.service - LINxAI bounded service mechanism.
+2026-11-08T03:49:55+00:00 linxai polkitd[744]: Registered Authentication Agent for unix-process:3053:37403 (system bus name :1.98 [pkttyagent --fallback], object path /org/freedesktop/PolicyKit1/AuthenticationAgent, locale en_US.UTF-8)
+2026-11-08T03:49:57+00:00 linxai polkitd[744]: Unregistered Authentication Agent for unix-process:3053:37403 (system bus name :1.98, object path /org/freedesktop/PolicyKit1/AuthenticationAgent, locale en_US.UTF-8) (disconnected from bus)
+2026-11-08T03:51:48+00:00 linxai polkitd[744]: Registered Authentication Agent for unix-process:3697:48696 (system bus name :1.135 [pkttyagent --process 3697 --fallback], object path /org/freedesktop/PolicyKit1/AuthenticationAgent, locale en_US.UTF-8)
+2026-11-08T03:51:49+00:00 linxai polkitd[744]: Identity `unix-group:admin' is not valid, ignoring: No UNIX group with name admin: Success
+2026-11-08T03:51:55+00:00 linxai polkitd[744]: Operator of unix-process:3697:48696 successfully authenticated as unix-user:linxai to gain ONE-SHOT authorization for action org.linxai.service.manage for unix-process:3697:48696 [/usr/bin/python3 -B scripts/accept_broker.py] (owned by unix-user:linxai)
+2026-11-08T03:51:56+00:00 linxai systemd[1]: Started linxai-lab-acceptance.service - LINxAI harmless broker acceptance fixture.
+2026-11-08T03:51:56+00:00 linxai polkitd[744]: Identity `unix-group:admin' is not valid, ignoring: No UNIX group with name admin: Success
+2026-11-08T03:52:01+00:00 linxai polkitd[744]: Operator of unix-process:3697:48696 successfully authenticated as unix-user:linxai to gain ONE-SHOT authorization for action org.linxai.service.manage for unix-process:3697:48696 [/usr/bin/python3 -B scripts/accept_broker.py] (owned by unix-user:linxai)
+2026-11-08T03:52:02+00:00 linxai systemd[1]: Stopping linxai-lab-acceptance.service - LINxAI harmless broker acceptance fixture...
+2026-11-08T03:52:02+00:00 linxai systemd[1]: linxai-lab-acceptance.service: Deactivated successfully.
+2026-11-08T03:52:02+00:00 linxai systemd[1]: Stopped linxai-lab-acceptance.service - LINxAI harmless broker acceptance fixture.
+2026-11-08T03:52:02+00:00 linxai systemd[1]: Started linxai-lab-acceptance.service - LINxAI harmless broker acceptance fixture.
+2026-11-08T03:52:02+00:00 linxai polkitd[744]: Identity `unix-group:admin' is not valid, ignoring: No UNIX group with name admin: Success
+2026-11-08T03:52:05+00:00 linxai polkitd[744]: Operator of unix-process:3697:48696 successfully authenticated as unix-user:linxai to gain ONE-SHOT authorization for action org.linxai.service.manage for unix-process:3697:48696 [/usr/bin/python3 -B scripts/accept_broker.py] (owned by unix-user:linxai)
+2026-11-08T03:52:05+00:00 linxai systemd[1]: Stopping linxai-lab-acceptance.service - LINxAI harmless broker acceptance fixture...
+2026-11-08T03:52:05+00:00 linxai systemd[1]: linxai-lab-acceptance.service: Deactivated successfully.
+2026-11-08T03:52:05+00:00 linxai systemd[1]: Stopped linxai-lab-acceptance.service - LINxAI harmless broker acceptance fixture.
+2026-11-08T03:52:05+00:00 linxai polkitd[744]: Identity `unix-group:admin' is not valid, ignoring: No UNIX group with name admin: Success
+2026-11-08T03:52:07+00:00 linxai polkitd[744]: Operator of unix-process:3697:48696 successfully authenticated as unix-user:linxai to gain ONE-SHOT authorization for action org.linxai.service.manage for unix-process:3697:48696 [/usr/bin/python3 -B scripts/accept_broker.py] (owned by unix-user:linxai)
+2026-11-08T03:52:08+00:00 linxai polkitd[744]: Unregistered Authentication Agent for unix-process:unknown (system bus name :1.135, object path /org/freedesktop/PolicyKit1/AuthenticationAgent, locale en_US.UTF-8) (disconnected from bus)

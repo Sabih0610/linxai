@@ -207,3 +207,40 @@ refinements after this run are verified in subsequent H evidence. Cloud/CI and
 native OS-auth/kernel/hardware/model acceptance: none executed for this checkpoint.
 Original 10–14, 26–29 and 58–70 advance partially; all 1–72 items remain required.
 No face/PAM, physical camera/microphone, spoof assurance or WER success is claimed.
+
+
+## Gate B target acceptance overlay — 8 November 2026
+
+Prepared VirtualBox Ubuntu 24.04.4 console target; see VERIFICATION.md and
+docs/evidence/vm-lab-2026-11-08/. Rows above are unchanged; this overlay records
+the new evidence.
+
+| Original IDs | New target evidence | Still pending |
+| --- | --- | --- |
+| 16, 20, 22, 25 | Real systemd start/restart/stop of an allowlisted fixture with fresh post-condition verification and correlated operation IDs/fingerprints | Wider service set, missing-unit and failing-unit cases on target |
+| 26 | Real polkit `auth_admin` with OS password, one-shot per exact operation, bound to the client pid/start/uid; fail-closed denial when no agent is reachable | Deliberate cancel/wrong-password cases, desktop agent, root audit export |
+| 65, 68 | Broker unit started under real systemd with root-owned verified bundle | Enable/reboot lifecycle; sensor/monitor/policy units |
+
+## Gate D target run overlay — 8 November 2026
+
+| Original IDs | New target evidence | Still pending |
+| --- | --- | --- |
+| 30–35, 42 | Real BCC compile/attach of execve/connect/openat on Ubuntu 24.04.4 kernel 6.8; events with kernel start-time identity; `kernel_lost=0` | Sensor throughput (≈75/s vs ≈140/s idle load), queue drops, non-IPv4 connect handling, recoverable health |
+| 36–40 | None: no incident produced from real capture (monitor lag, event drops) | Fix pipeline throughput, then rerun accept_monitor.py |
+| 44 | Sensor ≈29–37 % of one vCPU on the VM at idle load (observation, not a benchmark) | Proper baseline/monitored overhead measurement |
+
+Gate D rerun (same day, after throughput fix): accept_monitor.py PASSED. IDs 30–35
+and 42 now have real capture with kernel identity and zero sensor loss at idle
+load; 36, 37 and 40 have one real incident each (`temporary_executable_attempt`,
+`sensitive_file_attempt`) persisted by the independent monitor. 38/39, false-
+positive measurement, latency variance, unit reboot lifecycle and 44 remain open.
+
+## Development overlay — 8 November 2026 (uncommitted)
+
+| Original IDs | New implementation | Automated evidence | Still pending |
+| --- | --- | --- | --- |
+| 41 | `security/warnings.py`: recent monitor incidents (30 min, ≤5) attached to every preview as `security_warnings`; stronger text for admin/related actions; advisory only — not in the digest, never blocks, authorizes or reaches the model | test_security_warnings (5) | Desktop rendering beyond raw preview JSON |
+| 46, 47 | `process.list`: fixed `/proc` worker, two-sample per-process CPU %, load, memory; structural classification (system/interactive/background by uid, kernel parent, tty) instead of name substrings | test_resources; native VM run | Desktop view |
+| 48 | `process.priority.lower`: unprivileged owner action bound to (pid, start_ticks, uid), increase-only, all threads, verified postcondition, prior nice captured | native VM: real child lowered 0→7, stale identity refused, raising refused | Measured benefit (51) |
+| 49 | `process.priority.restore`: authenticated-admin broker action (`org.linxai.process.manage`), decrease-only, floor nice 0; offered as validated restoration after a verified lower | native VM: proposal captured, never dispatched locally | Real broker/polkit restore acceptance on the VM |
+| 50 | `resource.forecast`: least-squares slope + EWMA over 5–40 samples, horizon 10–600 s, pressure risks, recommended background candidates (never applied) | test_resources (math, bounds); native VM forecast verified | Longer-horizon/learned model; accuracy measurement |

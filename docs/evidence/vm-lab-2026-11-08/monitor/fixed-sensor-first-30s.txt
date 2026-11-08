@@ -1,0 +1,7 @@
+ActiveEnterTimestamp=Sun 2026-11-08 04:14:54 UTC
+30s window: events read 74 {'process_exec': 72, 'network_connect': 1, 'file_open': 1}
+health start: {'state': 'ready', 'queue_dropped': 0, 'invalid': 0, 'kernel_lost': 0, 'filtered': 45, 'store_errors': 0, 'capture_stale': False, 'recent_loss': False}
+health end:   {'state': 'ready', 'queue_dropped': 0, 'invalid': 0, 'kernel_lost': 0, 'filtered': 444, 'store_errors': 0, 'capture_stale': False, 'recent_loss': False}
+kernel->sensor latency ms: min 2 median 3811 p95 4688 max 5397
+    PID %CPU   RSS     ELAPSED
+   7547 31.6 196296      00:43
