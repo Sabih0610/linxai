@@ -40,6 +40,8 @@ class RegistryContractTests(OfflineRegistryTest):
             "response.policy.revoke": {"policy_id": "00000000-0000-4000-8000-000000000001"},
             "disk.usage": {}, "memory.usage": {}, "ports.listen": {},
             "service.status": {"service": "nginx"},
+            "process.list": {}, "process.priority.lower": {"pid": 4321, "start_ticks": 99, "nice": 10},
+            "process.priority.restore": {"pid": 4321, "start_ticks": 99, "nice": 0}, "resource.forecast": {},
             "service.start": {"service": "nginx"},
             "service.stop": {"service": "nginx"},
             "service.restart": {"service": "nginx"},
@@ -53,7 +55,7 @@ class RegistryContractTests(OfflineRegistryTest):
                 self.assertIsInstance(prepared.parameters, prepared.contract.parameter_type)
                 self.assertGreater(prepared.contract.timeout_s, 0)
                 self.assertLessEqual(prepared.contract.timeout_s, 30)
-                self.assertEqual(prepared.contract.recovery_supported, identifier == "device.interface.set")
+                self.assertEqual(prepared.contract.recovery_supported, identifier in {"device.interface.set", "process.priority.lower"})
                 self.assertFalse(prepared.execution_supported)
                 self.assertIsInstance(prepared.argv, tuple)
                 self.assertTrue(prepared.argv[0].startswith("/usr/bin/"))

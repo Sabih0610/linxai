@@ -96,6 +96,7 @@ class LocalPolicy:
     allowed_actions: frozenset[str] = frozenset({
         "disk.usage", "memory.usage", "ports.listen", "service.status",
         "file.create", "directory.create", *WORKFLOWS,
+        "process.list", "process.priority.lower", "resource.forecast",
     })
 
     def allows(self, identity: Identity, action: str) -> bool:
@@ -150,8 +151,12 @@ class OperationService:
                 proposal = self.system.recovery_request(self._current_prepared, execution)
                 restore = self.registry.prepare(proposal["action"], proposal["parameters"])
                 identity = self._identity()
-                if not self.policy.allows(identity, restore.contract.identifier): raise PermissionError("Restoration policy denied")
-                if not all(self.system.check(op_id, check, identity).ok for check in restore.mandatory_checks): raise ValueError("Restoration current checks failed")
+                # An admin restoration is only offered for review here; it still needs a
+                # new preview, confirmation and broker OS authorization before dispatch.
+                admin = restore.contract.privilege is Privilege.AUTHENTICATED_ADMIN
+                if not admin and not self.policy.allows(identity, restore.contract.identifier): raise PermissionError("Restoration policy denied")
+                current = [c for c in restore.mandatory_checks if not (admin and c.identifier == "authenticated_authorization")]
+                if not all(self.system.check(op_id, check, identity).ok for check in current): raise ValueError("Restoration current checks failed")
                 result = replace(result, recovery="available_for_review", restoration=proposal)
             except Exception:
                 from dataclasses import replace

@@ -73,6 +73,6 @@ class WorkflowSystem(SupervisedLinuxAdapter):
         return super().verify(op_id,required,prepared,execution,identity)
 
     def recovery_request(self,prepared,execution):
-        if prepared.contract.identifier!='device.interface.set':return None
+        if prepared.contract.identifier not in {'device.interface.set','process.priority.lower'}:return None
         value=json.loads(execution.stdout)
         return value.get('restoration') if value.get('verified') is True else None

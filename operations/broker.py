@@ -18,7 +18,8 @@ from .supervised import SupervisedLinuxAdapter
 SERVICE_ADMIN = frozenset({"service.start", "service.stop", "service.restart"})
 RESPONSE_ADMIN = frozenset({"response.network.block", "response.policy.revoke"})
 FACE_ADMIN = frozenset({"auth.face.enroll", "auth.face.revoke"})
-ADMIN = SERVICE_ADMIN | RESPONSE_ADMIN | FACE_ADMIN
+PROCESS_ADMIN = frozenset({"process.priority.restore"})
+ADMIN = SERVICE_ADMIN | RESPONSE_ADMIN | FACE_ADMIN | PROCESS_ADMIN
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,11 @@ class Polkit:
         if hasattr(prepared.parameters, "address"):
             target += f" {prepared.parameters.address}:{prepared.parameters.port} for {prepared.parameters.duration}s"
         if prepared.contract.identifier in FACE_ADMIN:target=f"account UID {peer.uid}"
-        action_id = "org.linxai.response.manage" if prepared.contract.identifier in RESPONSE_ADMIN else "org.linxai.face.manage" if prepared.contract.identifier in FACE_ADMIN else "org.linxai.service.manage"
+        if prepared.contract.identifier in PROCESS_ADMIN:
+            target = f"process {prepared.parameters.pid} (start {prepared.parameters.start_ticks}) to nice {prepared.parameters.nice}"
+        action_id = ("org.linxai.response.manage" if prepared.contract.identifier in RESPONSE_ADMIN else
+                     "org.linxai.face.manage" if prepared.contract.identifier in FACE_ADMIN else
+                     "org.linxai.process.manage" if prepared.contract.identifier in PROCESS_ADMIN else "org.linxai.service.manage")
         argv = ("/usr/bin/pkcheck", "--action-id", action_id, "--process",
                 f"{peer.pid},{peer.start},{peer.uid}", "--allow-user-interaction",
                 "--detail", "action", prepared.contract.identifier,

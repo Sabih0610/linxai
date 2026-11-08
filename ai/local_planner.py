@@ -60,6 +60,14 @@ class Planner:
             remote={"action":"remote.operation","parameters":{"asset":scoped.group(1),**request}}
             self.registry.prepare(remote["action"],remote["parameters"])
             return remote,plan
+        if re.fullmatch(r"(?:predict|forecast)(?: the)? (?:cpu|memory|resource|system)(?: usage| load| pressure)?(?: trend)?",text.strip(),re.IGNORECASE):
+            request={"action":"resource.forecast","parameters":{}}
+            self.registry.prepare(request["action"],request["parameters"])
+            return request,{"intent":"resource_forecast","target":"resources","command":""}
+        if re.fullmatch(r"(?:show|list|display)(?: me)?(?: the)? (?:top |running |busiest )?(?:processes|process list|cpu usage|resource usage)",text.strip(),re.IGNORECASE):
+            request={"action":"process.list","parameters":{}}
+            self.registry.prepare(request["action"],request["parameters"])
+            return request,{"intent":"process_list","target":"processes","command":""}
         recipe=re.fullmatch(r"(?:create|provision) (?:a )?python (environment|project) (?:at|in) (.+)",text.strip(),re.IGNORECASE)
         if recipe:
             request={"action":"environment.python" if recipe.group(1).lower()=="environment" else "project.scaffold","parameters":{"path":recipe.group(2)}}

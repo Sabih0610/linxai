@@ -10,7 +10,7 @@ from uuid import uuid4
 from .registry import Privilege
 from .service import Approval
 
-READS = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status"})
+READS = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list", "resource.forecast"})
 TERMINAL = frozenset({"succeeded", "failed", "cancelled", "unknown", "review_required", "interrupted_before_dispatch"})
 
 
@@ -29,9 +29,11 @@ def digest(request, workspace, uid, prepared):
 
 
 class Jobs:
-    def __init__(self, store, registry, uid, service_factory, broker, *, clock=time.time):
+    def __init__(self, store, registry, uid, service_factory, broker, *, clock=time.time, incidents=None):
         self.store, self.registry, self.uid = store, registry, uid
         self.service_factory, self.broker, self.clock = service_factory, broker, clock
+        # Optional read-only source of recent monitor incidents (requirement 41).
+        self.incidents = incidents
         self.queue, self.lock = queue.Queue(maxsize=128), threading.RLock()
         self.degraded = None
         self.stop_event, self.cancels = threading.Event(), {}
@@ -67,8 +69,24 @@ class Jobs:
                "privilege": prepared.contract.privilege.value,
                "mandatory_checks": [r.identifier for r in prepared.mandatory_checks],
                "postconditions": [r.identifier for r in prepared.postconditions], "recovery": "unsupported"}
+        row.update(self._security_context(prepared))
         self.save(row)
         return row
+
+    def _security_context(self, prepared):
+        # Advisory only: not part of the digest, never blocks or authorizes.
+        if self.incidents is None:
+            return {"security_context": "not_configured", "security_warnings": []}
+        from security.warnings import preview_warnings
+        try:
+            incidents = self.incidents()
+        except Exception:
+            return {"security_context": "unavailable", "security_warnings": []}
+        if incidents is None:
+            return {"security_context": "monitor_not_connected", "security_warnings": []}
+        warnings = preview_warnings(incidents, action=prepared.contract.identifier,
+                                    privilege=prepared.contract.privilege.value, now=self.clock())
+        return {"security_context": "checked", "security_warnings": warnings}
 
     def confirm(self, key, approved_digest):
         with self.lock:

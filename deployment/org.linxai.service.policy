@@ -12,6 +12,11 @@
     <message>Authentication is required for this exact bounded kernel policy</message>
     <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
   </action>
+  <action id="org.linxai.process.manage">
+    <description>Restore the priority of one of your exactly identified processes</description>
+    <message>Authentication is required to restore this exact process priority</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+  </action>
   <action id="org.linxai.face.manage">
     <description>Manage your protected LINxAI face enrollment</description>
     <message>OS password authentication is required for account enrollment changes</message>

@@ -35,10 +35,22 @@ class Agent:
             adapter = WorkflowSystem()
             adapter.cancel_event = event
             return OperationService(self.registry, adapter, LocalPolicy(self.uid), self.audit)
-        self.jobs = Jobs(self.store, self.registry, self.uid, service, broker or BrokerClient())
+        self.jobs = Jobs(self.store, self.registry, self.uid, service, broker or BrokerClient(),
+                         incidents=self.recent_incidents)
         from security.response import Responses, ResponseWorker
         self.responses = Responses(self.registry, self.jobs, model)
         self.response_worker = ResponseWorker(lambda: Store(self.state / "security.sqlite"), self.responses)
+
+    def recent_incidents(self):
+        """Read-only incident snapshot for preview warnings; None if no monitor state."""
+        database = self.state / "security.sqlite"
+        if not database.exists():
+            return None
+        security = Store(database)
+        try:
+            return security.list("incident", 50)
+        finally:
+            security.close()
 
     def handle(self, uid, request):
         if uid != self.uid:

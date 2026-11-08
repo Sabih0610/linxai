@@ -14,6 +14,17 @@ from .registry import Privilege
 from .service import Execution, Identity, Observation
 
 
+def proc_stat(pid):
+    """(start_ticks, nice, owner uid) of a live process from /proc."""
+    with open(f"/proc/{int(pid)}/stat", "rb") as stream:
+        text = stream.read(4096).decode("utf-8", "replace")
+    rest = text[text.rindex(")") + 2:].split()
+    with open(f"/proc/{int(pid)}/status", "rb") as stream:
+        uid = next(int(line.split()[1]) for line in stream.read(8192).decode("utf-8", "replace").splitlines()
+                   if line.startswith("Uid:"))
+    return int(rest[19]), int(rest[16]), uid
+
+
 class LinuxSystemAdapter:
     OUTPUT_LIMIT = 1024 * 1024
 
@@ -137,6 +148,13 @@ class LinuxSystemAdapter:
                 ok = True
             elif name == "systemd_available":
                 ok = Path("/run/systemd/system").is_dir()
+            elif name in {"process_identity", "nice_direction"}:
+                start, nice, uid = proc_stat(args["pid"])
+                evidence = json.dumps({"pid": args["pid"], "start_ticks": start, "nice": nice, "uid": uid}, sort_keys=True)
+                if name == "process_identity":
+                    ok = start == args["start_ticks"] and uid == args["uid"]
+                else:
+                    ok = start == args["start_ticks"] and (args["nice"] > nice if args["direction"] == "increase" else args["nice"] < nice)
             elif name in {"service_exists", "service_not_masked"}:
                 props = self._service_properties(op_id, args["service"])
                 ok = props.get("Id") == args["service"] and props.get("LoadState") == "loaded"
@@ -222,6 +240,23 @@ class LinuxSystemAdapter:
                     ok = ok and values[0] == state and 1 <= port <= 65535
                     ok = ok and all(int(n) >= 0 for n in values[1:3])
                     ok = ok and ("port" not in args or port == args["port"])
+            elif name == "process_inventory_observed":
+                value = json.loads(execution.stdout)
+                rows = value["processes"]
+                ok = (isinstance(rows, list) and len(rows) <= args["limit"] and 0 <= value["cpu_percent"] <= 100
+                      and all(type(r["pid"]) is int and type(r["start_ticks"]) is int and type(r["uid"]) is int
+                              and type(r["nice"]) is int and -20 <= r["nice"] <= 19 and r["cpu_percent"] >= 0
+                              and r["class"] in {"system", "interactive", "background"} for r in rows))
+            elif name == "resource_forecast_observed":
+                value = json.loads(execution.stdout)
+                ok = (len(value["cpu"]["observed"]) == args["samples"]
+                      and all(0 <= v <= 100 for v in value["cpu"]["observed"])
+                      and 0 <= value["cpu"]["predicted"] <= 100 and 0 <= value["memory"]["predicted"] <= 100
+                      and set(value["risks"]) <= {"cpu_pressure_expected", "memory_pressure_expected"}
+                      and len(value["recommendations"]) <= 5)
+            elif name == "process_priority_verified":
+                start, nice, _uid = proc_stat(args["pid"])
+                ok = start == args["start_ticks"] and nice == args["nice"]
             elif name == "service_state_observed":
                 props = self._properties(execution.stdout)
                 states = {"active", "inactive", "failed", "activating", "deactivating", "reloading", "maintenance", "refreshing"}

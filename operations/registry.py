@@ -16,6 +16,7 @@ from ._create_program import CREATE_PROGRAM
 from .face_contracts import FaceParameters
 from .response_contracts import NetworkResponse, RevokeResponse
 from .workflow_contracts import Project, Device, Interface, Restore, Remote, TYPES as WORKFLOW_TYPES
+from .resource_contracts import Forecast, ProcessQuery, ProcessPriority, TYPES as RESOURCE_TYPES
 
 
 class ActionError(ValueError):
@@ -64,7 +65,7 @@ class DirectoryParameters:
     relative_path: str
 
 
-Parameters = NoParameters | PortParameters | ServiceParameters | FileParameters | DirectoryParameters | NetworkResponse | RevokeResponse | Project | Device | Interface | Restore | Remote | FaceParameters
+Parameters = NoParameters | PortParameters | ServiceParameters | FileParameters | DirectoryParameters | NetworkResponse | RevokeResponse | Project | Device | Interface | Restore | Remote | FaceParameters | ProcessQuery | ProcessPriority | Forecast
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,10 @@ ACTIONS: Mapping[str, ActionContract] = MappingProxyType({
         ActionContract("service.restart", ServiceParameters, _ADMIN, 30),
         ActionContract("file.create", FileParameters, _UNPRIVILEGED, 5),
         ActionContract("directory.create", DirectoryParameters, _UNPRIVILEGED, 5),
+        ActionContract("process.list", ProcessQuery, _UNPRIVILEGED, 10),
+        ActionContract("process.priority.lower", ProcessPriority, _UNPRIVILEGED, 10, recovery_supported=True),
+        ActionContract("process.priority.restore", ProcessPriority, _ADMIN, 15),
+        ActionContract("resource.forecast", Forecast, _UNPRIVILEGED, 30),
     )
 })
 
@@ -213,6 +218,9 @@ class ActionRegistry:
             return prepare(self, identifier, parameters, contract)
         if parameter_type in WORKFLOW_TYPES:
             from .workflow_contracts import prepare
+            return prepare(self, identifier, parameters, contract)
+        if parameter_type in RESOURCE_TYPES:
+            from .resource_contracts import prepare
             return prepare(self, identifier, parameters, contract)
         if parameter_type in {NetworkResponse, RevokeResponse}:
             from .response_contracts import prepare
