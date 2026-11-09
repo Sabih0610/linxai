@@ -1,4 +1,5 @@
 """Requirements 19-21: dependency/firewall conflicts, approve/warn/block and alternatives."""
+import os
 import sys
 import unittest
 from unittest.mock import Mock
@@ -74,7 +75,8 @@ class ConflictTests(unittest.TestCase):
                          firewall=lambda: False, ports=set)
         self.assertEqual((result["decision"], result["findings"][0]["code"]), ("warn", "analysis_unavailable"))
 
-    @unittest.skipUnless(sys.platform == "linux", "real systemd")
+    @unittest.skipUnless(sys.platform == "linux" and any(os.path.exists(d + "/ssh.service") for d in
+                         ("/lib/systemd/system", "/usr/lib/systemd/system", "/etc/systemd/system")), "real systemd with ssh.service")
     def test_real_systemd_query_on_target(self):
         result = analyze("service.restart", {"service": "ssh.service"})
         self.assertIn(result["decision"], {"approve", "warn"})

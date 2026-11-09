@@ -36,6 +36,18 @@ WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','dev
 TYPES=(Project,Device,Interface,Restore,Remote)
 
 
+def _netconf_asset(asset,InvalidParameters):
+    """Owner-configured NETCONF device (vendor-neutral OpenConfig; see _netconf_program)."""
+    expected={'platform','host','port','username','key_path','host_key_sha256','state_dir','ports'}
+    if set(asset)!=expected:raise InvalidParameters('NETCONF asset requires exactly: '+', '.join(sorted(expected)))
+    if not isinstance(asset['host'],str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}',asset['host']):raise InvalidParameters('Invalid NETCONF host')
+    if type(asset['port']) is not int or not 1<=asset['port']<=65535:raise InvalidParameters('Invalid NETCONF port')
+    if not isinstance(asset['username'],str) or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}',asset['username']):raise InvalidParameters('Invalid NETCONF username')
+    if not isinstance(asset['host_key_sha256'],str) or not re.fullmatch(r'SHA256:[A-Za-z0-9+/]{43}',asset['host_key_sha256']):raise InvalidParameters('Pinned SHA256 host key fingerprint required')
+    for field in ('key_path','state_dir'):
+        if not isinstance(asset[field],str) or not asset[field].startswith('/') or len(asset[field])>4095 or '\x00' in asset[field]:raise InvalidParameters('Absolute key and state paths required')
+
+
 def prepare(registry,identifier,parameters,contract):
     from .registry import ActionRegistry, InvalidParameters, PreparedAction, requirement
     if registry.actor_uid is None:raise InvalidParameters('Backend OS actor required')
@@ -77,8 +89,10 @@ def prepare(registry,identifier,parameters,contract):
                     requirement('remote_asset_safe',asset_json=json.dumps(asset,sort_keys=True)))
             post=(requirement('exit_code',value=0),requirement('remote_operation_verified',expected_uid=asset['expected_uid']))
             return PreparedAction(contract,typed,argv,checks,post,stdin)
-        if asset.get('platform')!='development_file':raise InvalidParameters('Unsupported device platform; no vendor compatibility implied')
-        if not isinstance(asset.get('path'),str) or not asset['path'].startswith('/') or not isinstance(asset.get('ports'),list) or not 1<=len(asset['ports'])<=64:raise InvalidParameters('Invalid development device configuration')
+        if asset.get('platform')=='netconf':_netconf_asset(asset,InvalidParameters)
+        elif asset.get('platform')!='development_file':raise InvalidParameters('Unsupported device platform; no vendor compatibility implied')
+        elif not isinstance(asset.get('path'),str) or not asset['path'].startswith('/'):raise InvalidParameters('Invalid development device configuration')
+        if not isinstance(asset.get('ports'),list) or not 1<=len(asset['ports'])<=64:raise InvalidParameters('Configured interface allowlist required')
         if any(not isinstance(port,str) or not re.fullmatch(r'[A-Za-z][A-Za-z0-9_./:-]{0,31}',port) or '..' in port for port in asset['ports']):raise InvalidParameters('Malformed configured interface')
         if identifier in {'device.initialize','device.inspect'}:
             if set(parameters)!={'asset'}:raise InvalidParameters('Exact device fields required')

@@ -53,6 +53,25 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(ValueError):Planner(registry,model).propose('on unknown do something')
         model.generate.assert_not_called()
 
+    def test_netconf_device_assets_are_strict_and_pinned(self):
+        # Network-device extension: vendor-neutral NETCONF/OpenConfig through the same typed device actions.
+        base={'platform':'netconf','host':'192.0.2.10','port':830,'username':'netops','key_path':'/home/owner/.ssh/netconf',
+              'host_key_sha256':'SHA256:'+'A'*43,'state_dir':'/home/owner/.linxai/netconf','ports':['ge-0/0/1','Ethernet1/1']}
+        registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'core':base}))
+        prepared=registry.prepare('device.inspect',{'asset':'core'})
+        self.assertEqual(prepared.argv[:3],('/usr/bin/python3','-I','-c'))
+        self.assertIn("platform')=='netconf'",prepared.argv[3])
+        compile(prepared.argv[3],'workflow','exec')
+        params={'asset':'core','interface':'ge-0/0/1','enabled':False,'expected_revision':'0'*64,'transaction_id':str(uuid4())}
+        self.assertEqual(registry.prepare('device.interface.set',params).parameters.interface,'ge-0/0/1')
+        with self.assertRaises(ValueError):registry.prepare('device.interface.set',{**params,'interface':'ge-0/0/9'})
+        for change in ({'host_key_sha256':'SHA256:short'},{'host_key_sha256':None},{'host':'evil host;id'},{'port':0},
+                       {'key_path':'relative/key'},{'extra':'field'},{'ports':[]}):
+            bad=dict(base,**change)
+            if change.get('host_key_sha256',1) is None:bad.pop('host_key_sha256')
+            reg=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'core':bad}))
+            with self.assertRaises(ValueError,msg=change):reg.prepare('device.inspect',{'asset':'core'})
+
     def test_nested_remote_input_is_rejected_before_recursing_or_model(self):
         values=configured_assets();values['a']=values['lab']
         registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps(values))

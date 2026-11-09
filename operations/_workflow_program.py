@@ -180,3 +180,17 @@ else:
         print(json.dumps({'verified':True,'platform':'development_file','restored':True,'revision':revision(saved['prior'])}))
     else:raise ValueError('Unsupported workflow action')
 '''
+
+
+def _with_netconf(program):
+    """Insert the NETCONF device branch ahead of the development-file device branch."""
+    import textwrap
+    from ._netconf_program import NETCONF_CODE
+    marker = "else:\n    asset=request['asset'];path=pathlib.Path(asset['path'])"
+    if program.count(marker) != 1:
+        raise RuntimeError("workflow program layout changed")
+    branch = "elif request['asset'].get('platform')=='netconf':\n" + textwrap.indent(NETCONF_CODE.strip("\n"), "    ") + "\n"
+    return program.replace(marker, branch + marker)
+
+
+WORKFLOW_PROGRAM = _with_netconf(WORKFLOW_PROGRAM)
