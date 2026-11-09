@@ -560,3 +560,27 @@ nice-0 floor (−5) was refused before dispatch, and `process.priority.restore` 
 through the root broker after polkit `auth_admin` (`org.linxai.process.manage`):
 status succeeded, verified, audit complete, final nice 0, 1 thread changed, 0
 failed. PASS. Evidence: `restore/restore-acceptance.json`.
+
+## Network/attack-tool detection and real SSH remote operations — VM, 9 November 2026
+
+Detection (38, 39): new model-free rules `shell_network_connection` (shell or raw
+network tool opening an outbound TCP connection), `attack_tool_execution` and a
+wider backdoor-port list. `scripts/accept_detection.py` on the real kernel with the
+deployed sensor and monitor: bash `/dev/tcp` reverse-shell shape 0.32 s, `nc` 0.23 s,
+port 31337 0.26 s, `nmap`-named exec 0.55 s — all with `kernel_start_identity`;
+benign controls (curl, python connect, `bash -c true`, ls) raised no incident.
+PASS (`detection-network.json`). A first run reported the fixture's own incident as
+a false alarm because the control window overlapped it by its 1 s slack; the window
+was fixed, not the rule. The monitor was restarted once (≈10 s) during the 24 h soak
+to load the new rules.
+
+Remote (52–57): `lab-scripts/remote-setup.sh` (ordinary user: dedicated key with a
+`restrict` authorized_keys entry, pinned known_hosts, peer venv) and
+`scripts/accept_remote.py` over real `/usr/bin/ssh`. Two configured assets — the VM's
+loopback and NAT address, i.e. the same machine — each verified memory, disk and
+`ssh.service` status end to end (1.6–3.2 s). Host-key mismatch: execution failed,
+host-key error reported. Raw shell, nested remote and unknown asset refused before
+SSH. Replayed operation id: first exit 0, second refused. PASS
+(`remote-acceptance.json`). Physically separate servers remain untested.
+
+Windows offline group (CPython 3.12) after these changes: 243 run, 233 passed, 10 skipped (Linux-only), 0 failures.

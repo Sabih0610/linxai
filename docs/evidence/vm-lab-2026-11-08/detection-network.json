@@ -1,0 +1,40 @@
+{
+  "listener_port": 43911,
+  "fixtures": [
+    {
+      "fixture": "reverse_shell_bash_dev_tcp",
+      "expected": "shell_network_connection",
+      "detected": true,
+      "latency_s": 0.63,
+      "identity_quality": "kernel_start_identity"
+    },
+    {
+      "fixture": "raw_network_tool_nc",
+      "expected": "shell_network_connection",
+      "detected": true,
+      "latency_s": 0.54,
+      "identity_quality": "kernel_start_identity"
+    },
+    {
+      "fixture": "backdoor_port_31337",
+      "expected": "unusual_connection_attempt",
+      "detected": true,
+      "latency_s": 0.57,
+      "identity_quality": "kernel_start_identity"
+    },
+    {
+      "fixture": "attack_tool_exec_nmap",
+      "expected": "attack_tool_execution",
+      "detected": true,
+      "latency_s": 0.55,
+      "identity_quality": "kernel_start_identity"
+    }
+  ],
+  "benign_controls": [
+    "/usr/bin/curl",
+    "/usr/bin/python3",
+    "/bin/bash",
+    "/usr/bin/ls"
+  ],
+  "false_alarms": []
+}

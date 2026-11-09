@@ -14,6 +14,8 @@ _NETWORK_ACTIONS = frozenset({"ports.listen", "service.start", "service.restart"
 _WORKSPACE_ACTIONS = frozenset({"file.create", "directory.create", "environment.python", "project.scaffold", "project.node"})
 _RELATED = {
     "unusual_connection_attempt": _NETWORK_ACTIONS,
+    "shell_network_connection": _NETWORK_ACTIONS,
+    "attack_tool_execution": _NETWORK_ACTIONS | {"remote.operation"},
     "temporary_executable_attempt": _WORKSPACE_ACTIONS | {"service.start", "service.restart"},
     "sensitive_file_attempt": frozenset({"service.start", "service.stop", "service.restart",
                                          "auth.face.enroll", "auth.face.revoke"}),

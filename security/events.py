@@ -10,6 +10,16 @@ KINDS = frozenset({"process_exec", "network_connect", "file_open"})
 # on a running host is high-volume noise that starved the capture path on target.
 WATCHED_FILES = frozenset({"/etc/shadow", "/etc/sudoers"})
 AF_INET = 2
+# Requirement 39: a shell or raw network tool making an outbound TCP connection is the
+# kernel-visible shape of a reverse shell (e.g. bash /dev/tcp, nc -e, socat exec).
+# Task names (comm) are at most 15 characters, as reported by the sensor.
+SHELL_TOOLS = frozenset({"sh", "bash", "dash", "zsh", "ksh", "fish", "nc", "ncat", "netcat", "nc.openbsd",
+                         "nc.traditional", "socat", "telnet"})
+# Requirement 39: execution of well-known offensive tooling (advisory; admins may use some).
+ATTACK_TOOLS = frozenset({"nmap", "masscan", "hydra", "john", "hashcat", "msfconsole", "msfvenom", "sqlmap",
+                          "nikto", "ncat", "nc.traditional", "socat", "chisel", "mimipenguin", "linpeas.sh"})
+# Requirement 38: destination ports conventionally used by backdoors/C2 rather than services.
+UNUSUAL_PORTS = frozenset({1337, 4444, 5554, 6666, 6667, 9999, 12345, 31337})
 
 
 def admit(record):
@@ -96,7 +106,11 @@ def detect(event):
         rule = "sensitive_file_attempt"
     elif event["kind"] == "process_exec" and event["target"]["path"].startswith(("/tmp/", "/dev/shm/")):
         rule = "temporary_executable_attempt"
-    elif event["kind"] == "network_connect" and event["target"]["port"] in {4444, 1337}:
+    elif event["kind"] == "process_exec" and event["target"]["path"].rsplit("/", 1)[-1] in ATTACK_TOOLS:
+        rule = "attack_tool_execution"
+    elif event["kind"] == "network_connect" and event.get("protocol") != "udp" and event.get("process") in SHELL_TOOLS:
+        rule = "shell_network_connection"
+    elif event["kind"] == "network_connect" and event["target"]["port"] in UNUSUAL_PORTS:
         rule = "unusual_connection_attempt"
     if rule is None: return None
     return {"schema": 1, "id": event["id"], "event_id": event["id"], "state": "observed",

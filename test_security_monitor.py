@@ -44,6 +44,22 @@ class SecurityMonitorTests(unittest.TestCase):
         for value in (record("/etc/shadow.backup"), record("/home/user/shadow"), record(uid=0)):
             self.assertIsNone(detect(normalize(value, "host", "boot", source="simulated")))
 
+    def test_reverse_shell_attack_tool_and_unusual_port_rules(self):
+        def connect(process, port, protocol=6):
+            return normalize({"event_type": "network_connect", "payload": {"dest_ip": "203.0.113.9", "dest_port": port,
+                              "protocol": protocol, "uid": 1000, "pid": 7, "process": process}}, "h", "b", source="simulated")
+        def exe(path):
+            return normalize({"event_type": "process_exec", "payload": {"filename": path, "uid": 1000, "pid": 8,
+                              "process": "bash"}}, "h", "b", source="simulated")
+        self.assertEqual(detect(connect("bash", 443))["rule"], "shell_network_connection")
+        self.assertEqual(detect(connect("nc", 8080))["rule"], "shell_network_connection")
+        self.assertEqual(detect(connect("python3", 31337))["rule"], "unusual_connection_attempt")
+        self.assertEqual(detect(exe("/usr/bin/nmap"))["rule"], "attack_tool_execution")
+        # Benign near matches: ordinary clients, shells over UDP, look-alike names, normal ports.
+        for event in (connect("curl", 443), connect("bash", 53, protocol=17), connect("bashful", 443),
+                      connect("python3", 8443), exe("/usr/bin/nmapper"), exe("/usr/bin/ls")):
+            self.assertIsNone(detect(event), event)
+
     def test_stable_subject_includes_host_boot_uid_pid_and_start(self):
         one = normalize(record(), "host", "boot", source="kernel")
         two = record()
