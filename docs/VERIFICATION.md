@@ -537,3 +537,19 @@ owner edit refused). VM offline group: 242 run, 0 skipped, 0 failures. VM `linux
 group: 26 run, 2 failures that are environment prerequisites, not regressions —
 the installed console launcher is absent (locked setup not run on the VM) and the
 remote-peer test needs the installed `operations` package on the peer interpreter.
+
+## Sensor overhead and soaks — VM, 9 November 2026
+
+After the owner's admin step (`admin-session.sh`, bundle sha256 9d739d3d…, broker
+and BCC sensor active, 3 kprobes, not enabled at boot):
+
+- Sensor overhead (44), user-space sensor process: 0.93 % of one vCPU over 180 s
+  idle, 1.43 % during the pinned benchmark. Foreground CPU-task times with and
+  without the sensor differ by −5.5 % to +5.0 % across idle and the ten loaded /
+  optimized measurements, i.e. within run-to-run noise; no measurable slowdown.
+  In-kernel probe cost is charged to traced tasks and not separated.
+- Operations-only soak (72, partial, 8 h, before the sensor was deployed): 950
+  cycles, availability 99.89 %, op latency p95 0.605 s, 3 host pauses totalling
+  405 s reported separately.
+- Full integrated 24 h soak started (typed reads, sensor health, monitor
+  freshness, RSS, hourly detection probe); first probe detected in 2.0 s.

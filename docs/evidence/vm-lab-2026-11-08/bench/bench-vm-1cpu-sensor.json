@@ -1,0 +1,90 @@
+{
+  "cpus": 2,
+  "pinned_cpus": [
+    0
+  ],
+  "idle": {
+    "cpu_task_s": 0.1749,
+    "wake_p95_ms": 1.559
+  },
+  "scenarios": {
+    "one_hog_per_cpu": {
+      "background": 1,
+      "loaded": {
+        "cpu_task_s": 0.3374,
+        "wake_p95_ms": 1.398
+      },
+      "optimized": {
+        "cpu_task_s": 0.1635,
+        "wake_p95_ms": 1.08
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 51.5,
+      "wake_p95_improvement_pct": 22.7
+    },
+    "two_hogs_per_cpu": {
+      "background": 2,
+      "loaded": {
+        "cpu_task_s": 0.4897,
+        "wake_p95_ms": 2.433
+      },
+      "optimized": {
+        "cpu_task_s": 0.1698,
+        "wake_p95_ms": 1.194
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 65.3,
+      "wake_p95_improvement_pct": 50.9
+    },
+    "four_hogs_per_cpu": {
+      "background": 4,
+      "loaded": {
+        "cpu_task_s": 0.8292,
+        "wake_p95_ms": 2.466
+      },
+      "optimized": {
+        "cpu_task_s": 0.1739,
+        "wake_p95_ms": 1.862
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 79.0,
+      "wake_p95_improvement_pct": 24.5
+    },
+    "mixed_cpu_io": {
+      "background": 2,
+      "loaded": {
+        "cpu_task_s": 0.4916,
+        "wake_p95_ms": 2.337
+      },
+      "optimized": {
+        "cpu_task_s": 0.1664,
+        "wake_p95_ms": 1.405
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 66.2,
+      "wake_p95_improvement_pct": 39.9
+    },
+    "bursty": {
+      "background": 2,
+      "loaded": {
+        "cpu_task_s": 0.2307,
+        "wake_p95_ms": 2.257
+      },
+      "optimized": {
+        "cpu_task_s": 0.1719,
+        "wake_p95_ms": 1.405
+      },
+      "lowered_verified": true,
+      "cpu_task_improvement_pct": 25.5,
+      "wake_p95_improvement_pct": 37.7
+    }
+  },
+  "sensor_overhead": {
+    "pid": 7828,
+    "cpu_seconds": 0.44,
+    "wall_seconds": 30.7,
+    "percent_of_one_cpu": 1.43,
+    "percent_of_all_cpus": 0.72,
+    "scope": "sensor user-space process only; in-kernel probe cost not separated"
+  }
+}
