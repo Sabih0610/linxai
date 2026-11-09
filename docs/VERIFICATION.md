@@ -609,3 +609,18 @@ summarized with `soak_integrated.py --summarize-only`.
 
 Not claimed: a 24-hour result. For a future full run, pause unattended-upgrades on
 the test target first.
+
+## Gate E kernel response qualification (45) — VM, 9 November 2026: PASS
+
+Owner steps at the VM console: `lab-scripts/gate-e-1-enable-bpf-lsm.sh` (adds
+`lsm=…,bpf` through `/etc/default/grub.d/99-linxai-bpf-lsm.cfg`, reversible),
+reboot, then `lab-scripts/gate-e-2-qualify.sh` (starts sensor, broker and the
+policy daemon — none enabled at boot — with `/etc/linxai/response.json` owner-only,
+`auto_enabled: false`, and runs `scripts/accept_policy.py` → verified root bundle
+`qualify`). Kernel after reboot: 6.8.0-147-generic (the earlier unattended upgrade
+installed it), active LSMs `lockdown,capability,landlock,yama,apparmor,bpf`.
+
+Result `gate-e/gate-e-qualify.json`: `passed: true`, `origin: actual_kernel_probe`,
+program digest 5515d15b…, cases deny, uid-near-match, port-near-match,
+address-near-match, udp-near-match, revoke, expiry. All fixtures are loopback
+sockets created by the qualification itself. Exit code 0.

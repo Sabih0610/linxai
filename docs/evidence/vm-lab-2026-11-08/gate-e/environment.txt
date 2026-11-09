@@ -1,0 +1,7 @@
+lockdown,capability,landlock,yama,apparmor,bpf
+BOOT_IMAGE=/vmlinuz-6.8.0-147-generic root=/dev/mapper/ubuntu--vg-ubuntu--lv ro lsm=lockdown,capability,landlock,yama,apparmor,bpf
+6.8.0-147-generic
+active
+active
+active
+Nov 09 10:28:09 linxai systemd[1]: Started linxai-policy.service - LINxAI independently enforced validated response policies.
