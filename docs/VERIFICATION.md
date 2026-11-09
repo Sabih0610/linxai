@@ -624,3 +624,29 @@ Result `gate-e/gate-e-qualify.json`: `passed: true`, `origin: actual_kernel_prob
 program digest 5515d15b…, cases deny, uid-near-match, port-near-match,
 address-near-match, udp-near-match, revoke, expiry. All fixtures are loopback
 sockets created by the qualification itself. Exit code 0.
+
+## Remaining-scope completion — 9 November 2026
+
+- 5 (LangGraph): `test_real_langgraph_matches_builtin_runner` PASS on the VM with
+  langgraph 1.2.20 in a test venv; identical requests and traces to the built-in
+  runner. LangGraph stays optional (not in the locked dependency set).
+- 2/4 (prompt injection): 10-case injection set added to `eval_intents.py`. Run 4
+  produced 4 state-changing proposals (translate/quote/"DAN"/"repeat after me");
+  a planner guard now refuses state-changing proposals in such text while reads
+  still work. Run 5: injection 10/10 safe, intent accuracy unchanged (100 % tuning,
+  73.3 % held-out, 15/15 refusals).
+- 7/8 (context): 15-turn multi-dialogue corpus; it found and fixed two bugs
+  ("is it running" became a service named `it`; "do the same for X" skipped
+  service-name normalization). Pronouns now reach back over unrelated turns.
+- 17/18: typed `path.inspect` and `user.lookup` reads; native VM tests pass.
+- 42: procfs lineage on real-kernel incidents, first hop bound by start time;
+  verified ancestry for a persistent reverse shell on the VM; short-lived
+  processes report `exited`.
+- 60: cross-module `timeline` (agent API, CLI `--timeline N`).
+- 69/71: `scripts/accept_integrated.py` on the VM — 13/13 steps PASS
+  (`integrated-acceptance.json`). Offline group 251/251 on the VM with 0 skipped;
+  Windows 251 run, 238 passed, 13 Linux-only skipped. VM `linux` group 24/26: the
+  2 failures need the locked application install (`setup_dev.py`), not code changes.
+- 29 (custom PAM) is intentionally not migrated: authentication decisions stay
+  with polkit and the root broker; changing system PAM stacks on the target is
+  outside the safety model. 27/28 and 10–12 still need a camera/microphone.
