@@ -51,6 +51,14 @@ _DESTRUCTIVE = re.compile(r"\b(?:mkfs|wipefs|shred|dd if=|rm -rf|format (?:the |
                           re.IGNORECASE)
 _STATUS = re.compile(r"(?:is|check if|check whether) (?:the )?([A-Za-z0-9@._-]+?)(?: service)? (?:running|up|active|alive)\??",
                      re.IGNORECASE)
+_NON_DIRECTIVE = re.compile(
+    r"\btranslat|\bquot(?:e|ed|ing)\b|do not act|don't act|repeat after me|what does .{0,80} mean|\blog line\b|"
+    r"\bpretend\b|you are (?:now|dan)\b|\bjailbreak|no restrictions|ignore (?:all|any|your|previous|the) |"
+    r"without (?:asking|a preview|preview|confirmation|confirming)|system prompt|</?(?:system|user|assistant)>|"
+    r"\bas the (?:system )?administrator i\b|admin says|i authori[sz]e you",
+    re.IGNORECASE)
+READ_ONLY = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list",
+                       "resource.forecast", "device.inspect"})
 _PRONOUN = r"(?:it|that|this|the service|that service|this service)"
 _SERVICE_VERBS = {"start": "service.start", "stop": "service.stop", "restart": "service.restart",
                   "check": "service.status", "status of": "service.status", "show the status of": "service.status"}
@@ -94,7 +102,13 @@ class Planner:
     def propose(self, text, context=()):
         """Run the planning state graph (requirement 5); see ai/workflow.py."""
         from .workflow import run_planning
-        return run_planning(self, text, context)
+        request, plan = run_planning(self, text, context)
+        if _NON_DIRECTIVE.search(text) and request["action"] not in READ_ONLY:
+            # Prompt-injection guard (requirements 2, 4; intent eval run 4): quoted, translated,
+            # "repeat after me" or override wording never yields a state-changing proposal.
+            raise UnsupportedAction("state-changing actions must be asked for plainly, "
+                                    "not inside quoted, translated or override text")
+        return request, plan
 
     @staticmethod
     def check_text(text):
