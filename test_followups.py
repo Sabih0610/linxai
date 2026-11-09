@@ -27,7 +27,7 @@ class FollowUpTests(unittest.TestCase):
 
     def test_same_for_replaces_only_the_target_field(self):
         self.assertEqual(follow_up("do the same for apache2", [turn("service.status", service="nginx.service")]),
-                         {"action": "service.status", "parameters": {"service": "apache2"}})
+                         {"action": "service.status", "parameters": {"service": "apache2.service"}})
         self.assertEqual(follow_up("now for 8080", [turn("ports.listen", port=80, protocol="tcp")]),
                          {"action": "ports.listen", "parameters": {"port": 8080, "protocol": "tcp"}})
 
@@ -51,6 +51,37 @@ class FollowUpTests(unittest.TestCase):
             self.planner.propose("do the same for ../../etc", [turn("service.status", service="nginx.service")])
         with self.assertRaises(Exception):
             self.planner.propose("now for 99999", [turn("ports.listen", port=80, protocol="tcp")])
+
+    def test_multi_turn_dialogue_corpus(self):
+        # Requirements 7/8: context accumulates turn by turn exactly as the agent stores it;
+        # every turn is deterministic (the model is never reached) and every result is typed.
+        self.model.generate.side_effect = AssertionError("model must not be needed")
+        svc = lambda action, name: {"action": action, "parameters": {"service": name + ".service"}}
+        dialogues = [
+            [("is nginx running", svc("service.status", "nginx")), ("restart it", svc("service.restart", "nginx")),
+             ("is it running?", svc("service.status", "nginx")), ("do the same for redis", svc("service.status", "redis")),
+             ("stop it", svc("service.stop", "redis")), ("start it again", svc("service.start", "redis"))],
+            [("is docker up?", svc("service.status", "docker")), ("show memory usage", {"action": "memory.usage", "parameters": {}}),
+             ("restart it", svc("service.restart", "docker")), ("do it again", svc("service.restart", "docker"))],
+            [("restart nginx", None), ("now for apache2", None), ("check it", None)],
+            [("show top processes", {"action": "process.list", "parameters": {}}), ("restart it", "refused")],
+        ]
+        dialogues[2] = [("restart nginx", "service.restart"), ("now for apache2", svc("service.restart", "apache2")),
+                        ("check it", svc("service.status", "apache2"))]
+        for dialogue in dialogues:
+            context = []
+            for text, expected in dialogue:
+                if expected == "refused":
+                    with self.assertRaises(Exception, msg=text):
+                        self.planner.propose(text, context)
+                    continue
+                request, plan = self.planner.propose(text, context)
+                if isinstance(expected, str):
+                    self.assertEqual(request["action"], expected, text)
+                else:
+                    got = {"action": request["action"], "parameters": {k: request["parameters"][k] for k in expected["parameters"]}}
+                    self.assertEqual(got, expected, text)
+                context.append({"text": text, "plan": plan, "request": request})
 
 
 if __name__ == "__main__":

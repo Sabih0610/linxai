@@ -78,17 +78,24 @@ def follow_up(text, context):
     params = dict(previous["parameters"])
     if re.fullmatch(r"(?:do (?:it|that) again|repeat (?:it|that)|again|run (?:it|that) again)", text):
         return {"action": previous["action"], "parameters": params}
+    # Pronouns that need a service refer to the latest service in the last five turns, even
+    # when an unrelated read came in between ("check nginx" -> "show memory" -> "restart it").
+    service = next((turn["request"]["parameters"]["service"] for turn in reversed(list(context or ())[-5:])
+                    if isinstance(turn, dict) and isinstance(turn.get("request"), dict)
+                    and isinstance(turn["request"].get("parameters"), dict)
+                    and isinstance(turn["request"]["parameters"].get("service"), str)), None)
     verb = re.fullmatch(rf"(start|stop|restart|check|status of|show the status of) {_PRONOUN}(?: again| now)?", text)
-    if verb and "service" in params:
-        return {"action": _SERVICE_VERBS[verb.group(1)], "parameters": {"service": params["service"]}}
-    if re.fullmatch(rf"(?:is {_PRONOUN} running|what is its status|check its status)", text) and "service" in params:
-        return {"action": "service.status", "parameters": {"service": params["service"]}}
+    if verb and service:
+        return {"action": _SERVICE_VERBS[verb.group(1)], "parameters": {"service": service}}
+    if re.fullmatch(rf"(?:is {_PRONOUN} (?:running|up)|what is its status|check its status|how is {_PRONOUN} doing)", text) and service:
+        return {"action": "service.status", "parameters": {"service": service}}
     same = re.fullmatch(r"(?:(?:now )?do the same for|same for|and now|now for|what about|and) ([A-Za-z0-9_./@-]{1,255})", text)
     if same:
         value = same.group(1)
         for key in ("service", "port", "path", "asset"):
             if key in params:
-                params[key] = int(value) if key == "port" and value.isdigit() else value
+                params[key] = (int(value) if key == "port" and value.isdigit()
+                               else normalize_service(value) if key == "service" else value)
                 if key == "service" and previous["action"] not in {"service.status", "service.start", "service.stop", "service.restart"}:
                     return None
                 return {"action": previous["action"], "parameters": params}
@@ -124,15 +131,18 @@ class Planner:
             raise UnsupportedAction("account, credential and privilege changes are not supported actions")
         if _DESTRUCTIVE.search(text):
             raise UnsupportedAction("destructive disk and file-system operations are not supported actions")
-        status = _STATUS.fullmatch(text.strip())
-        if status:
-            request = {"action": "service.status", "parameters": {"service": normalize_service(status.group(1))}}
-            self.registry.prepare(request["action"], request["parameters"])
-            return request, {"intent": "service_status", "target": request["parameters"]["service"], "command": ""}
         resolved = follow_up(text, context)
         if resolved is not None:
             self.registry.prepare(resolved["action"], resolved["parameters"])
             return resolved, {"intent": "follow_up", "target": json.dumps(resolved["parameters"], sort_keys=True)[:256], "command": ""}
+        if re.fullmatch(rf"(?:start|stop|restart|check|is) {_PRONOUN}(?: again| now| running| up)?", text.strip().lower().rstrip(".!?")):
+            # A pronoun with no earlier service must not become a service literally named "it".
+            raise UnsupportedAction("no earlier service in this conversation to refer to; name the service")
+        status = _STATUS.fullmatch(text.strip())
+        if status and status.group(1).lower() not in {"it", "that", "this", "everything", "anything", "something"}:
+            request = {"action": "service.status", "parameters": {"service": normalize_service(status.group(1))}}
+            self.registry.prepare(request["action"], request["parameters"])
+            return request, {"intent": "service_status", "target": request["parameters"]["service"], "command": ""}
         scoped=re.fullmatch(r"on ([A-Za-z][A-Za-z0-9_-]{0,31}) (.+)",text.strip(),re.IGNORECASE)
         if scoped:
             if scoped.group(1) not in json.loads(self.registry.assets_json):raise ValueError("Unknown configured remote asset")
