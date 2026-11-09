@@ -139,6 +139,52 @@ elif cmd == "forecast":
                                  "seconds_to_exhaustion": seconds_to_full},
                       "risks": risks, "recommendations": candidates,
                       "interpretation": "Short-window trend forecast; recommendations require an explicit process.priority.lower preview"}))
+elif cmd == "path":
+    # Requirement 18: read-only metadata of an absolute path and its parents; never
+    # follows the final symlink and never reads file contents.
+    import pwd, grp, stat
+    target = sys.argv[2]
+    def name_of(fn, ident):
+        try: return fn(ident)[0]
+        except KeyError: return None
+    def describe(path):
+        info = os.lstat(path)
+        kind = ("symlink" if stat.S_ISLNK(info.st_mode) else "directory" if stat.S_ISDIR(info.st_mode)
+                else "file" if stat.S_ISREG(info.st_mode) else "other")
+        row = {"path": path, "type": kind, "uid": info.st_uid, "owner": name_of(pwd.getpwuid, info.st_uid),
+               "gid": info.st_gid, "group": name_of(grp.getgrgid, info.st_gid), "mode": oct(stat.S_IMODE(info.st_mode)),
+               "size": info.st_size if kind == "file" else None,
+               "world_writable": bool(info.st_mode & 0o002) and kind != "symlink",
+               "sticky": bool(info.st_mode & stat.S_ISVTX)}
+        if kind == "symlink": row["link_target"] = os.readlink(path)[:4096]
+        return row
+    parts = [target] + [str(p) for p in __import__("pathlib").PurePosixPath(target).parents]
+    chain, exists = [], True
+    for p in parts:
+        try: chain.append(describe(p))
+        except FileNotFoundError:
+            if p == target: exists = False
+        except PermissionError:
+            chain.append({"path": p, "type": "unreadable"})
+    access = {m: os.access(target, f, follow_symlinks=False) for m, f in (("read", os.R_OK), ("write", os.W_OK), ("execute", os.X_OK))} if exists else None
+    risks = [r["path"] for r in chain[1:] if r.get("world_writable") and not r.get("sticky")]
+    print(json.dumps({"observed": True, "path": target, "exists": exists, "chain": chain[:64], "actor_access": access,
+                      "unsafe_parents": risks, "interpretation": "Metadata only; contents are never read"}))
+elif cmd == "user":
+    # Requirement 18: account facts from the passwd/group databases (no shadow access).
+    import pwd, grp
+    key = sys.argv[2]
+    try:
+        entry = pwd.getpwuid(int(key)) if key.isdigit() else pwd.getpwnam(key)
+    except KeyError:
+        print(json.dumps({"observed": True, "query": key, "exists": False})); raise SystemExit(0)
+    groups = sorted({g.gr_name for g in grp.getgrall() if entry.pw_name in g.gr_mem} | {name for name in [
+        next((g.gr_name for g in grp.getgrall() if g.gr_gid == entry.pw_gid), None)] if name})
+    print(json.dumps({"observed": True, "query": key, "exists": True, "name": entry.pw_name, "uid": entry.pw_uid,
+                      "gid": entry.pw_gid, "home": entry.pw_dir, "shell": entry.pw_shell, "groups": groups[:128],
+                      "administrative_groups": sorted(set(groups) & {"sudo", "adm", "wheel", "admin", "root"}),
+                      "login_shell": not entry.pw_shell.endswith(("nologin", "/false")),
+                      "is_actor": entry.pw_uid == os.getuid()}))
 else:
     raise SystemExit("unsupported resource command")
 '''

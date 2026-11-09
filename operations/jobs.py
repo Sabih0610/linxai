@@ -10,7 +10,8 @@ from uuid import uuid4
 from .registry import Privilege
 from .service import Approval
 
-READS = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list", "resource.forecast"})
+READS = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list", "resource.forecast",
+                   "path.inspect", "user.lookup"})
 TERMINAL = frozenset({"succeeded", "failed", "cancelled", "unknown", "review_required", "interrupted_before_dispatch"})
 
 

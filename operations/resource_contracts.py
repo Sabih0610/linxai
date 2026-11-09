@@ -28,8 +28,19 @@ class ProcessPriority:
     nice: int
 
 
-RESOURCES = frozenset({"process.list", "process.priority.lower", "process.priority.restore", "resource.forecast"})
-TYPES = (ProcessQuery, ProcessPriority, Forecast)
+@dataclass(frozen=True)
+class PathQuery:
+    path: str
+
+
+@dataclass(frozen=True)
+class UserQuery:
+    user: str
+
+
+RESOURCES = frozenset({"process.list", "process.priority.lower", "process.priority.restore", "resource.forecast",
+                       "path.inspect", "user.lookup"})
+TYPES = (ProcessQuery, ProcessPriority, Forecast, PathQuery, UserQuery)
 PYTHON = "/usr/bin/python3"
 
 
@@ -52,6 +63,29 @@ def prepare(registry, identifier, parameters, contract):
         post.append(requirement("process_inventory_observed", limit=limit))
         argv = (PYTHON, "-I", "-c", RESOURCE_PROGRAM, "list", str(limit))
         return PreparedAction(contract, ProcessQuery(limit), argv, tuple(checks), tuple(post))
+    if contract.parameter_type is PathQuery:
+        import posixpath
+        if set(parameters) != {"path"}:
+            raise InvalidParameters("exactly one absolute path is required")
+        path = parameters["path"]
+        if (not isinstance(path, str) or not path.startswith("/") or len(path) > 4096 or "\x00" in path
+                or posixpath.normpath(path) != path and path != "/"):
+            raise InvalidParameters("a normalized absolute path is required")
+        post.append(requirement("inspection_observed", kind="path"))
+        argv = (PYTHON, "-I", "-c", RESOURCE_PROGRAM, "path", path)
+        return PreparedAction(contract, PathQuery(path), argv, tuple(checks), tuple(post))
+    if contract.parameter_type is UserQuery:
+        import re
+        if set(parameters) - {"user"}:
+            raise InvalidParameters("unexpected parameter fields")
+        user = parameters.get("user", str(registry.actor_uid) if registry.actor_uid is not None else None)
+        if isinstance(user, int) and not isinstance(user, bool):
+            user = str(user)
+        if not isinstance(user, str) or not re.fullmatch(r"[a-z_][a-z0-9_-]{0,31}\$?|[0-9]{1,10}", user):
+            raise InvalidParameters("a POSIX user name or numeric uid is required")
+        post.append(requirement("inspection_observed", kind="user"))
+        argv = (PYTHON, "-I", "-c", RESOURCE_PROGRAM, "user", user)
+        return PreparedAction(contract, UserQuery(user), argv, tuple(checks), tuple(post))
     if contract.parameter_type is Forecast:
         if set(parameters) - {"samples", "horizon_s"}:
             raise InvalidParameters("unexpected parameter fields")

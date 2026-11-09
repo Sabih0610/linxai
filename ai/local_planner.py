@@ -58,7 +58,7 @@ _NON_DIRECTIVE = re.compile(
     r"\bas the (?:system )?administrator i\b|admin says|i authori[sz]e you",
     re.IGNORECASE)
 READ_ONLY = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list",
-                       "resource.forecast", "device.inspect"})
+                       "resource.forecast", "device.inspect", "path.inspect", "user.lookup"})
 _PRONOUN = r"(?:it|that|this|the service|that service|this service)"
 _SERVICE_VERBS = {"start": "service.start", "stop": "service.stop", "restart": "service.restart",
                   "check": "service.status", "status of": "service.status", "show the status of": "service.status"}
@@ -160,6 +160,17 @@ class Planner:
             request={"action":"process.list","parameters":{}}
             self.registry.prepare(request["action"],request["parameters"])
             return request,{"intent":"process_list","target":"processes","command":""}
+        inspect=re.fullmatch(r"(?:check|inspect|show)(?: the)? (?:permissions|owner|ownership|metadata)(?: of| for| on)? (/\S*)|who owns (/\S*)",text.strip(),re.IGNORECASE)
+        if inspect:
+            request={"action":"path.inspect","parameters":{"path":inspect.group(1) or inspect.group(2)}}
+            self.registry.prepare(request["action"],request["parameters"])
+            return request,{"intent":"file_permissions","target":request["parameters"]["path"],"command":""}
+        account=re.fullmatch(r"(?:who am i|show my (?:account|user|groups)|(?:show|look ?up|check)(?: the)? user ([a-z_][a-z0-9_-]{0,31})|(?:does|is there a) user ([a-z_][a-z0-9_-]{0,31})(?: exist)?\??|what groups is ([a-z_][a-z0-9_-]{0,31}) in\??)",text.strip(),re.IGNORECASE)
+        if account:
+            name=next((g for g in account.groups() if g),None)
+            request={"action":"user.lookup","parameters":{"user":name} if name else {}}
+            self.registry.prepare(request["action"],request["parameters"])
+            return request,{"intent":"user_list","target":name or "self","command":""}
         recipe=re.fullmatch(r"(?:create|provision|scaffold) (?:a |an )?(python|node(?:\.?js)?|express) (environment|project|app) (?:at|in) (.+)",text.strip(),re.IGNORECASE)
         if recipe:
             stack,kind,path=recipe.group(1).lower(),recipe.group(2).lower(),recipe.group(3)

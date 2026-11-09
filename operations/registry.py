@@ -16,7 +16,7 @@ from ._create_program import CREATE_PROGRAM
 from .face_contracts import FaceParameters
 from .response_contracts import NetworkResponse, RevokeResponse
 from .workflow_contracts import Project, Device, Interface, Restore, Remote, TYPES as WORKFLOW_TYPES
-from .resource_contracts import Forecast, ProcessQuery, ProcessPriority, TYPES as RESOURCE_TYPES
+from .resource_contracts import Forecast, PathQuery, ProcessQuery, ProcessPriority, UserQuery, TYPES as RESOURCE_TYPES
 
 
 class ActionError(ValueError):
@@ -126,6 +126,8 @@ ACTIONS: Mapping[str, ActionContract] = MappingProxyType({
         ActionContract("file.create", FileParameters, _UNPRIVILEGED, 5),
         ActionContract("directory.create", DirectoryParameters, _UNPRIVILEGED, 5),
         ActionContract("process.list", ProcessQuery, _UNPRIVILEGED, 10),
+        ActionContract("path.inspect", PathQuery, _UNPRIVILEGED, 10),
+        ActionContract("user.lookup", UserQuery, _UNPRIVILEGED, 10),
         ActionContract("process.priority.lower", ProcessPriority, _UNPRIVILEGED, 10, recovery_supported=True),
         ActionContract("process.priority.restore", ProcessPriority, _ADMIN, 15),
         ActionContract("resource.forecast", Forecast, _UNPRIVILEGED, 30),

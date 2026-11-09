@@ -66,6 +66,25 @@ class ResourceContractTests(unittest.TestCase):
         for bad in ({"samples": 4}, {"samples": 41}, {"horizon_s": 5}, {"horizon_s": 601}, {"apply": True}):
             with self.assertRaises(InvalidParameters): self.registry.prepare("resource.forecast", bad)
 
+    def test_path_and_user_inspection_contracts_are_bounded_reads(self):
+        # Requirements 17/18: metadata-only reads, unprivileged, exact parameters.
+        prepared = self.registry.prepare("path.inspect", {"path": "/etc/ssh"})
+        self.assertIs(prepared.contract.privilege, Privilege.UNPRIVILEGED)
+        self.assertEqual(prepared.argv[-2:], ("path", "/etc/ssh"))
+        for bad in ({"path": "etc"}, {"path": "/etc/../root"}, {"path": "/etc\x00"}, {"path": "/etc", "follow": True}, {}):
+            with self.assertRaises(InvalidParameters, msg=bad):
+                self.registry.prepare("path.inspect", bad)
+        self.assertEqual(self.registry.prepare("user.lookup", {}).argv[-1], "1000")
+        self.assertEqual(self.registry.prepare("user.lookup", {"user": "www-data"}).argv[-1], "www-data")
+        for bad in ({"user": "Root;id"}, {"user": "../x"}, {"user": True}, {"user": "a" * 40}):
+            with self.assertRaises(InvalidParameters, msg=bad):
+                self.registry.prepare("user.lookup", bad)
+        planner = Planner(self.registry, Mock())
+        self.assertEqual(planner.propose("who owns /var/log")[0], {"action": "path.inspect", "parameters": {"path": "/var/log"}})
+        self.assertEqual(planner.propose("what groups is alice in?")[0], {"action": "user.lookup", "parameters": {"user": "alice"}})
+        self.assertEqual(planner.propose("who am i")[0], {"action": "user.lookup", "parameters": {}})
+        planner.model.generate.assert_not_called()
+
     def test_forecast_math_detects_rising_trend_and_clamps(self):
         from operations._resource_program import FORECAST_MATH
         math = {}
@@ -95,6 +114,25 @@ class NativeResourceTests(unittest.TestCase):
 
     def run_action(self, action, **params):
         return self.service.run({"action": action, "parameters": params})
+
+    def test_path_and_user_inspection_on_target(self):
+        import tempfile
+        with tempfile.TemporaryDirectory(dir=os.path.expanduser("~")) as temp:
+            target = os.path.join(temp, "data"); open(target, "w").close(); os.chmod(target, 0o640)
+            result = self.run_action("path.inspect", path=target)
+            self.assertEqual((result.status, result.verified), ("succeeded", True), result)
+            value = json.loads(result.stdout)
+            self.assertEqual((value["exists"], value["chain"][0]["mode"], value["chain"][0]["uid"]), (True, "0o640", self.uid))
+            self.assertEqual(value["actor_access"], {"read": True, "write": True, "execute": False})
+            missing = json.loads(self.run_action("path.inspect", path=target + "-missing").stdout)
+            self.assertFalse(missing["exists"])
+        shadow = json.loads(self.run_action("path.inspect", path="/etc/shadow").stdout)
+        self.assertFalse(shadow["actor_access"]["read"])
+        me = json.loads(self.run_action("user.lookup").stdout)
+        self.assertEqual((me["uid"], me["is_actor"]), (self.uid, True))
+        root = self.run_action("user.lookup", user="root")
+        self.assertEqual((json.loads(root.stdout)["uid"], root.verified), (0, True))
+        self.assertFalse(json.loads(self.run_action("user.lookup", user="no-such-user-x").stdout)["exists"])
 
     def test_inventory_observes_child_with_identity(self):
         result = self.run_action("process.list", limit=50)

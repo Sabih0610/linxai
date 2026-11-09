@@ -247,6 +247,11 @@ class LinuxSystemAdapter:
                       and all(type(r["pid"]) is int and type(r["start_ticks"]) is int and type(r["uid"]) is int
                               and type(r["nice"]) is int and -20 <= r["nice"] <= 19 and r["cpu_percent"] >= 0
                               and r["class"] in {"system", "interactive", "background"} for r in rows))
+            elif name == "inspection_observed":
+                value = json.loads(execution.stdout)
+                ok = value.get("observed") is True and type(value.get("exists")) is bool and (
+                    (args["kind"] == "path" and isinstance(value.get("chain"), list) and len(value["chain"]) <= 64)
+                    or (args["kind"] == "user" and (not value["exists"] or type(value.get("uid")) is int)))
             elif name == "resource_forecast_observed":
                 value = json.loads(execution.stdout)
                 ok = (len(value["cpu"]["observed"]) == args["samples"]

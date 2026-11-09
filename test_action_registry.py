@@ -31,7 +31,7 @@ class RegistryContractTests(OfflineRegistryTest):
     def test_all_actions_have_bounded_complete_contracts(self):
         requests = {
             "auth.face.enroll":{}, "auth.face.revoke":{},
-            "environment.python":{"path":"project"},"project.scaffold":{"path":"project"},"project.node":{"path":"project"},
+            "environment.python":{"path":"project"},"project.scaffold":{"path":"project"},"project.node":{"path":"project"},"path.inspect":{"path":"/etc"},"user.lookup":{"user":"root"},
             "device.initialize":{"asset":"switch"},"device.inspect":{"asset":"switch"},
             "device.interface.set":{"asset":"switch","interface":"port1","enabled":True,"expected_revision":"0"*64,"transaction_id":"00000000-0000-4000-8000-000000000003"},
             "device.interface.restore":{"asset":"switch","expected_revision":"0"*64,"transaction_id":"00000000-0000-4000-8000-000000000003"},

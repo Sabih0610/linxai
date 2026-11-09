@@ -96,7 +96,7 @@ class LocalPolicy:
     allowed_actions: frozenset[str] = frozenset({
         "disk.usage", "memory.usage", "ports.listen", "service.status",
         "file.create", "directory.create", *WORKFLOWS,
-        "process.list", "process.priority.lower", "resource.forecast",
+        "process.list", "process.priority.lower", "resource.forecast", "path.inspect", "user.lookup",
     })
 
     def allows(self, identity: Identity, action: str) -> bool:
