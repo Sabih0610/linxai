@@ -6,6 +6,7 @@ import re
 import shlex
 from uuid import UUID
 from ._workflow_program import WORKFLOW_PROGRAM
+from . import iot_contracts
 
 
 @dataclass(frozen=True)
@@ -32,8 +33,8 @@ class Remote:
     action:str
     parameters_json:str
 
-WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})
-TYPES=(Project,Device,Interface,Restore,Remote)
+WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})|iot_contracts.IOT_ACTIONS
+TYPES=(Project,Device,Interface,Restore,Remote,*iot_contracts.TYPES)
 
 
 def _netconf_asset(asset,InvalidParameters):
@@ -61,6 +62,13 @@ def prepare(registry,identifier,parameters,contract):
         name=parameters.get('asset')
         if not isinstance(name,str) or name not in assets:raise InvalidParameters('Unknown backend-configured asset')
         asset=assets[name]
+        if identifier in iot_contracts.IOT_ACTIONS:
+            typed=iot_contracts.typed(identifier,name,asset,parameters,InvalidParameters)
+            payload={'action':identifier,'parameters':asdict(typed),'asset':asset}
+            checks=(requirement('linux_runtime'),requirement('trusted_executable',path='/usr/bin/python3'),
+                    requirement('workflow_prerequisites',payload=json.dumps(payload,sort_keys=True)))
+            post=(requirement('exit_code',value=0),requirement('workflow_verified',payload=json.dumps(payload,sort_keys=True)))
+            return PreparedAction(contract,typed,('/usr/bin/python3','-I','-c',WORKFLOW_PROGRAM,'apply'),checks,post,json.dumps(payload,sort_keys=True).encode())
         if identifier=='remote.operation':
             if set(parameters)!={'asset','action','parameters'}:raise InvalidParameters('Exact remote action fields required')
             if asset.get('platform')!='linux_ssh':raise InvalidParameters('Asset is not a configured Linux SSH peer')

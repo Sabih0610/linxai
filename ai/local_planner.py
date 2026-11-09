@@ -58,7 +58,7 @@ _NON_DIRECTIVE = re.compile(
     r"\bas the (?:system )?administrator i\b|admin says|i authori[sz]e you",
     re.IGNORECASE)
 READ_ONLY = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list",
-                       "resource.forecast", "device.inspect", "path.inspect", "user.lookup"})
+                       "resource.forecast", "device.inspect", "path.inspect", "user.lookup", "iot.inspect"})
 _PRONOUN = r"(?:it|that|this|the service|that service|this service)"
 _SERVICE_VERBS = {"start": "service.start", "stop": "service.stop", "restart": "service.restart",
                   "check": "service.status", "status of": "service.status", "show the status of": "service.status"}
@@ -160,6 +160,11 @@ class Planner:
             request={"action":"process.list","parameters":{}}
             self.registry.prepare(request["action"],request["parameters"])
             return request,{"intent":"process_list","target":"processes","command":""}
+        iot=re.fullmatch(r"(?:read|inspect|show|check)(?: the)? (?:iot |sensors? (?:on |of )?|points? (?:on |of )?|device )?([a-z][a-z0-9_-]{0,31})(?: sensors| points| readings| status)?",text.strip(),re.IGNORECASE)
+        if iot and json.loads(self.registry.assets_json).get(iot.group(1),{}).get("platform") in {"mqtt","modbus"}:
+            request={"action":"iot.inspect","parameters":{"asset":iot.group(1)}}
+            self.registry.prepare(request["action"],request["parameters"])
+            return request,{"intent":"iot_inspect","target":iot.group(1),"command":""}
         inspect=re.fullmatch(r"(?:check|inspect|show)(?: the)? (?:permissions|owner|ownership|metadata)(?: of| for| on)? (/\S*)|who owns (/\S*)",text.strip(),re.IGNORECASE)
         if inspect:
             request={"action":"path.inspect","parameters":{"path":inspect.group(1) or inspect.group(2)}}

@@ -34,7 +34,7 @@ class WorkflowSystem(SupervisedLinuxAdapter):
         try:
             if required.identifier=='workflow_prerequisites':
                 from ._workflow_program import WORKFLOW_PROGRAM
-                result=self._run(op_id,('/usr/bin/python3','-I','-c',WORKFLOW_PROGRAM,'check'),args['payload'].encode(),5)
+                result=self._run(op_id,('/usr/bin/python3','-I','-c',WORKFLOW_PROGRAM,'check'),args['payload'].encode(),15)
                 ok=not result.error and result.returncode==0
                 return Observation(op_id,required,ok,'Workflow prerequisites checked' if ok else result.error or result.stderr[:1024],result.stdout)
             if required.identifier=='remote_asset_safe':
@@ -61,7 +61,7 @@ class WorkflowSystem(SupervisedLinuxAdapter):
         try:
             if required.identifier=='workflow_verified':
                 argv=prepared.argv[:-1]+('verify',)
-                result=self._run(op_id,argv,prepared.stdin,5)
+                result=self._run(op_id,argv,prepared.stdin,15)
                 value=json.loads(result.stdout) if not result.error and result.returncode==0 else {}
                 return Observation(op_id,required,value.get('verified') is True,'Workflow postconditions verified' if value else result.error or result.stderr[:1024])
             if required.identifier=='remote_operation_verified':
@@ -73,6 +73,6 @@ class WorkflowSystem(SupervisedLinuxAdapter):
         return super().verify(op_id,required,prepared,execution,identity)
 
     def recovery_request(self,prepared,execution):
-        if prepared.contract.identifier not in {'device.interface.set','process.priority.lower'}:return None
+        if prepared.contract.identifier not in {'device.interface.set','process.priority.lower','iot.point.set'}:return None
         value=json.loads(execution.stdout)
         return value.get('restoration') if value.get('verified') is True else None

@@ -16,6 +16,7 @@ from ._create_program import CREATE_PROGRAM
 from .face_contracts import FaceParameters
 from .response_contracts import NetworkResponse, RevokeResponse
 from .workflow_contracts import Project, Device, Interface, Restore, Remote, TYPES as WORKFLOW_TYPES
+from .iot_contracts import IotInspect, IotSet, IotRestore
 from .resource_contracts import Forecast, PathQuery, ProcessQuery, ProcessPriority, UserQuery, TYPES as RESOURCE_TYPES
 
 
@@ -114,6 +115,9 @@ ACTIONS: Mapping[str, ActionContract] = MappingProxyType({
         ActionContract("device.interface.set", Interface, _UNPRIVILEGED, 10, recovery_supported=True),
         ActionContract("device.interface.restore", Restore, _UNPRIVILEGED, 10),
         ActionContract("remote.operation", Remote, _UNPRIVILEGED, 30),
+        ActionContract("iot.inspect", IotInspect, _UNPRIVILEGED, 30),
+        ActionContract("iot.point.set", IotSet, _UNPRIVILEGED, 30, recovery_supported=True),
+        ActionContract("iot.point.restore", IotRestore, _UNPRIVILEGED, 30),
         ActionContract("response.network.block", NetworkResponse, _ADMIN, 15),
         ActionContract("response.policy.revoke", RevokeResponse, _ADMIN, 15),
         ActionContract("disk.usage", NoParameters, _UNPRIVILEGED, 10),

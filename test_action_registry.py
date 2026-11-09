@@ -18,7 +18,9 @@ class OfflineRegistryTest(unittest.TestCase):
         self.registry = ActionRegistry("/srv/linxai-work", actor_uid=1000, assets_json=json.dumps({
             "switch":{"platform":"development_file","path":"/srv/linxai-work/switch.json","ports":["port1"]},
             "lab":{"platform":"linux_ssh","host":"example.invalid","username":"owner","port":22,"expected_uid":1000,
-                   "python":"/home/owner/.local/share/linxai/venv/bin/python","key_path":"/home/owner/.ssh/key","known_hosts":"/home/owner/.ssh/known_hosts"}}))
+                   "python":"/home/owner/.local/share/linxai/venv/bin/python","key_path":"/home/owner/.ssh/key","known_hosts":"/home/owner/.ssh/known_hosts"},
+            "plc":{"platform":"modbus","host":"192.0.2.20","port":502,"unit":1,"state_dir":"/home/owner/.linxai/iot",
+                   "points":{"setpoint":{"kind":"holding","address":10,"writable":True,"min":0,"max":100}}}}))
         for target in ("subprocess.run", "subprocess.Popen", "socket.create_connection",
                        "os.system", "os.open", "os.mkdir"):
             self.enterContext(patch(target, side_effect=AssertionError("Live operation forbidden in registry tests")))
@@ -47,6 +49,10 @@ class RegistryContractTests(OfflineRegistryTest):
             "service.restart": {"service": "nginx"},
             "file.create": {"path": "notes.txt"},
             "directory.create": {"path": "reports"},
+            "iot.inspect": {"asset": "plc"},
+            "iot.point.set": {"asset": "plc", "point": "setpoint", "value": 40, "expected_revision": "0" * 64,
+                              "transaction_id": "00000000-0000-4000-8000-000000000004"},
+            "iot.point.restore": {"asset": "plc", "expected_revision": "0" * 64, "transaction_id": "00000000-0000-4000-8000-000000000004"},
         }
         self.assertEqual(set(requests), set(ACTIONS))
         for identifier, parameters in requests.items():
@@ -55,7 +61,7 @@ class RegistryContractTests(OfflineRegistryTest):
                 self.assertIsInstance(prepared.parameters, prepared.contract.parameter_type)
                 self.assertGreater(prepared.contract.timeout_s, 0)
                 self.assertLessEqual(prepared.contract.timeout_s, 30)
-                self.assertEqual(prepared.contract.recovery_supported, identifier in {"device.interface.set", "process.priority.lower"})
+                self.assertEqual(prepared.contract.recovery_supported, identifier in {"device.interface.set", "process.priority.lower", "iot.point.set"})
                 self.assertFalse(prepared.execution_supported)
                 self.assertIsInstance(prepared.argv, tuple)
                 self.assertTrue(prepared.argv[0].startswith("/usr/bin/"))

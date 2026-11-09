@@ -194,3 +194,15 @@ def _with_netconf(program):
 
 
 WORKFLOW_PROGRAM = _with_netconf(WORKFLOW_PROGRAM)
+
+
+def _with_iot(program):
+    import textwrap
+    from ._iot_program import IOT_CODE
+    marker = "elif request['asset'].get('platform')=='netconf':"
+    if program.count(marker) != 1:
+        raise RuntimeError("workflow program layout changed")
+    return program.replace(marker, "elif action.startswith('iot.'):\n" + textwrap.indent(IOT_CODE.strip("\n"), "    ") + "\n" + marker)
+
+
+WORKFLOW_PROGRAM = _with_iot(WORKFLOW_PROGRAM)

@@ -108,7 +108,7 @@ class Agent:
         method = request.get("method")
         fields = {"preview": {"text"}, "confirm": {"id", "digest"}, "cancel": {"id"}, "reconcile": {"id"},
                   "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set(), "propose_response": {"incident_id"}, "revoke_policy": {"policy_id"}, "typed_preview": {"request"}, "restore_job": {"id"}, "device_inspect": {"asset"}, "device_preview": {"asset","interface","enabled"},
-                  "logs": {"limit"}, "explain": {"id"}, "timeline": {"limit"}}
+                  "logs": {"limit"}, "explain": {"id"}, "timeline": {"limit"}, "iot_inspect": {"asset"}, "iot_preview": {"asset", "point", "value"}}
         if method not in fields or set(request) != {"version", "method"} | fields[method]:
             raise ValueError("Unsupported API request or authority fields")
         if method in {"device_inspect","device_preview"}:
@@ -120,6 +120,15 @@ class Agent:
             typed={"action":"device.interface.set","parameters":{"asset":request["asset"],"interface":request["interface"],"enabled":request["enabled"],
                    "expected_revision":json.loads(inspected.stdout)["revision"],"transaction_id":str(uuid4())}}
             return self.jobs.preview(typed,text="Configured device interface change")
+        if method in {"iot_inspect","iot_preview"}:
+            service=self.jobs.service_factory(threading.Event())
+            inspected=service.run({"action":"iot.inspect","parameters":{"asset":request["asset"]}})
+            if inspected.status!="succeeded" or not inspected.verified:raise ValueError("IoT inspection failed: "+inspected.reason)
+            if method=="iot_inspect":return asdict(inspected)
+            from uuid import uuid4
+            typed={"action":"iot.point.set","parameters":{"asset":request["asset"],"point":request["point"],"value":request["value"],
+                   "expected_revision":json.loads(inspected.stdout)["revision"],"transaction_id":str(uuid4())}}
+            return self.jobs.preview(typed,text="Configured IoT point change")
         if method == "typed_preview":
             typed=request["request"]
             if not isinstance(typed,dict) or set(typed)!={"action","parameters"}:raise ValueError("Only typed action and parameters")
