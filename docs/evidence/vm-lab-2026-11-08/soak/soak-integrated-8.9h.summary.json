@@ -1,0 +1,37 @@
+{
+  "components": [
+    "monitor",
+    "ops",
+    "sensor"
+  ],
+  "planned_hours": 24.0,
+  "cycles": 1012,
+  "hours": 8.91,
+  "unavailable_cycles": 16,
+  "monitor_rss_kb_first_last_max": [
+    25964,
+    33760,
+    34192
+  ],
+  "sensor_kernel_lost_max": 2374,
+  "availability_pct": 98.42,
+  "detection_probes": 9,
+  "detection_success": 9,
+  "detection_latency_median_s": 2.0,
+  "op_latency_p95_s": 0.619,
+  "sensor_rss_kb_first_last_max": [
+    198380,
+    201948,
+    201948
+  ],
+  "sensor_loss_final": {
+    "state": "ready",
+    "kernel_lost": 0,
+    "queue_dropped": 0,
+    "invalid": 0,
+    "store_errors": 0,
+    "filtered": 294453
+  },
+  "host_pauses": 3,
+  "host_pause_seconds": 1724.1
+}

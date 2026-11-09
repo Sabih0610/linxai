@@ -77,7 +77,7 @@ Current table updated on 9 November 2026: rows 3, 8, 19–21, 36–39, 41, 43, 4
 | 69 | Full Eight-Module Integration | A/C/D | PARTIAL: integrated bounded modules; full eight-module breadth incomplete | Supported installed paths verified; no full-completion claim | Close resource/recipe/legacy scope and all target evidence | FR-12; NFR-06–07 |
 | 70 | Native Linux Compatibility Testing | A/C/D | PARTIAL: native Ubuntu 24.04.4 (VirtualBox VM) and WSL2 evidence | VM offline group 242/242; broker, sensor/monitor, restore, detection and SSH acceptance on the VM | Bare-metal desktop; other distributions | FR-12; NFR-06–07 |
 | 71 | Comprehensive Testing and Stabilization | H | PARTIAL automated negative/native/installed tests and reviewable commits | Current suite plus candidate/Qt evidence; historical counts labelled | Target regression/load/security stabilization and owner acceptance | FR-12; NFR-05–06 |
-| 72 | 24-Hour System Stress Testing | H | Implemented: `soak_integrated.py` (typed reads, sensor health, monitor freshness, RSS, hourly detection probe, host-pause accounting) | 8 h ops-only run 99.89 % available; full 24 h integrated run started 9 Nov 2026 | Complete and record the 24 h run | FR-12; NFR-05–06 |
+| 72 | 24-Hour System Stress Testing | H | PARTIAL: `soak_integrated.py` (typed reads, sensor health, monitor freshness, RSS, hourly detection probe, host-pause accounting) | Integrated run stopped at 8.9 h by owner decision: 98.42 % available, all downtime inside an Ubuntu auto-update window (sensor restarted by the upgrade, recovered unaided); probes 9/9 (median 2.0 s); 8 h ops-only run 99.89 % | Full 24 h run (pause unattended-upgrades first); longer memory-trend evidence | FR-12; NFR-05–06 |
 
 
 ## Gate A evidence overlay — 2 November 2026

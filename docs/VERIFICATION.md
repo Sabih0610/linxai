@@ -584,3 +584,28 @@ SSH. Replayed operation id: first exit 0, second refused. PASS
 (`remote-acceptance.json`). Physically separate servers remain untested.
 
 Windows offline group (CPython 3.12) after these changes: 243 run, 233 passed, 10 skipped (Linux-only), 0 failures.
+
+## Integrated soak (72) — stopped early at 8.9 h by owner decision, 9 November 2026
+
+Run with sensor, monitor and typed operations all required (`--components
+ops,sensor,monitor`), 30 s cycles; stopped at 8.91 h of the planned 24 h and
+summarized with `soak_integrated.py --summarize-only`.
+
+- 1012 cycles, availability 98.42 % (16 unavailable cycles).
+- All 16 unavailable cycles fall between 4.67 h and 5.54 h, the window in which
+  Ubuntu's `apt-daily-upgrade` / unattended-upgrades ran on the VM (06:00 UTC): the
+  guest logged soft lockups of up to 115 s, packages were upgraded and the sensor
+  service was stopped and started by the upgrade (NRestarts=0, i.e. not a crash). The
+  sensor reported kernel loss (max 2374 events) only in that window and recovered
+  to `ready` with zero loss without intervention. Outside it every cycle was
+  available. Journal excerpt: `soak/os-update-window-journal.txt`.
+- Detection probes 9/9 detected, median 2.0 s.
+- Typed operation latency p95 0.619 s.
+- Memory: sensor RSS 198.4 → 201.9 MB (max 201.9); monitor 26.0 → 33.8 MB (max
+  34.2). 8.9 h is not enough to rule out a slow monitor leak.
+- Network/attack-tool rules raised 0 incidents outside the explicit fixtures in
+  the whole run (false-positive observation on this lightly loaded server).
+- 3 host pauses totalling 1724 s (PC sleep / VM starvation), reported separately.
+
+Not claimed: a 24-hour result. For a future full run, pause unattended-upgrades on
+the test target first.

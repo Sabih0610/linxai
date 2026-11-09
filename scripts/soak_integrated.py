@@ -71,8 +71,13 @@ def main(argv=None):
     parser.add_argument("--components", default="ops,sensor,monitor",
                         help="components that must be up for a cycle to count as available; "
                              "use 'ops' for an unprivileged operations-only run (no root sensor)")
+    parser.add_argument("--summarize-only", action="store_true",
+                        help="summarize an existing --out file (e.g. a run stopped early) without running")
     args = parser.parse_args(argv)
     required = set(args.components.split(","))
+    if args.summarize_only:
+        summarize(Path(args.out), args.interval, sorted(required), args.hours)
+        return
     uid, state, out = os.getuid(), Path(args.state), Path(args.out)
     service = OperationService(ActionRegistry(actor_uid=uid), WorkflowSystem(), LocalPolicy(uid), MemoryAudit())
     end, next_probe, cycle = time.monotonic() + args.hours * 3600, time.monotonic(), 0
@@ -112,14 +117,25 @@ def main(argv=None):
             log.write(json.dumps(record) + "\n"); log.flush()
             cycle += 1
             time.sleep(max(0.0, args.interval - (time.monotonic() - started)))
-    rows = [json.loads(line) for line in out.read_text().splitlines() if line.strip()]
+    summarize(out, args.interval, sorted(required), args.hours)
+
+
+def summarize(out, interval, components, planned_hours=None):
+    """Summarize a run file; also used for runs stopped early (--summarize-only)."""
+    rows = [json.loads(line) for line in Path(out).read_text().splitlines() if line.strip()]
     probes = [r["probe_s"] for r in rows if "probe_s" in r]
     latencies = sorted(o["s"] for r in rows for o in r["ops"].values() if "s" in o)
     rss = [r["rss_kb"]["sensor"] for r in rows if r["rss_kb"].get("sensor")]
+    monitor_rss = [r["rss_kb"]["monitor"] for r in rows if r["rss_kb"].get("monitor")]
+    lost = [r["sensor"].get("kernel_lost") or 0 for r in rows if isinstance(r.get("sensor"), dict)]
     # Host pauses (PC sleep / VM starvation) show up as cycle gaps; report them apart
     # from service unavailability instead of hiding or blaming either.
-    gaps = [b["time"] - a["time"] for a, b in zip(rows, rows[1:]) if b["time"] - a["time"] > 3 * args.interval]
-    summary = {"components": sorted(required), "cycles": len(rows), "hours": round((rows[-1]["time"] - rows[0]["time"]) / 3600, 2) if rows else 0,
+    gaps = [b["time"] - a["time"] for a, b in zip(rows, rows[1:]) if b["time"] - a["time"] > 3 * interval]
+    summary = {"components": components, "planned_hours": planned_hours, "cycles": len(rows),
+               "hours": round((rows[-1]["time"] - rows[0]["time"]) / 3600, 2) if rows else 0,
+               "unavailable_cycles": sum(not r["available"] for r in rows),
+               "monitor_rss_kb_first_last_max": [monitor_rss[0], monitor_rss[-1], max(monitor_rss)] if monitor_rss else None,
+               "sensor_kernel_lost_max": max(lost) if lost else None,
                "availability_pct": round(100 * sum(r["available"] for r in rows) / len(rows), 2) if rows else 0,
                "detection_probes": len(probes), "detection_success": sum(p is not None for p in probes),
                "detection_latency_median_s": statistics.median([p for p in probes if p]) if any(probes) else None,
@@ -129,6 +145,7 @@ def main(argv=None):
                "host_pauses": len(gaps), "host_pause_seconds": round(sum(gaps), 1)}
     Path(str(out) + ".summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary))
+    return summary
 
 
 if __name__ == "__main__":
