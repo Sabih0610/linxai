@@ -72,6 +72,22 @@ class WorkflowTests(unittest.TestCase):
             reg=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'core':bad}))
             with self.assertRaises(ValueError,msg=change):reg.prepare('device.inspect',{'asset':'core'})
 
+    def test_agentless_targets_use_fixed_templates_only(self):
+        # Agentless extension: no LINxAI on the target; pinned SSH; fixed command templates.
+        asset={'platform':'linux_agentless','host':'192.0.2.30','port':22,'username':'ops','key_path':'/home/owner/.ssh/k',
+               'known_hosts':'/home/owner/.ssh/known_hosts','systemd_scope':'system'}
+        registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'srv':asset}))
+        prepared=registry.prepare('remote.operation',{'asset':'srv','action':'service.restart','parameters':{'service':'nginx'}})
+        self.assertEqual(json.loads(prepared.parameters.parameters_json),{'service':'nginx.service'})
+        self.assertIn("sudo', '-n'",prepared.argv[3]); compile(prepared.argv[3],'workflow','exec')
+        self.assertIn('remote_asset_safe',[c.identifier for c in prepared.mandatory_checks])
+        for action,params in (('file.create',{'path':'x'}),('shell',{}),('remote.operation',{}),('service.status',{'service':'a b'}),
+                              ('service.status',{'service':'ssh; reboot'}),('ports.listen',{'port':70000})):
+            with self.assertRaises(ValueError,msg=action):registry.prepare('remote.operation',{'asset':'srv','action':action,'parameters':params})
+        for change in ({'systemd_scope':'root'},{'known_hosts':'relative'},{'extra':1},{'host':'bad host'}):
+            reg=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'srv':dict(asset,**change)}))
+            with self.assertRaises(ValueError,msg=change):reg.prepare('remote.operation',{'asset':'srv','action':'memory.usage','parameters':{}})
+
     def test_nested_remote_input_is_rejected_before_recursing_or_model(self):
         values=configured_assets();values['a']=values['lab']
         registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps(values))

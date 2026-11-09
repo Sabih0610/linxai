@@ -206,3 +206,15 @@ def _with_iot(program):
 
 
 WORKFLOW_PROGRAM = _with_iot(WORKFLOW_PROGRAM)
+
+
+def _with_agentless(program):
+    import textwrap
+    from ._agentless_program import AGENTLESS_CODE
+    marker = "elif action.startswith('iot.'):"
+    if program.count(marker) != 1:
+        raise RuntimeError("workflow program layout changed")
+    return program.replace(marker, "elif action == 'remote.operation':\n" + textwrap.indent(AGENTLESS_CODE.strip("\n"), "    ") + "\n" + marker)
+
+
+WORKFLOW_PROGRAM = _with_agentless(WORKFLOW_PROGRAM)
