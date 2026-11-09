@@ -553,3 +553,10 @@ and BCC sensor active, 3 kprobes, not enabled at boot):
   405 s reported separately.
 - Full integrated 24 h soak started (typed reads, sensor health, monitor
   freshness, RSS, hourly detection probe); first probe detected in 2.0 s.
+
+Priority restoration acceptance (49), VM console, owner session: an owned child
+was lowered 0→10 by the unprivileged typed action (verified), a restore above the
+nice-0 floor (−5) was refused before dispatch, and `process.priority.restore` went
+through the root broker after polkit `auth_admin` (`org.linxai.process.manage`):
+status succeeded, verified, audit complete, final nice 0, 1 thread changed, 0
+failed. PASS. Evidence: `restore/restore-acceptance.json`.
