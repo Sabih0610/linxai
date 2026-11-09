@@ -1,0 +1,17 @@
+{
+  "interface.description": "validated",
+  "system.hostname": "validated",
+  "system.banner": "validated",
+  "system.ntp_server": "rejected: {'type': 'protocol', 'tag': 'unknown-namespace', 'app_tag': None, 'severity': 'error', 'info': '<?xml version=\"1.0\" encoding=\"UTF-8\"?><error",
+  "system.dns_server": "validated",
+  "interface.ipv4": "validated",
+  "vlan": "rejected: Node is marked as not-supported by a deviation",
+  "interface.access_vlan": "rejected: The specified element has bad value.",
+  "static_route": "validated",
+  "ospf.interface": "validated",
+  "bgp.global": "rejected: {'type': 'application', 'tag': 'operation-failed', 'app_tag': None, 'severity': 'error', 'info': None, 'path': None, 'message': None}",
+  "bgp.peer_group": "validated",
+  "bgp.neighbor": "validated",
+  "lag.member": "validated",
+  "acl.entry": "validated"
+}

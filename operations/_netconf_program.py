@@ -67,20 +67,35 @@ def edit(m, name, enabled):
            '</config></interface></interfaces></nc:config>') % (OC, name, name, 'true' if enabled else 'false')
     m.edit_config(target='candidate', config=xml)
 from ncclient.operations.rpc import RPCError
-def apply_change(m, name, enabled):
+def _discard(m):
     try: m.discard_changes()
     except RPCError as exc:
         if 'without starting a configuration session' not in str(exc): raise
-    edit(m, name, enabled)
-    m.validate(source='candidate')
-    m.commit(confirmed=True, timeout=str(CONFIRM_TIMEOUT_S))
-    after = interfaces(m)
-    if after[name]['enabled'] is not enabled:
-        m.cancel_commit()
-        raise ValueError('Read-back did not match; confirmed commit cancelled and rolled back')
-    m.commit()
-    return after
-def change(m, name, enabled):
+def _busy(call):
+    """Devices may answer 'commit confirmed in progress' while still applying the previous commit
+    (SR Linux removing a protocol); retry briefly, well inside the confirmed-commit timer."""
+    for delay in (0.5, 1, 2, 4, 8, None):
+        try: return call()
+        except RPCError as exc:
+            if delay is None or 'confirmed in progress' not in str(exc): raise
+            time.sleep(delay)
+def _attempt(m, xml, check):
+    _discard(m)
+    try:
+        m.edit_config(target='candidate', config=xml)
+        m.validate(source='candidate')
+        _busy(lambda: m.commit(confirmed=True, timeout=str(CONFIRM_TIMEOUT_S)))
+    except Exception:
+        _discard(m); raise
+    try:
+        if not check(): raise ValueError('Read-back did not match; confirmed commit cancelled and rolled back')
+        _busy(m.commit)
+    except Exception:
+        try: m.cancel_commit()      # roll back now instead of waiting for the timer
+        except Exception: pass
+        raise
+def commit_edit(m, xml, check):
+    """Generic safe change: lock (or refuse), edit, validate, confirmed commit, read-back, confirm."""
     # Shared-candidate devices (Junos, IOS-XR, VRP): lock first, so another operator's
     # pending edits are refused rather than discarded ("candidate has been modified").
     try:
@@ -88,7 +103,7 @@ def change(m, name, enabled):
     except RPCError as exc:
         raise ValueError('Device candidate is locked or holds uncommitted changes; resolve on the device first') from exc
     try:
-        return apply_change(m, name, enabled)
+        return _attempt(m, xml, check)
     except RPCError as exc:
         if 'same configuration session' not in str(exc): raise
     finally:
@@ -97,9 +112,18 @@ def change(m, name, enabled):
     # Private-candidate devices (e.g. Nokia SR Linux) reject a confirmed commit under a
     # candidate lock; their per-session candidate needs no lock, and the expected-revision
     # check made just before this change still refuses concurrent modifications.
-    return apply_change(m, name, enabled)
-m = connect(write=action != 'device.inspect')
+    return _attempt(m, xml, check)
+def change(m, name, enabled):
+    edit_xml = ('<nc:config xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"><interfaces xmlns="%s"><interface><name>%s</name>'
+                '<config><name>%s</name><enabled>%s</enabled></config></interface></interfaces></nc:config>') % (OC, name, name, 'true' if enabled else 'false')
+    if not IFACE_RE.fullmatch(name): raise ValueError('Invalid interface name')
+    commit_edit(m, edit_xml, lambda: interfaces(m)[name]['enabled'] is enabled)
+    return interfaces(m)
+IFACE_RE = _re.compile(r'[A-Za-z][A-Za-z0-9_./:-]{0,31}')
+m = connect(write=action not in ('device.inspect', 'device.config.read'))
 try:
+    if action.startswith('device.config.'):
+        config_main(m); raise SystemExit(0)
     value = interfaces(m); current = revision(value)
     if action == 'device.inspect':
         caps = [c.split('?')[0] for c in m.server_capabilities if c.startswith('urn:ietf:params:netconf:capability:')]
@@ -146,3 +170,16 @@ finally:
     try: m.close_session()
     except Exception: pass
 '''
+
+
+def _with_config_engine(code):
+    from pathlib import Path
+    from ._netconf_config_program import CONFIG_CODE
+    catalog = Path(__file__).with_name("netconf_features.py").read_text(encoding="utf-8")
+    marker = "m = connect(write="
+    if code.count(marker) != 1:
+        raise RuntimeError("netconf worker layout changed")
+    return code.replace(marker, "\n".join((catalog, CONFIG_CODE, marker)))
+
+
+NETCONF_CODE = _with_config_engine(NETCONF_CODE)

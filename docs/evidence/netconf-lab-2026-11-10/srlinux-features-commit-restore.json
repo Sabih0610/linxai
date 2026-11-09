@@ -1,0 +1,135 @@
+{
+  "interface.description": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "system.hostname": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "system.banner": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "system.dns_server": {
+    "ok": false,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": false,
+    "config_diff": [
+      "@@ -21,2 +21,6 @@",
+      "             </control-plane-traffic>",
+      "+            <dns-instance xmlns=\"urn:nokia.com:srlinux:linux:dns\">",
+      "+                <name>mgmt</name>",
+      "+                <network-instance>mgmt</network-instance>",
+      "+            </dns-instance>",
+      "             <ssh-server xmlns=\"urn:nokia.com:srlinux:linux:ssh\">"
+    ]
+  },
+  "interface.ipv4": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "static_route": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "bgp.global": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "bgp.peer_group": {
+    "ok": true,
+    "prerequisites": [
+      "succeeded"
+    ],
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "prerequisites_restored": [
+      "succeeded"
+    ],
+    "whole_config_unchanged": true
+  },
+  "bgp.neighbor": {
+    "ok": true,
+    "prerequisites": [
+      "succeeded",
+      "succeeded"
+    ],
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "prerequisites_restored": [
+      "succeeded",
+      "succeeded"
+    ],
+    "whole_config_unchanged": true
+  },
+  "lag.member": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "acl.entry": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  }
+}

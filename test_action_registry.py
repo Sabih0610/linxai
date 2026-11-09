@@ -19,6 +19,10 @@ class OfflineRegistryTest(unittest.TestCase):
             "switch":{"platform":"development_file","path":"/srv/linxai-work/switch.json","ports":["port1"]},
             "lab":{"platform":"linux_ssh","host":"example.invalid","username":"owner","port":22,"expected_uid":1000,
                    "python":"/home/owner/.local/share/linxai/venv/bin/python","key_path":"/home/owner/.ssh/key","known_hosts":"/home/owner/.ssh/known_hosts"},
+            "core":{"platform":"netconf","host":"192.0.2.10","port":830,"username":"ops","key_path":"/home/owner/.ssh/k",
+                    "host_key_sha256":"SHA256:"+"A"*43,"state_dir":"/home/owner/.linxai/nc","ports":["ge-0/0/1"],"features":["system.hostname"]},
+            "core2":{"platform":"netconf","host":"192.0.2.12","port":830,"username":"ops","key_path":"/home/owner/.ssh/k",
+                    "host_key_sha256":"SHA256:"+"B"*43,"state_dir":"/home/owner/.linxai/nc2","ports":["ge-0/0/1"],"features":["system.hostname"]},
             "plc":{"platform":"modbus","host":"192.0.2.20","port":502,"unit":1,"state_dir":"/home/owner/.linxai/iot",
                    "points":{"setpoint":{"kind":"holding","address":10,"writable":True,"min":0,"max":100}}}}))
         for target in ("subprocess.run", "subprocess.Popen", "socket.create_connection",
@@ -50,6 +54,14 @@ class RegistryContractTests(OfflineRegistryTest):
             "file.create": {"path": "notes.txt"},
             "directory.create": {"path": "reports"},
             "iot.inspect": {"asset": "plc"},
+            "device.config.batch": {"transaction_id": "00000000-0000-4000-8000-000000000006", "changes": [
+                {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "a1"}, "expected_revision": "0" * 64},
+                {"asset": "core2", "feature": "system.hostname", "settings": {"hostname": "a2"}, "expected_revision": "0" * 64}]},
+            "device.config.read": {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "lab1"}},
+            "device.config.set": {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "lab1"},
+                                  "expected_revision": "0" * 64, "transaction_id": "00000000-0000-4000-8000-000000000005"},
+            "device.config.restore": {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "lab1"},
+                                      "expected_revision": "0" * 64, "transaction_id": "00000000-0000-4000-8000-000000000005"},
             "iot.point.set": {"asset": "plc", "point": "setpoint", "value": 40, "expected_revision": "0" * 64,
                               "transaction_id": "00000000-0000-4000-8000-000000000004"},
             "iot.point.restore": {"asset": "plc", "expected_revision": "0" * 64, "transaction_id": "00000000-0000-4000-8000-000000000004"},
@@ -61,7 +73,7 @@ class RegistryContractTests(OfflineRegistryTest):
                 self.assertIsInstance(prepared.parameters, prepared.contract.parameter_type)
                 self.assertGreater(prepared.contract.timeout_s, 0)
                 self.assertLessEqual(prepared.contract.timeout_s, 30)
-                self.assertEqual(prepared.contract.recovery_supported, identifier in {"device.interface.set", "process.priority.lower", "iot.point.set"})
+                self.assertEqual(prepared.contract.recovery_supported, identifier in {"device.interface.set", "process.priority.lower", "iot.point.set", "device.config.set"})
                 self.assertFalse(prepared.execution_supported)
                 self.assertIsInstance(prepared.argv, tuple)
                 self.assertTrue(prepared.argv[0].startswith("/usr/bin/"))

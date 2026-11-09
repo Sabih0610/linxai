@@ -108,7 +108,7 @@ class Agent:
         method = request.get("method")
         fields = {"preview": {"text"}, "confirm": {"id", "digest"}, "cancel": {"id"}, "reconcile": {"id"},
                   "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set(), "propose_response": {"incident_id"}, "revoke_policy": {"policy_id"}, "typed_preview": {"request"}, "restore_job": {"id"}, "device_inspect": {"asset"}, "device_preview": {"asset","interface","enabled"},
-                  "logs": {"limit"}, "explain": {"id"}, "timeline": {"limit"}, "iot_inspect": {"asset"}, "iot_preview": {"asset", "point", "value"}}
+                  "logs": {"limit"}, "explain": {"id"}, "timeline": {"limit"}, "iot_inspect": {"asset"}, "iot_preview": {"asset", "point", "value"}, "device_config_preview": {"asset", "feature", "settings"}}
         if method not in fields or set(request) != {"version", "method"} | fields[method]:
             raise ValueError("Unsupported API request or authority fields")
         if method in {"device_inspect","device_preview"}:
@@ -120,6 +120,14 @@ class Agent:
             typed={"action":"device.interface.set","parameters":{"asset":request["asset"],"interface":request["interface"],"enabled":request["enabled"],
                    "expected_revision":json.loads(inspected.stdout)["revision"],"transaction_id":str(uuid4())}}
             return self.jobs.preview(typed,text="Configured device interface change")
+        if method=="device_config_preview":
+            service=self.jobs.service_factory(threading.Event())
+            base={"asset":request["asset"],"feature":request["feature"],"settings":request["settings"]}
+            current=service.run({"action":"device.config.read","parameters":base})
+            if current.status!="succeeded" or not current.verified:raise ValueError("Device read failed: "+current.reason)
+            from uuid import uuid4
+            typed={"action":"device.config.set","parameters":{**base,"expected_revision":json.loads(current.stdout)["revision"],"transaction_id":str(uuid4())}}
+            return self.jobs.preview(typed,text="Configured device feature change")
         if method in {"iot_inspect","iot_preview"}:
             service=self.jobs.service_factory(threading.Event())
             inspected=service.run({"action":"iot.inspect","parameters":{"asset":request["asset"]}})

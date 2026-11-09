@@ -28,13 +28,36 @@ class Restore:
     transaction_id:str
     expected_revision:str
 @dataclass(frozen=True)
+class ConfigRead:
+    asset:str
+    feature:str
+    settings_json:str
+@dataclass(frozen=True)
+class ConfigSet:
+    asset:str
+    feature:str
+    settings_json:str
+    expected_revision:str
+    transaction_id:str
+@dataclass(frozen=True)
+class ConfigRestore:
+    asset:str
+    feature:str
+    settings_json:str
+    transaction_id:str
+    expected_revision:str
+@dataclass(frozen=True)
+class ConfigBatch:
+    changes_json:str
+    transaction_id:str
+@dataclass(frozen=True)
 class Remote:
     asset:str
     action:str
     parameters_json:str
 
-WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})|iot_contracts.IOT_ACTIONS
-TYPES=(Project,Device,Interface,Restore,Remote,*iot_contracts.TYPES)
+WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})|iot_contracts.IOT_ACTIONS|{'device.config.read','device.config.set','device.config.restore','device.config.batch'}
+TYPES=(Project,Device,Interface,Restore,Remote,ConfigRead,ConfigSet,ConfigRestore,ConfigBatch,*iot_contracts.TYPES)
 
 
 def _netconf_asset(asset,InvalidParameters):
@@ -43,7 +66,10 @@ def _netconf_asset(asset,InvalidParameters):
     password login also requires the full pinned `host_key`, enforced before auth."""
     import base64, hashlib
     base={'platform','host','port','username','host_key_sha256','state_dir','ports'}
-    keys=set(asset)-base
+    keys=set(asset)-base-{'features'}
+    if 'features' in asset:
+        from .netconf_features import FEATURES
+        if not isinstance(asset['features'],list) or not set(asset['features'])<=set(FEATURES):raise InvalidParameters('Unknown NETCONF feature in allowlist')
     if not base<=set(asset) or keys not in ({'key_path'},{'key_path','host_key'},{'password_file','host_key'}):
         raise InvalidParameters('NETCONF asset requires platform, host, port, username, host_key_sha256, state_dir, ports and '
                                 'either key_path or password_file+host_key')
@@ -90,11 +116,39 @@ def _agentless(registry,contract,name,asset,parameters):
     return PreparedAction(contract,typed,('/usr/bin/python3','-I','-c',WORKFLOW_PROGRAM,'apply'),checks,post,json.dumps(payload,sort_keys=True).encode())
 
 
+def _batch(assets,contract,parameters):
+    """Coordinated change across 2-4 NETCONF devices (one change per device)."""
+    from .registry import InvalidParameters, PreparedAction, requirement
+    from .netconf_features import resolve
+    if set(parameters)!={'changes','transaction_id'}:raise InvalidParameters('Exact batch fields required')
+    changes,token=parameters['changes'],parameters['transaction_id']
+    if not isinstance(token,str) or str(UUID(token))!=token:raise InvalidParameters('Canonical transaction UUID required')
+    if not isinstance(changes,list) or not 2<=len(changes)<=4:raise InvalidParameters('2 to 4 changes required')
+    names,clean=[],[]
+    for ch in changes:
+        if not isinstance(ch,dict) or set(ch)!={'asset','feature','settings','expected_revision'}:raise InvalidParameters('Exact change fields required')
+        asset=assets.get(ch['asset'])
+        if not isinstance(asset,dict) or asset.get('platform')!='netconf':raise InvalidParameters('Each change needs a configured NETCONF asset')
+        _netconf_asset(asset,InvalidParameters)
+        if not isinstance(ch['expected_revision'],str) or not re.fullmatch(r'[0-9a-f]{64}',ch['expected_revision']):raise InvalidParameters('Expected revision SHA256 required')
+        try:resolve(ch['feature'],ch['settings'],asset)
+        except ValueError as exc:raise InvalidParameters('%s: %s'%(ch['asset'],exc)) from None
+        names.append(ch['asset']);clean.append({k:ch[k] for k in ('asset','feature','settings','expected_revision')})
+    if len(set(names))!=len(names):raise InvalidParameters('One change per device per batch')
+    typed=ConfigBatch(json.dumps(clean,sort_keys=True,separators=(',',':')),token)
+    payload={'action':'device.config.batch','parameters':asdict(typed),'asset':assets[names[0]],'assets':{n:assets[n] for n in names}}
+    checks=(requirement('linux_runtime'),requirement('trusted_executable',path='/usr/bin/python3'),
+            requirement('workflow_prerequisites',payload=json.dumps(payload,sort_keys=True),timeout_s=25))
+    post=(requirement('exit_code',value=0),requirement('workflow_verified',payload=json.dumps(payload,sort_keys=True),timeout_s=25))
+    return PreparedAction(contract,typed,('/usr/bin/python3','-I','-c',WORKFLOW_PROGRAM,'apply'),checks,post,json.dumps(payload,sort_keys=True).encode())
+
+
 def prepare(registry,identifier,parameters,contract):
     from .registry import ActionRegistry, InvalidParameters, PreparedAction, requirement
     if registry.actor_uid is None:raise InvalidParameters('Backend OS actor required')
     assets=json.loads(registry.assets_json)
     asset={}
+    if identifier=='device.config.batch':return _batch(assets,contract,parameters)
     if identifier in {'environment.python','project.scaffold','project.node'}:
         if set(parameters)!={'path'}:raise InvalidParameters('Exact project path required')
         typed=Project(registry.relative_path(parameters['path']))
@@ -103,6 +157,27 @@ def prepare(registry,identifier,parameters,contract):
         name=parameters.get('asset')
         if not isinstance(name,str) or name not in assets:raise InvalidParameters('Unknown backend-configured asset')
         asset=assets[name]
+        if identifier.startswith('device.config.'):
+            from .netconf_features import resolve
+            if asset.get('platform')!='netconf':raise InvalidParameters('Config features need a NETCONF asset')
+            _netconf_asset(asset,InvalidParameters)
+            expected={'asset','feature','settings'}|({'expected_revision','transaction_id'} if identifier!='device.config.read' else set())
+            if set(parameters)!=expected:raise InvalidParameters('Exact config feature fields required')
+            try:resolve(parameters['feature'],parameters['settings'],asset)
+            except ValueError as exc:raise InvalidParameters(str(exc)) from None
+            settings=json.dumps(parameters['settings'],sort_keys=True,separators=(',',':'))
+            if identifier=='device.config.read':typed=ConfigRead(name,parameters['feature'],settings)
+            else:
+                token,revision=parameters['transaction_id'],parameters['expected_revision']
+                if not isinstance(token,str) or str(UUID(token))!=token:raise InvalidParameters('Canonical transaction UUID required')
+                if not isinstance(revision,str) or not re.fullmatch(r'[0-9a-f]{64}',revision):raise InvalidParameters('Expected revision SHA256 required')
+                typed=(ConfigSet(name,parameters['feature'],settings,revision,token) if identifier=='device.config.set'
+                       else ConfigRestore(name,parameters['feature'],settings,token,revision))
+            payload={'action':identifier,'parameters':asdict(typed),'asset':asset}
+            checks=(requirement('linux_runtime'),requirement('trusted_executable',path='/usr/bin/python3'),
+                    requirement('workflow_prerequisites',payload=json.dumps(payload,sort_keys=True)))
+            post=(requirement('exit_code',value=0),requirement('workflow_verified',payload=json.dumps(payload,sort_keys=True)))
+            return PreparedAction(contract,typed,('/usr/bin/python3','-I','-c',WORKFLOW_PROGRAM,'apply'),checks,post,json.dumps(payload,sort_keys=True).encode())
         if identifier in iot_contracts.IOT_ACTIONS:
             typed=iot_contracts.typed(identifier,name,asset,parameters,InvalidParameters)
             payload={'action':identifier,'parameters':asdict(typed),'asset':asset}
