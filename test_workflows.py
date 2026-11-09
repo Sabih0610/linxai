@@ -88,6 +88,21 @@ class WorkflowTests(unittest.TestCase):
             reg=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'srv':dict(asset,**change)}))
             with self.assertRaises(ValueError,msg=change):reg.prepare('remote.operation',{'asset':'srv','action':'memory.usage','parameters':{}})
 
+    def test_windows_agentless_uses_encoded_powershell_templates(self):
+        asset={'platform':'windows_agentless','host':'192.0.2.40','port':22,'username':'ops','key_path':'/home/owner/.ssh/k',
+               'known_hosts':'/home/owner/.ssh/known_hosts'}
+        registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'win':asset}))
+        prepared=registry.prepare('remote.operation',{'asset':'win','action':'service.restart','parameters':{'service':'Spooler'}})
+        self.assertEqual(json.loads(prepared.parameters.parameters_json),{'service':'Spooler.service'})
+        self.assertIn('-EncodedCommand',prepared.argv[3]); self.assertIn("windows_agentless",prepared.argv[3])
+        compile(prepared.argv[3],'workflow','exec')
+        for action,params in (('service.status',{'service':"Spooler'; Stop-Computer"}),('service.status',{'service':'Print Spooler'}),
+                              ('file.create',{'path':'x'})):
+            with self.assertRaises(ValueError,msg=params):registry.prepare('remote.operation',{'asset':'win','action':action,'parameters':params})
+        with self.assertRaises(ValueError):
+            ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'win':dict(asset,systemd_scope='user')})).prepare(
+                'remote.operation',{'asset':'win','action':'memory.usage','parameters':{}})
+
     def test_nested_remote_input_is_rejected_before_recursing_or_model(self):
         values=configured_assets();values['a']=values['lab']
         registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps(values))

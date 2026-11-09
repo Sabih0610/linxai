@@ -55,14 +55,14 @@ AGENTLESS_ACTIONS=frozenset({'disk.usage','memory.usage','ports.listen','service
 def _agentless(registry,contract,name,asset,parameters):
     """Agentless Linux target: fixed command templates over pinned SSH (see _agentless_program)."""
     from .registry import ActionRegistry, InvalidParameters, PreparedAction, requirement
-    expected={'platform','host','port','username','key_path','known_hosts','systemd_scope'}
+    expected={'platform','host','port','username','key_path','known_hosts'}|({'systemd_scope'} if asset.get('platform')=='linux_agentless' else set())
     if set(asset)!=expected:raise InvalidParameters('Agentless asset requires exactly: '+', '.join(sorted(expected)))
     for field in ('host','username'):
         if not isinstance(asset[field],str) or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,252}',asset[field]):raise InvalidParameters('Invalid configured SSH endpoint')
     if type(asset['port']) is not int or not 1<=asset['port']<=65535:raise InvalidParameters('Invalid SSH port')
     for field in ('key_path','known_hosts'):
         if not isinstance(asset[field],str) or not asset[field].startswith('/') or len(asset[field])>4095 or '\x00' in asset[field]:raise InvalidParameters('Absolute bounded SSH metadata paths required')
-    if asset['systemd_scope'] not in {'system','user'}:raise InvalidParameters('systemd_scope must be system or user')
+    if asset['platform']=='linux_agentless' and asset['systemd_scope'] not in {'system','user'}:raise InvalidParameters('systemd_scope must be system or user')
     if parameters['action'] not in AGENTLESS_ACTIONS:raise InvalidParameters('Action not available agentlessly; no raw commands')
     nested=ActionRegistry('/remote-permitted',actor_uid=registry.actor_uid).prepare(parameters['action'],parameters['parameters'])
     values=asdict(nested.parameters) if parameters['action']!='ports.listen' else {k:v for k,v in asdict(nested.parameters).items() if k=='port'}
@@ -99,7 +99,7 @@ def prepare(registry,identifier,parameters,contract):
             return PreparedAction(contract,typed,('/usr/bin/python3','-I','-c',WORKFLOW_PROGRAM,'apply'),checks,post,json.dumps(payload,sort_keys=True).encode())
         if identifier=='remote.operation':
             if set(parameters)!={'asset','action','parameters'}:raise InvalidParameters('Exact remote action fields required')
-            if asset.get('platform')=='linux_agentless':return _agentless(registry,contract,name,asset,parameters)
+            if asset.get('platform') in {'linux_agentless','windows_agentless'}:return _agentless(registry,contract,name,asset,parameters)
             if asset.get('platform')!='linux_ssh':raise InvalidParameters('Asset is not a configured Linux SSH peer')
             allowed={'disk.usage','memory.usage','ports.listen','service.status','file.create','directory.create','service.start','service.stop','service.restart'}
             if parameters['action'] not in allowed:raise InvalidParameters('Remote action not admitted; no recursion/raw commands')

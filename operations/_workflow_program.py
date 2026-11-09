@@ -214,7 +214,11 @@ def _with_agentless(program):
     marker = "elif action.startswith('iot.'):"
     if program.count(marker) != 1:
         raise RuntimeError("workflow program layout changed")
-    return program.replace(marker, "elif action == 'remote.operation':\n" + textwrap.indent(AGENTLESS_CODE.strip("\n"), "    ") + "\n" + marker)
+    from ._windows_program import WINDOWS_CODE
+    windows = ("elif action == 'remote.operation' and request['asset'].get('platform') == 'windows_agentless':\n"
+               + textwrap.indent(WINDOWS_CODE.strip("\n"), "    ") + "\n")
+    linux = "elif action == 'remote.operation':\n" + textwrap.indent(AGENTLESS_CODE.strip("\n"), "    ") + "\n"
+    return program.replace(marker, windows + linux + marker)
 
 
 WORKFLOW_PROGRAM = _with_agentless(WORKFLOW_PROGRAM)
