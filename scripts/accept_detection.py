@@ -77,7 +77,7 @@ def main(argv=None):
         nc = shutil.which("nc")
         fixtures = [
             ("reverse_shell_bash_dev_tcp", "shell_network_connection",
-             ["/bin/bash", "-c", f"exec 3<>/dev/tcp/127.0.0.1/{port}; echo linxai-fixture >&3; exec 3>&-"],
+             ["/bin/bash", "-c", f"exec 3<>/dev/tcp/127.0.0.1/{port}; echo linxai-fixture >&3; sleep 4; exec 3>&-"],
              lambda r: r["evidence"]["target"].get("port") == port and r["evidence"]["process"] == "bash"),
             ("raw_network_tool_nc", "shell_network_connection",
              [nc, "-z", "-w", "2", "127.0.0.1", str(port)] if nc else None,
@@ -96,7 +96,9 @@ def main(argv=None):
             found = wait_for(store, started, lambda r: r.get("rule") == rule and match(r))
             results.append({"fixture": name, "expected": rule, "detected": found is not None,
                             "latency_s": round(found["created"] - started, 2) if found else None,
-                            "identity_quality": found["evidence"].get("identity_quality") if found else None})
+                            "identity_quality": found["evidence"].get("identity_quality") if found else None,
+                            "lineage": (found.get("lineage") or {}).get("identity") if found else None,
+                            "ancestry": [h.get("comm") for h in (found.get("lineage") or {}).get("chain", [])] if found else None})
             print(results[-1], flush=True)
         # Benign controls: none may raise one of the network/attack-tool rules. A quiet gap and
         # a zero-slack window keep the fixtures' own incidents out of this count.

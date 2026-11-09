@@ -60,6 +60,41 @@ class SecurityMonitorTests(unittest.TestCase):
                       connect("python3", 8443), exe("/usr/bin/nmapper"), exe("/usr/bin/ls")):
             self.assertIsNone(detect(event), event)
 
+    def test_lineage_walks_procfs_and_binds_first_hop_by_start_time(self):
+        from security.lineage import lineage
+        from operations.explain import explain_incident
+        with tempfile.TemporaryDirectory() as root:
+            def proc(pid, comm, ppid, start, uid):
+                os.makedirs(f"{root}/{pid}")
+                fields = ["S", str(ppid)] + ["0"] * 17 + [str(start)] + ["0"] * 10
+                with open(f"{root}/{pid}/stat", "w") as f: f.write(f"{pid} ({comm}) " + " ".join(fields))
+                with open(f"{root}/{pid}/status", "w") as f: f.write(f"Name:\t{comm}\nUid:\t{uid}\t{uid}\t{uid}\t{uid}\n")
+            proc(1, "systemd", 0, 1, 0); proc(50, "sshd", 1, 100, 0); proc(70, "bash", 50, 500, 1000)
+            proc(90, "nc (evil) x", 70, 900, 1000)
+            found = lineage({"pid": 90, "start_ns": 900 * 10_000_000}, proc_root=root, hz=100)
+            self.assertEqual(found["identity"], "verified")
+            self.assertEqual([h["comm"] for h in found["chain"]], ["nc (evil) x", "bash", "sshd", "systemd"])
+            self.assertEqual(found["chain"][0]["uid"], 1000)
+            recycled = lineage({"pid": 90, "start_ns": 5_000_000_000}, proc_root=root, hz=100)
+            self.assertEqual(recycled["identity"], "unverified")
+            self.assertEqual(lineage({"pid": 4242, "start_ns": 1}, proc_root=root, hz=100)["identity"], "exited")
+            incident = {"rule": "shell_network_connection", "severity": "warning", "lineage": found,
+                        "evidence": {"uid": 1000, "process": "nc", "target": {"address": "203.0.113.9", "port": 443}}}
+            self.assertIn("nc (evil) x <- bash <- sshd <- systemd", " ".join(explain_incident(incident)))
+
+    def test_monitor_attaches_lineage_and_survives_lineage_failure(self):
+        calls = []
+        def boom(event):
+            calls.append(event["pid"]); raise OSError("gone")
+        monitor = Monitor(self.store, Source(self.buffer), lineage=boom)
+        event = self.buffer.publish(record())
+        monitor.tick()
+        incident = self.store.get("incident", event["id"])
+        self.assertEqual(incident["lineage"], {"identity": "unavailable", "chain": []})
+        self.assertEqual(calls, [123])
+        # Untrusted (simulated) sources get no procfs lineage by default.
+        self.assertIsNone(Monitor(self.store, Source(self.buffer)).lineage)
+
     def test_stable_subject_includes_host_boot_uid_pid_and_start(self):
         one = normalize(record(), "host", "boot", source="kernel")
         two = record()

@@ -20,8 +20,12 @@ LAKE_INTERVAL_S = 600   # medallion refresh cadence
 
 
 class Monitor:
-    def __init__(self, store, source, baseline=None):
+    def __init__(self, store, source, baseline=None, lineage=None):
         self.store, self.source = store, source
+        # Requirement 42: procfs ancestry for real-kernel incidents only (evidence, not authority).
+        if lineage is None and source.trusted:
+            from .lineage import lineage
+        self.lineage = lineage
         self.status = self.store.get("monitor", "status") or {"cursor": 0, "epoch": None, "events": 0, "incidents": 0, "invalid": 0, "gaps": 0}
         self.last_batch = 0
         # Optional learned gold baseline (security.lake); advisory anomalies only.
@@ -50,6 +54,11 @@ class Monitor:
                     seen.add(event["id"])
                     events.append(event)
                     incident = detect(event)
+                    if incident and self.lineage:
+                        try:
+                            incident["lineage"] = self.lineage(event)
+                        except Exception:
+                            incident["lineage"] = {"identity": "unavailable", "chain": []}
                     if incident: incidents.append(incident)
                     elif self.baseline and self.source.trusted:
                         from .lake import score

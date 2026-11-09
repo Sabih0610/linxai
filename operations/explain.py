@@ -87,6 +87,12 @@ def explain_incident(incident):
     lines = [f"The independent monitor raised {incident.get('rule')} ({incident.get('severity')}) for account {evidence.get('uid')}, "
              f"process {evidence.get('process') or evidence.get('pid')} touching {what}.",
              "This came from a deterministic rule on kernel evidence. It shows an attempt, not proof of harm: the syscall outcome is unknown."]
+    lineage = incident.get("lineage") or {}
+    chain = [hop.get("comm") or "?" for hop in lineage.get("chain", [])]
+    if chain:
+        lines.append(f"Process ancestry ({lineage.get('identity')}): " + " <- ".join(chain[:9]) + ".")
+    elif lineage:
+        lines.append(f"Process ancestry not available ({lineage.get('identity')}).")
     response = incident.get("response", "none")
     lines.append("No response has been taken." if response == "none" else f"Response state: {response}.")
     return lines
