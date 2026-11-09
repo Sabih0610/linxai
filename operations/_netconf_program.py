@@ -47,15 +47,19 @@ def connect(write=True):
     m.linxai_writable = not missing
     return m
 def interfaces(m, source='running'):
-    filt = ('subtree', '<interfaces xmlns="%s"/>' % OC)
-    data = ET.fromstring(m.get_config(source=source, filter=filt).data_xml)
+    # Configured value first; devices that keep interface config in native models (e.g.
+    # IOS XR) leave the OpenConfig config tree empty, so fall back to the reported
+    # OpenConfig admin-status, which every implementation fills.
+    filt = ('subtree', '<interfaces xmlns="%s"><interface><name/><config/><state><admin-status/></state></interface></interfaces>' % OC)
+    data = ET.fromstring(m.get(filter=filt).data_xml)
     found = {}
     for node in data.iter('{%s}interface' % OC):
         name = node.findtext('{%s}name' % OC)
         if name in asset['ports']:
             enabled = node.findtext('{%s}config/{%s}enabled' % (OC, OC))
-            found[name] = {'enabled': None if enabled is None else enabled == 'true',
-                           'description': node.findtext('{%s}config/{%s}description' % (OC, OC))}
+            admin = node.findtext('{%s}state/{%s}admin-status' % (OC, OC))
+            value = enabled == 'true' if enabled is not None else ({'UP': True, 'DOWN': False}.get(admin) if admin else None)
+            found[name] = {'enabled': value, 'description': node.findtext('{%s}config/{%s}description' % (OC, OC))}
     return {port: found.get(port, {'enabled': None, 'description': None}) for port in asset['ports']}
 def edit(m, name, enabled):
     if not _re.fullmatch(r'[A-Za-z][A-Za-z0-9_./:-]{0,31}', name): raise ValueError('Invalid interface name')

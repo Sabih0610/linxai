@@ -192,7 +192,11 @@ class OperationService:
         digest = fingerprint(operation)
         if not requirements:
             raise _Stop("validation_failed", "Required observation list is empty")
-        deadline = self.clock() + self.validation_timeout
+        # Remote devices (contract timeout >= 20 s, e.g. routers across the internet) need a
+        # proportionally larger observation budget; local actions keep the strict default.
+        timeout_s = operation.prepared.contract.timeout_s
+        budget = self.validation_timeout if timeout_s < 20 else max(self.validation_timeout, min(25.0, 0.8 * timeout_s))
+        deadline = self.clock() + budget
         observations = []
         for required in requirements:
             if self.clock() >= deadline:

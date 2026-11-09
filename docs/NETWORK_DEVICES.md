@@ -11,11 +11,12 @@ one of these typed actions, which the owner previews and confirms.
 | --- | --- |
 | Nokia SR Linux v26.7.2 (free container, WSL2 lab) | **Accepted**: `scripts/accept_netconf.py` 11/11 (`docs/evidence/netconf-lab-2026-11-09/`) |
 | Juniper Junos (vJunos, free, needs KVM) | Not yet tested — same NETCONF/OpenConfig path |
-| Cisco IOS-XE / IOS-XR / NX-OS (DevNet sandbox, CML-Free) | Not yet tested — same path; IOS-XE needs the candidate datastore feature |
+| Cisco IOS XR (DevNet always-on sandbox `sandbox-iosxr-1.cisco.com`, shared) | **Validated non-disruptively**: `scripts/validate_netconf_shared.py` 5/5 — inspect, change prerequisites (not executed), wrong host key refused before password auth, exact OpenConfig edit staged under our lock, validated by the router and discarded, running config unchanged (`docs/evidence/netconf-lab-2026-11-09/cisco-iosxr-shared-validation.json`). No commit on the shared router, per Cisco's sandbox rules |
+| Cisco IOS-XE / NX-OS | Not yet tested — IOS-XE always-on sandboxes were unreachable; IOS-XE needs the candidate datastore feature |
 | Huawei VRP8 / CloudEngine | Not yet tested — same path; university hardware needed (no free emulator confirmed) |
 | IoT (MQTT, Modbus), agentless remote machines | Planned next phases |
 
-Only the first row is a verified claim.
+Rows marked Accepted or Validated are verified claims; IOS XR is validated without committing.
 
 ## How a change is made (fixed worker, ordinary user)
 
@@ -74,3 +75,16 @@ supervisor for it) and **one spare test port**.
 
 Abort criteria: any FAIL in step 3, any unexpected capability gap, or any change
 outside the test port — the confirmed-commit timer reverts unconfirmed changes.
+
+## Findings from the real Cisco IOS XR run
+
+- IOS XR keeps interface configuration in its native models, so the OpenConfig
+  *config* tree was empty; the driver now falls back to the OpenConfig
+  `admin-status`, which every implementation reports.
+- A router across the internet needs about 6 s to log in and read; device actions
+  now have a 30 s contract and slow (>= 20 s) actions get a proportional
+  observation budget (up to 25 s) instead of the fixed 5 s.
+- Password login (sandbox credentials) is supported only with the full pinned host
+  key, enforced in the SSH handshake before the password is sent. The sandbox does
+  not publish its fingerprint, so the pin was trust-on-first-use. The password is
+  kept in a private file written by the owner; LINxAI never logs or returns it.
