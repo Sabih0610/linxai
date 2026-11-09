@@ -50,6 +50,7 @@ def main(argv=None):
     parser.add_argument("--jobs", action="store_true")
     parser.add_argument("--logs", type=int, metavar="N", help="Show the last N correlated operation audit records")
     parser.add_argument("--explain", metavar="ID", help="Explain a job, incident or anomaly in plain English")
+    parser.add_argument("--timeline", type=int, metavar="N", help="Show the last N events across operations, audit, security, learning and response")
     parser.add_argument("--parameters", default="{}", help="JSON parameter object; no command/identity/approval fields")
     parser.add_argument("--workspace", help="Explicit permitted POSIX workspace for create actions")
     parser.add_argument("--audit-path", help="JSONL path in an owned private directory")
@@ -64,16 +65,22 @@ def main(argv=None):
         print(json.dumps(asdict(result), sort_keys=True))
         return 2
     selected = sum((bool(args.action), args.ask is not None, args.confirm is not None, args.jobs,
-                    args.logs is not None, args.explain is not None))
+                    args.logs is not None, args.explain is not None, args.timeline is not None))
     if selected != 1:
-        parser.error("Select exactly one action, --ask, --confirm, --jobs, --logs or --explain")
-    if args.ask is not None or args.confirm is not None or args.jobs or args.logs is not None or args.explain is not None:
+        parser.error("Select exactly one action, --ask, --confirm, --jobs, --logs, --explain or --timeline")
+    if args.ask is not None or args.confirm is not None or args.jobs or args.logs is not None or args.explain is not None or args.timeline is not None:
         from .agent import AgentClient
         client = AgentClient()
         try:
             if args.explain is not None:
                 value = client.call("explain", id=args.explain)
                 print("\n".join(value["explanation"]))
+                return 0
+            if args.timeline is not None:
+                import time as _time
+                for row in client.call("timeline", limit=args.timeline)["timeline"]:
+                    when = _time.strftime("%Y-%m-%d %H:%M:%S", _time.localtime(row["time"]))
+                    print(f"{when}  {row['module']:<10} {row['kind']:<10} {row['summary']}  [{str(row['id'])[:12]}]")
                 return 0
             value = (client.call("preview", text=args.ask) if args.ask is not None else
                      client.call("confirm", id=args.confirm, digest=args.digest) if args.confirm else

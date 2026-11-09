@@ -45,6 +45,22 @@ class Agent:
         """Log viewer (requirement 61) and deterministic explain mode (62)."""
         from .explain import explain_anomaly, explain_incident, explain_job, tail_jsonl
         ledger = self.state / "operations.jsonl"
+        if method == "timeline":
+            from .explain import timeline
+            limit = request["limit"]
+            if type(limit) is not int or not 1 <= limit <= 200:
+                raise ValueError("limit must be 1..200")
+            incidents, anomalies, policies = [], [], []
+            database = self.state / "security.sqlite"
+            if database.exists():
+                security = Store(database)
+                try:
+                    incidents, anomalies = security.list("incident", limit), security.list("anomaly", limit)
+                    policies = security.list("policy", limit)
+                finally:
+                    security.close()
+            return {"timeline": timeline(self.store.list("job", limit), tail_jsonl(ledger, limit),
+                                         incidents, anomalies, policies, limit)}
         if method == "logs":
             limit = request["limit"]
             if type(limit) is not int or not 1 <= limit <= 200:
@@ -92,7 +108,7 @@ class Agent:
         method = request.get("method")
         fields = {"preview": {"text"}, "confirm": {"id", "digest"}, "cancel": {"id"}, "reconcile": {"id"},
                   "jobs": set(), "job": {"id"}, "status": set(), "activity": set(), "security": set(), "propose_response": {"incident_id"}, "revoke_policy": {"policy_id"}, "typed_preview": {"request"}, "restore_job": {"id"}, "device_inspect": {"asset"}, "device_preview": {"asset","interface","enabled"},
-                  "logs": {"limit"}, "explain": {"id"}}
+                  "logs": {"limit"}, "explain": {"id"}, "timeline": {"limit"}}
         if method not in fields or set(request) != {"version", "method"} | fields[method]:
             raise ValueError("Unsupported API request or authority fields")
         if method in {"device_inspect","device_preview"}:
@@ -125,7 +141,7 @@ class Agent:
             history = [{"text": row.get("text", ""), "plan": row.get("plan", {}), "request": row.get("request")} for row in reversed(self.store.list("job", 5))]
             typed, plan = self.planner.propose(request["text"], history)
             return self.jobs.preview(typed, text=request["text"], plan=plan)
-        if method in {"logs", "explain"}:
+        if method in {"logs", "explain", "timeline"}:
             return self.explain(method, request)
         if method == "confirm":
             return self.jobs.confirm(request["id"], request["digest"])

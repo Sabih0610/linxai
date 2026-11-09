@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from operations.explain import explain_anomaly, explain_incident, explain_job, tail_jsonl
+from operations.explain import explain_anomaly, explain_incident, explain_job, tail_jsonl, timeline
 
 
 class ExplainTests(unittest.TestCase):
@@ -51,6 +51,18 @@ class ExplainTests(unittest.TestCase):
 
 @unittest.skipUnless(sys.platform == "linux" and hasattr(os, "getuid") and os.getuid() != 0, "native agent")
 class NativeAgentExplainTests(unittest.TestCase):
+    def test_timeline_merges_modules_newest_first_and_bounds(self):
+        rows = timeline(jobs=[{"id": "j1", "created": 10.0, "request": {"action": "memory.usage"}, "state": "succeeded"}],
+                        audit=[{"operation_id": "o1", "phase": "result", "status": "succeeded",
+                                "timestamp": "1970-01-01T00:00:20+00:00"}, {"phase": "broken"}],
+                        incidents=[{"id": "i1", "created": 30.0, "rule": "shell_network_connection",
+                                    "evidence": {"target": {"address": "203.0.113.9", "port": 443}}}],
+                        anomalies=[{"id": "a1", "created": 40.0, "key": "exec:/usr/bin/factor", "score_bits": 8.6}],
+                        policies=[{"id": "p1", "created": 50.0, "state": "active", "address": "127.0.0.1", "port": 4444}])
+        self.assertEqual([r["module"] for r in rows], ["response", "learning", "security", "audit", "operations"])
+        self.assertIn("shell_network_connection on 203.0.113.9:443", rows[2]["summary"])
+        self.assertEqual(len(timeline(jobs=[{"id": str(i), "created": float(i), "request": {}} for i in range(500)], limit=500)), 200)
+
     def test_agent_runs_read_then_lists_logs_and_explains(self):
         from operations.agent import Agent
         with tempfile.TemporaryDirectory(prefix=".linxai-explain-", dir=Path.home()) as temp:
@@ -67,6 +79,9 @@ class NativeAgentExplainTests(unittest.TestCase):
             explained = agent.handle(uid, {"version": 1, "method": "explain", "id": row["id"]})
             self.assertEqual(explained["kind"], "job")
             self.assertIn("postconditions were verified", " ".join(explained["explanation"]))
+            events = agent.handle(uid, {"version": 1, "method": "timeline", "limit": 20})["timeline"]
+            self.assertEqual({r["module"] for r in events}, {"operations", "audit"})
+            self.assertTrue(all(a["time"] >= b["time"] for a, b in zip(events, events[1:])))
             with self.assertRaises(ValueError):
                 agent.handle(uid, {"version": 1, "method": "logs", "limit": 0})
 

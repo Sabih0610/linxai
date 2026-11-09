@@ -102,3 +102,37 @@ def explain_anomaly(anomaly):
     return [f"The learned baseline marked {anomaly.get('key')} as new behaviour for account {anomaly.get('uid')} "
             f"({anomaly.get('score_bits')} bits over {anomaly.get('baseline_events')} trained events).",
             "This is advisory: it is not an incident and cannot trigger any response or approval."]
+
+
+def timeline(jobs=(), audit=(), incidents=(), anomalies=(), policies=(), limit=50):
+    """Cross-module activity timeline (requirement 60): commands, audited operation
+    phases, security incidents, advisory anomalies and kernel response policies merged
+    by time, newest first. Read-only facts; nothing here carries authority."""
+    from datetime import datetime
+    rows = []
+    for job in jobs:
+        request = job.get("request") or {}
+        rows.append({"time": job.get("updated") or job.get("created"), "module": "operations", "kind": "job",
+                     "id": job.get("id"), "summary": f"{request.get('action')} — {job.get('state')}"})
+    for record in audit:
+        try:
+            stamp = datetime.fromisoformat(record["timestamp"]).timestamp()
+        except (KeyError, TypeError, ValueError):
+            continue
+        rows.append({"time": stamp, "module": "audit", "kind": record.get("phase"), "id": record.get("operation_id"),
+                     "summary": f"{record.get('phase')}: {record.get('status')}"})
+    for incident in incidents:
+        target = (incident.get("evidence") or {}).get("target") or {}
+        what = target.get("path") or f"{target.get('address')}:{target.get('port')}"
+        rows.append({"time": incident.get("created"), "module": "security", "kind": "incident", "id": incident.get("id"),
+                     "summary": f"{incident.get('rule')} on {what}"})
+    for anomaly in anomalies:
+        rows.append({"time": anomaly.get("created"), "module": "learning", "kind": "anomaly", "id": anomaly.get("id"),
+                     "summary": f"new behaviour {anomaly.get('key')} ({anomaly.get('score_bits')} bits)"})
+    for policy in policies:
+        stamp = policy.get("created") or (policy.get("installed_ns") or 0) / 1e9 or None
+        rows.append({"time": stamp, "module": "response", "kind": "policy", "id": policy.get("id"),
+                     "summary": f"{policy.get('state')} block {policy.get('address')}:{policy.get('port')}"})
+    rows = [r for r in rows if isinstance(r["time"], (int, float))]
+    rows.sort(key=lambda r: r["time"], reverse=True)
+    return rows[:max(1, min(int(limit), MAX_RECORDS))]
