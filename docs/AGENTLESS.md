@@ -46,4 +46,20 @@ start/restart/stop with a new activation time, system change refused by the
 target's sudo policy, unloaded unit refused, shell injection / raw command / file
 write refused, host-key mismatch refused (`evidence/vm-lab-2026-11-08/agentless-acceptance.json`).
 
-Windows targets (WinRM/OpenSSH + PowerShell templates) are not implemented yet.
+## Windows targets (`windows_agentless`)
+
+Same pinned-SSH hardening against the built-in Windows OpenSSH server. Each action is a
+fixed PowerShell template sent with `-EncodedCommand` (base64 UTF-16LE, so no shell
+quoting), returning JSON: `Win32_LogicalDisk`, `Win32_OperatingSystem`,
+`Get-NetTCPConnection -State Listen`, `Win32_Service`, and `Start/Stop/Restart-Service`.
+Service names are limited to `[A-Za-z0-9_.-]`. A restart of an own-process service must
+show a new process id; for shared-process services the proof is reported as unavailable.
+Changes need rights on the target; refusals are reported, never bypassed.
+
+Evidence: `scripts/accept_windows_agentless.py` 8/8 against the owner's Windows 11 PC
+from the Linux VM controller (VirtualBox NAT 10.0.2.2), host key pinned and matched to
+the fingerprint the owner's setup printed: disk/memory/ports/service reads; Print
+Spooler start, restart (new process id) and stop, returned to its original state;
+unknown service, PowerShell injection, raw command and file write refused; host-key
+mismatch refused (`evidence/windows-lab-2026-11-09/`). One-time owner setup:
+`windows-openssh-setup.ps1` (OpenSSH server, Manual start, lab key only).
