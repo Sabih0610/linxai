@@ -23,17 +23,28 @@ asset = request['asset']
 state_dir = pathlib.Path(asset['state_dir']); chain(state_dir, True)
 REQUIRED = ('urn:ietf:params:netconf:capability:candidate:1.0', 'urn:ietf:params:netconf:capability:confirmed-commit:1.1',
             'urn:ietf:params:netconf:capability:validate:1.')
-def connect():
-    m = manager.connect(host=asset['host'], port=asset['port'], username=asset['username'], key_filename=asset['key_path'],
-                        hostkey_verify=False, allow_agent=False, look_for_keys=False, timeout=20)
+def connect(write=True):
+    auth = {'key_filename': asset['key_path']} if 'key_path' in asset else {
+        'password': read(pathlib.Path(asset['password_file'])).decode().strip()}
+    if 'host_key' in asset:
+        # Pinned full host key enforced by the SSH handshake BEFORE authentication, so a
+        # password is never offered to an impostor (required for password login).
+        pin = dict(hostkey_verify=True, hostkey_b64=asset['host_key'].split()[1], unknown_host_cb=lambda *_: False)
+    else:
+        pin = dict(hostkey_verify=False)          # key-only login: checked right below, before any RPC
+    m = manager.connect(host=asset['host'], port=asset['port'], username=asset['username'], allow_agent=False,
+                        look_for_keys=False, timeout=20, **auth, **pin)
     key = m._session._transport.get_remote_server_key()
     seen = 'SHA256:' + base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')
     if seen != asset['host_key_sha256']:
         m.close_session(); raise PermissionError('Device host key does not match the pinned fingerprint')
     caps = list(m.server_capabilities)
     missing = [c for c in REQUIRED if not any(s.startswith(c) for s in caps)]
-    if missing or not any(OC in s for s in caps):
-        m.close_session(); raise ValueError('Device lacks required NETCONF capabilities: ' + ', '.join(missing or ['openconfig-interfaces']))
+    if not any(OC in s for s in caps):
+        m.close_session(); raise ValueError('Device lacks the OpenConfig interfaces model')
+    if write and missing:
+        m.close_session(); raise ValueError('Device lacks required NETCONF capabilities for safe changes: ' + ', '.join(missing))
+    m.linxai_writable = not missing
     return m
 def interfaces(m, source='running'):
     filt = ('subtree', '<interfaces xmlns="%s"/>' % OC)
@@ -83,13 +94,13 @@ def change(m, name, enabled):
     # candidate lock; their per-session candidate needs no lock, and the expected-revision
     # check made just before this change still refuses concurrent modifications.
     return apply_change(m, name, enabled)
-m = connect()
+m = connect(write=action != 'device.inspect')
 try:
     value = interfaces(m); current = revision(value)
     if action == 'device.inspect':
         caps = [c.split('?')[0] for c in m.server_capabilities if c.startswith('urn:ietf:params:netconf:capability:')]
         print(json.dumps({'verified': True, 'platform': 'netconf', 'device': {'interfaces': value}, 'revision': current,
-                          'capabilities': sorted(caps)[:32]})); raise SystemExit(0)
+                          'capabilities': sorted(caps)[:32], 'writable': m.linxai_writable})); raise SystemExit(0)
     if action == 'device.initialize': raise ValueError('NETCONF devices are not initialized by LINxAI')
     token = params['transaction_id']; uuid.UUID(token)
     transactions = state_dir / 'transactions'

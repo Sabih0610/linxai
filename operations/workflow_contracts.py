@@ -38,15 +38,28 @@ TYPES=(Project,Device,Interface,Restore,Remote,*iot_contracts.TYPES)
 
 
 def _netconf_asset(asset,InvalidParameters):
-    """Owner-configured NETCONF device (vendor-neutral OpenConfig; see _netconf_program)."""
-    expected={'platform','host','port','username','key_path','host_key_sha256','state_dir','ports'}
-    if set(asset)!=expected:raise InvalidParameters('NETCONF asset requires exactly: '+', '.join(sorted(expected)))
+    """Owner-configured NETCONF device (vendor-neutral OpenConfig; see _netconf_program).
+    Login is key-only (`key_path`) or by a private password file (`password_file`); a
+    password login also requires the full pinned `host_key`, enforced before auth."""
+    import base64, hashlib
+    base={'platform','host','port','username','host_key_sha256','state_dir','ports'}
+    keys=set(asset)-base
+    if not base<=set(asset) or keys not in ({'key_path'},{'key_path','host_key'},{'password_file','host_key'}):
+        raise InvalidParameters('NETCONF asset requires platform, host, port, username, host_key_sha256, state_dir, ports and '
+                                'either key_path or password_file+host_key')
     if not isinstance(asset['host'],str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}',asset['host']):raise InvalidParameters('Invalid NETCONF host')
     if type(asset['port']) is not int or not 1<=asset['port']<=65535:raise InvalidParameters('Invalid NETCONF port')
     if not isinstance(asset['username'],str) or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}',asset['username']):raise InvalidParameters('Invalid NETCONF username')
     if not isinstance(asset['host_key_sha256'],str) or not re.fullmatch(r'SHA256:[A-Za-z0-9+/]{43}',asset['host_key_sha256']):raise InvalidParameters('Pinned SHA256 host key fingerprint required')
-    for field in ('key_path','state_dir'):
-        if not isinstance(asset[field],str) or not asset[field].startswith('/') or len(asset[field])>4095 or '\x00' in asset[field]:raise InvalidParameters('Absolute key and state paths required')
+    for field in ({'key_path','password_file'}&keys)|{'state_dir'}:
+        if not isinstance(asset[field],str) or not asset[field].startswith('/') or len(asset[field])>4095 or '\x00' in asset[field]:raise InvalidParameters('Absolute key, password and state paths required')
+    if 'host_key' in asset:
+        parts=asset['host_key'].split() if isinstance(asset['host_key'],str) else []
+        if len(parts)!=2 or parts[0] not in {'ssh-ed25519','ssh-rsa','ecdsa-sha2-nistp256','ecdsa-sha2-nistp384','ecdsa-sha2-nistp521'}:
+            raise InvalidParameters('host_key must be "<type> <base64>"')
+        try:digest=hashlib.sha256(base64.b64decode(parts[1],validate=True)).digest()
+        except ValueError:raise InvalidParameters('host_key is not valid base64')
+        if 'SHA256:'+base64.b64encode(digest).decode().rstrip('=')!=asset['host_key_sha256']:raise InvalidParameters('host_key does not match host_key_sha256')
 
 
 AGENTLESS_ACTIONS=frozenset({'disk.usage','memory.usage','ports.listen','service.status','service.start','service.stop','service.restart'})

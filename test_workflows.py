@@ -103,6 +103,21 @@ class WorkflowTests(unittest.TestCase):
             ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'win':dict(asset,systemd_scope='user')})).prepare(
                 'remote.operation',{'asset':'win','action':'memory.usage','parameters':{}})
 
+    def test_netconf_password_login_requires_full_pinned_host_key(self):
+        import base64, hashlib, os
+        blob=bytes.fromhex('0000000b7373682d6564323535313900000020')+os.urandom(32)
+        b64=base64.b64encode(blob).decode(); pin='SHA256:'+base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip('=')
+        base={'platform':'netconf','host':'sandbox.example','port':830,'username':'admin','host_key_sha256':pin,
+              'state_dir':'/home/owner/.linxai/netconf','ports':['GigabitEthernet0/0/0/1']}
+        ok=dict(base,password_file='/home/owner/.linxai/xr.pass',host_key='ssh-ed25519 '+b64)
+        ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'xr':ok})).prepare('device.inspect',{'asset':'xr'})
+        for bad in (dict(base,password_file='/p'),                                   # password without full host key
+                    dict(ok,host_key='ssh-ed25519 '+base64.b64encode(b'other').decode()),   # key not matching the pin
+                    dict(ok,key_path='/k'),                                          # two login methods
+                    dict(base,host_key='ssh-ed25519 '+b64)):                         # no login method
+            with self.assertRaises(ValueError,msg=sorted(bad)):
+                ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'xr':bad})).prepare('device.inspect',{'asset':'xr'})
+
     def test_nested_remote_input_is_rejected_before_recursing_or_model(self):
         values=configured_assets();values['a']=values['lab']
         registry=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps(values))
