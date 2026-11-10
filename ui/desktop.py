@@ -134,9 +134,10 @@ def build_window(client, voice_model=None):
             self.pool.start(work)
 
         def show_preview(self,row):
-            self.preview=row
+            answer=isinstance(row,dict) and row.get("answer") is True   # informational (e.g. a device profile): nothing to confirm
+            self.preview=None if answer else row
             self.preview_text.setPlainText(json.dumps(row,indent=2)[:65536])
-            self.confirm_button.setEnabled(True);self.tabs.setCurrentIndex(0)
+            self.confirm_button.setEnabled(not answer);self.tabs.setCurrentIndex(0)
 
         def device_action(self,mode):
             asset=self.asset_name.text();interface=self.interface_name.text()

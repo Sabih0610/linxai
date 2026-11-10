@@ -13,7 +13,7 @@ from . import ipc
 from .audit import JsonlAudit
 from .broker import BrokerClient
 from .jobs import Jobs
-from .registry import ActionRegistry
+from .registry import ActionRegistry, UnsupportedAction
 from .service import LocalPolicy, OperationService
 from .store import Store
 from .supervised import SupervisedLinuxAdapter
@@ -30,6 +30,8 @@ class Agent:
         self.store = Store(self.state / "application.sqlite")
         self.registry = ActionRegistry(workspace, actor_uid=self.uid, assets_json=assets(self.state / "assets.json", self.uid))
         self.planner = Planner(self.registry, model)
+        from ai.network_planner import NetworkPlanner
+        self.network = NetworkPlanner(self.registry, self.device_profile, self.planner.model)
         self.audit = JsonlAudit(self.state / "operations.jsonl")
         def service(event):
             adapter = WorkflowSystem()
@@ -100,6 +102,27 @@ class Agent:
         finally:
             security.close()
 
+    def device_profile(self, name):
+        """Gold capability profile written by discovery (scripts/discover.py --state <agent state>)."""
+        database = self.state / "discovery.sqlite"
+        if not database.exists():
+            return None
+        store = Store(database)
+        try:
+            return store.get("disc_gold", name)
+        finally:
+            store.close()
+
+    def config_preview(self, base, text, plan=None):
+        """Read the device for a preview revision, then preview the typed device.config.set."""
+        from uuid import uuid4
+        service = self.jobs.service_factory(threading.Event())
+        current = service.run({"action": "device.config.read", "parameters": base})
+        if current.status != "succeeded" or not current.verified: raise ValueError("Device read failed: " + current.reason)
+        typed = {"action": "device.config.set", "parameters": {**base, "expected_revision": json.loads(current.stdout)["revision"],
+                                                               "transaction_id": str(uuid4())}}
+        return self.jobs.preview(typed, text=text, plan=plan)
+
     def handle(self, uid, request):
         if uid != self.uid:
             raise PermissionError("Wrong API peer")
@@ -121,13 +144,7 @@ class Agent:
                    "expected_revision":json.loads(inspected.stdout)["revision"],"transaction_id":str(uuid4())}}
             return self.jobs.preview(typed,text="Configured device interface change")
         if method=="device_config_preview":
-            service=self.jobs.service_factory(threading.Event())
-            base={"asset":request["asset"],"feature":request["feature"],"settings":request["settings"]}
-            current=service.run({"action":"device.config.read","parameters":base})
-            if current.status!="succeeded" or not current.verified:raise ValueError("Device read failed: "+current.reason)
-            from uuid import uuid4
-            typed={"action":"device.config.set","parameters":{**base,"expected_revision":json.loads(current.stdout)["revision"],"transaction_id":str(uuid4())}}
-            return self.jobs.preview(typed,text="Configured device feature change")
+            return self.config_preview({"asset":request["asset"],"feature":request["feature"],"settings":request["settings"]},"Configured device feature change")
         if method in {"iot_inspect","iot_preview"}:
             service=self.jobs.service_factory(threading.Event())
             inspected=service.run({"action":"iot.inspect","parameters":{"asset":request["asset"]}})
@@ -155,6 +172,14 @@ class Agent:
         if method == "revoke_policy":
             return self.jobs.preview({"action": "response.policy.revoke", "parameters": {"policy_id": request["policy_id"]}}, text="Revoke scoped policy")
         if method == "preview":
+            found = self.network.plan(Planner.check_text(request["text"]))
+            if found is not None:            # names a registered network device: answered from its gold profile
+                if found[0] == "answer":
+                    return found[1]
+                from ai.local_planner import _NON_DIRECTIVE
+                if _NON_DIRECTIVE.search(request["text"]):
+                    raise UnsupportedAction("state-changing actions must be asked for plainly, not inside quoted, translated or override text")
+                return self.config_preview(found[1], request["text"], found[2])
             history = [{"text": row.get("text", ""), "plan": row.get("plan", {}), "request": row.get("request")} for row in reversed(self.store.list("job", 5))]
             typed, plan = self.planner.propose(request["text"], history)
             return self.jobs.preview(typed, text=request["text"], plan=plan)

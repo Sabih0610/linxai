@@ -107,6 +107,64 @@ version. Validate-only probes alone would have offered it.
 Cisco IOS XR sandbox: the pinned host key still matched, but the login was refused. The
 shared sandbox password has changed and the owner has to refresh the password file.
 
+## 4. Chat grounded in the gold profile (`ai/network_planner.py`)
+
+A chat request that names a registered NETCONF device is handled from that device's gold
+profile (stored by `scripts/discover.py --state <agent state>` in `discovery.sqlite`).
+Other requests go to the existing planner unchanged.
+
+* **Capability questions** ("what can srl1 do") are answered from the profile only. The
+  answer covers identity, proven, supported, not offered (with the reason), unsupported
+  (with the vendor evidence), ports and security notes. The UI shows it with Confirm
+  disabled.
+* **Change requests** map to ONE typed feature:
+  1. **Fixed patterns** handle common phrasings exactly (hostname, description, banner,
+     DNS, NTP, IPv4, static route, LAG, BGP neighbour, VLAN, access VLAN).
+  2. Otherwise a **deterministic keyword shortlist** narrows the candidates. The local
+     model (Ollama, `qwen2.5:1.5b`) chooses only on a tie, and then only among the tied
+     features.
+  3. The model then fills that feature's settings from field hints.
+* **Grounding** (anti-hallucination): every address, number, port and name the model
+  returns must appear in the request. Banner and description text must be the
+  requester's exact words. Only naming defaults (ACL name, sequence) may come from the
+  example. Malformed or extra output is refused, never repaired.
+* **Gating**: features the profile marks unsupported or warned are refused with the
+  evidence, before the device is contacted. A device without a profile must be discovered
+  first. Quoted, translated or override wording never yields a change (the existing
+  injection guard).
+* The result is only a proposal. The agent reads the device for a preview revision,
+  previews the typed `device.config.set` with the profile evidence ("committed and
+  restored on this device 11 times"), and the owner confirms. Apply, verify and restore
+  are unchanged.
+
+**Accuracy against srl1's real profile with the local model** (`scripts/eval_network_intents.py`):
+
+| Run | Correct | Wrong change proposals |
+| --- | --- | --- |
+| Tuning set (27 requests), first design | 17/27 | 1 |
+| Tuning set, final design (tuned on this set) | 27/27 | 0 |
+| **Held-out set (20 new phrasings), first and only blind run** | **15/20** | **1** (banner text re-capitalised) |
+| Held-out set after general fixes (no longer blind) | 17/20 | 0 |
+
+The tuning-set score is optimistic because the design was tuned on it. The held-out
+first run is the honest estimate. The remaining misses are refusals ("no supported
+network change recognised"), not wrong changes. Every wrong proposal would still have
+been shown in the preview for confirmation.
+
+**Live end to end on srl1** (`scripts/accept_network_chat.py`,
+`evidence/discovery-2026-11-10/chat-live-srl1.json`):
+* "set the hostname of srl1 to chat-lab" and "add dns server 192.0.2.153 on srl1" each
+  went from chat sentence to gold-grounded plan to a committed, verified change and its
+  restore.
+* "create vlan 40" and "add ntp server" were refused before the device was contacted,
+  quoting the vendor deviation and the failure history.
+* "what can srl1 do" was answered from the profile.
+
+Result: 6/6. On the first run, right after a switch reset, the whole-config check
+failed once. That is SR Linux's known first-use DNS residue (an empty native
+`dns-instance mgmt`, see NETWORK_DEVICES.md). The rerun on the same switch passed 6/6
+with the whole config identical.
+
 ## Not done yet
 
 * SSH command-line families (Cisco/Huawei/Juniper `show`/`display` output). The
@@ -114,6 +172,8 @@ shared sandbox password has changed and the owner has to refresh the password fi
   the parser needs the TextFSM library.
 * Cisco discovery: the shared sandbox now rejects the saved password, so the owner must
   refresh the password file (the host key still matched).
-* Wiring the chat planner to read gold profiles.
+* Model accuracy on more varied phrasing: the 1.5B model handles slot-filling well but
+  not open-ended feature choice; a larger local model can be swapped in behind the same
+  bounds.
 * Data from sources that need an account: Cisco DevNet reservable sandboxes, Juniper
   vLabs, Arista cEOS.

@@ -1,0 +1,32 @@
+{
+  "chat: set the hostname of srl1 to chat-lab": {
+    "ok": true,
+    "feature": "system.hostname",
+    "evidence": "fixed pattern; evidence: committed and restored by LINxAI on this device 11 time(s)",
+    "set": "succeeded",
+    "restore": "succeeded"
+  },
+  "chat: add dns server 192.0.2.153 on srl1": {
+    "ok": true,
+    "feature": "system.dns_server",
+    "evidence": "fixed pattern; evidence: committed and restored by LINxAI on this device 9 time(s)",
+    "set": "succeeded",
+    "restore": "succeeded"
+  },
+  "whole running config identical after the chat changes": {
+    "ok": true
+  },
+  "refused before the device: create vlan 40 on srl1": {
+    "ok": true,
+    "reason": "srl1 cannot do vlan: vendor deviation not-supported /network-instances/network-instance/vlans (openconfig-srl-deviations)"
+  },
+  "refused before the device: add ntp server 192.0.2.1 on srl1": {
+    "ok": true,
+    "reason": "system.ntp_server on srl1 is not offered: 2 earlier change attempts never completed a restore cycle (likely refused at commit)"
+  },
+  "capability answer from the gold profile": {
+    "ok": true,
+    "model": "7220 IXR-D3L",
+    "proven": 17
+  }
+}

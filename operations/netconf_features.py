@@ -206,7 +206,8 @@ def lag_member(s, asset):
 
 
 def acl_entry(s, asset):
-    action = {"accept": "ACCEPT", "drop": "DROP", "reject": "REJECT"}[s["action"]]
+    action = {"accept": "ACCEPT", "permit": "ACCEPT", "allow": "ACCEPT", "drop": "DROP", "deny": "DROP", "block": "DROP",
+              "reject": "REJECT"}[str(s["action"]).lower()]
     src, dst = ipaddress.ip_network(str(s.get("source", "0.0.0.0/0"))), ipaddress.ip_network(str(s.get("destination", "0.0.0.0/0")))
     if action != "ACCEPT":
         _mgmt_safe(dst, asset)        # a drop rule may never match traffic to the management address
