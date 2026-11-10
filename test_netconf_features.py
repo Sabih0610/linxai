@@ -79,7 +79,17 @@ class FeatureTests(unittest.TestCase):
         self.assertIn("<type>ACL_IPV4</type>", acl)                      # same module: unprefixed
         route = nf.render(*nf.resolve("static_route", {"prefix": "203.0.113.0/24", "next_hop": "198.51.100.2"}, ASSET))
         self.assertIn('xmlns:oc-pol-types="http://openconfig.net/yang/policy-types">oc-pol-types:STATIC', route)
-        vx = nf.render(*nf.resolve("srl.vxlan_interface", {"vni": 100}, ASSET))       # vendor-native identity
+        self.assertIn("<name>static</name>", route)
+        # A device's protocol instance naming (IOS XR: DEFAULT) comes from the asset; the request can still override it.
+        xr = dict(ASSET, protocol_names={"STATIC": "DEFAULT"})
+        self.assertIn("<name>DEFAULT</name>", nf.render(*nf.resolve("static_route", {"prefix": "203.0.113.0/24", "next_hop": "198.51.100.2"}, xr)))
+        self.assertIn("<name>s1</name>", nf.render(*nf.resolve("static_route", {"prefix": "203.0.113.0/24", "next_hop": "198.51.100.2",
+                                                                                 "protocol_name": "s1"}, xr)))
+        for bad in ({"STATIC": "bad name"}, {"ISIS": "x"}, ["DEFAULT"]):
+            with self.assertRaises(InvalidParameters, msg=bad):
+                ActionRegistry("/srv/work", actor_uid=1000, assets_json=json.dumps({"core": dict(ASSET, protocol_names=bad)})).prepare(
+                    "device.config.read", {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "r1"}})
+        vx =nf.render(*nf.resolve("srl.vxlan_interface", {"vni": 100}, ASSET))       # vendor-native identity
         self.assertIn(">srl_nokia-interfaces:bridged</type>", vx)
         term = nf.render(*nf.resolve("qos.classifier_term", {"classifier": "c", "term": 1, "dscp": [46, 10], "forwarding_group": "g"}, ASSET))
         self.assertIn("<dscp-set>10</dscp-set><dscp-set>46</dscp-set>", term)          # leaf-list, one element per value

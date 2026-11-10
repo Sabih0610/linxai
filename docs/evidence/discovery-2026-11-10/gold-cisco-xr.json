@@ -1,0 +1,412 @@
+{
+ "asset": "xr",
+ "features": [
+  {
+   "evidence": [
+    "model openconfig-acl"
+   ],
+   "feature": "acl.entry",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-network-instance"
+   ],
+   "feature": "bgp.global",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-network-instance"
+   ],
+   "feature": "bgp.neighbor",
+   "probe": "not validated alone (needs bgp.global/peer group): {'type': 'application', 'tag': 'operation-failed', 'app_tag': None, 'severity': 'error', 'info': None, 'path': None, 'message': None}",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-network-instance"
+   ],
+   "feature": "bgp.peer_group",
+   "probe": "not validated alone (needs bgp.global): {'type': 'application', 'tag': 'operation-failed', 'app_tag': None, 'severity': 'error', 'info': None, 'path': None, 'message': None}",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-if-ethernet",
+    "model openconfig-interfaces",
+    "model openconfig-vlan"
+   ],
+   "feature": "interface.access_vlan",
+   "probe": "not validated alone (needs vlan): The specified element has bad value.",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-interfaces"
+   ],
+   "feature": "interface.description",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-interfaces",
+    "model openconfig-if-ip"
+   ],
+   "feature": "interface.ipv4",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-if-ethernet",
+    "model openconfig-interfaces",
+    "model openconfig-if-aggregate"
+   ],
+   "feature": "lag.member",
+   "probe": "not probed: the device has no LAG interface",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-network-instance"
+   ],
+   "feature": "ospf.interface",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-qos not advertised"
+   ],
+   "feature": "qos.classifier_term",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "model openconfig-qos not advertised"
+   ],
+   "feature": "qos.forwarding_group",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "model openconfig-qos not advertised"
+   ],
+   "feature": "qos.interface_classifier",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "model openconfig-qos not advertised"
+   ],
+   "feature": "qos.queue",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "namespace urn:nokia.com:srlinux:net-inst:bgp-evpn not advertised"
+   ],
+   "feature": "srl.mac_vrf_evpn",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "namespace urn:nokia.com:srlinux:qos:qos not advertised"
+   ],
+   "feature": "srl.qos_dscp_rule",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "namespace urn:nokia.com:srlinux:qos:qos not advertised"
+   ],
+   "feature": "srl.qos_forwarding_class",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "namespace urn:nokia.com:srlinux:qos:qos not advertised"
+   ],
+   "feature": "srl.qos_interface_policy",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "namespace urn:nokia.com:srlinux:qos:qos not advertised"
+   ],
+   "feature": "srl.qos_queue",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "namespace urn:nokia.com:srlinux:vxlan:tunnel-interfaces not advertised"
+   ],
+   "feature": "srl.vxlan_interface",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "model openconfig-network-instance"
+   ],
+   "feature": "static_route",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-system"
+   ],
+   "feature": "system.banner",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-system"
+   ],
+   "feature": "system.dns_server",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-system"
+   ],
+   "feature": "system.hostname",
+   "probe": "validated by device",
+   "status": "supported"
+  },
+  {
+   "evidence": [
+    "model openconfig-system"
+   ],
+   "feature": "system.ntp_server",
+   "probe": "rejected by device: {'type': 'protocol', 'tag': 'unknown-namespace', 'app_tag': None, 'severity': 'error', 'info': '<?xml version=\"1.0\" encoding=\"UTF-8\"?><error-info xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" xmlns:",
+   "status": "unsupported"
+  },
+  {
+   "evidence": [
+    "vendor deviation not-supported /network-instances/network-instance/vlans/vlan (cisco-xr-openconfig-network-instance-deviations)"
+   ],
+   "feature": "vlan",
+   "status": "unsupported"
+  }
+ ],
+ "hostname": "xrd-1",
+ "interfaces": [
+  {
+   "admin": "UP",
+   "description": "to xrd-2 Gi0/0/0/0",
+   "management": false,
+   "name": "GigabitEthernet0/0/0/0",
+   "oper": "UP",
+   "type": "ethernetCsmacd"
+  },
+  {
+   "admin": "",
+   "description": "",
+   "management": false,
+   "name": "sr-srte_c_333_ep_3.0.3.6",
+   "oper": "",
+   "type": ""
+  },
+  {
+   "admin": "UP",
+   "description": "to xrd-3 Gi0/0/0/1",
+   "management": false,
+   "name": "GigabitEthernet0/0/0/1",
+   "oper": "UP",
+   "type": "ethernetCsmacd"
+  },
+  {
+   "admin": "UP",
+   "description": "",
+   "management": false,
+   "name": "Loopback3",
+   "oper": "UP",
+   "type": "softwareLoopback"
+  },
+  {
+   "admin": "UP",
+   "description": "Network Automation",
+   "management": false,
+   "name": "Loopback0",
+   "oper": "UP",
+   "type": "softwareLoopback"
+  },
+  {
+   "admin": "UP",
+   "description": "",
+   "management": false,
+   "name": "Loopback100",
+   "oper": "UP",
+   "type": "softwareLoopback"
+  },
+  {
+   "admin": "UP",
+   "description": "",
+   "management": true,
+   "name": "MgmtEth0/RP0/CPU0/0",
+   "oper": "UP",
+   "type": "ethernetCsmacd"
+  },
+  {
+   "admin": "UP",
+   "description": "",
+   "management": false,
+   "name": "Null0",
+   "oper": "UP",
+   "type": "other"
+  },
+  {
+   "admin": "",
+   "description": "",
+   "management": false,
+   "name": "srte_c_333_ep_3.0.3.6",
+   "oper": "",
+   "type": ""
+  }
+ ],
+ "knowledge_base": {
+  "platforms": 14,
+  "support": {
+   "acl.entry": {
+    "supported": 14
+   },
+   "bgp.global": {
+    "supported": 3,
+    "unsupported": 11
+   },
+   "bgp.neighbor": {
+    "supported": 3,
+    "unsupported": 11
+   },
+   "bgp.peer_group": {
+    "supported": 3,
+    "unsupported": 11
+   },
+   "interface.access_vlan": {
+    "supported": 9,
+    "unsupported": 5
+   },
+   "interface.description": {
+    "supported": 9,
+    "unsupported": 5
+   },
+   "interface.ipv4": {
+    "supported": 9,
+    "unsupported": 5
+   },
+   "lag.member": {
+    "supported": 9,
+    "unsupported": 5
+   },
+   "ospf.interface": {
+    "supported": 3,
+    "unsupported": 11
+   },
+   "qos.classifier_term": {
+    "supported": 2,
+    "unsupported": 12
+   },
+   "qos.forwarding_group": {
+    "supported": 2,
+    "unsupported": 12
+   },
+   "qos.interface_classifier": {
+    "supported": 2,
+    "unsupported": 12
+   },
+   "qos.queue": {
+    "supported": 2,
+    "unsupported": 12
+   },
+   "srl.mac_vrf_evpn": {
+    "unknown": 14
+   },
+   "srl.qos_dscp_rule": {
+    "unknown": 14
+   },
+   "srl.qos_forwarding_class": {
+    "unknown": 14
+   },
+   "srl.qos_interface_policy": {
+    "unknown": 14
+   },
+   "srl.qos_queue": {
+    "unknown": 14
+   },
+   "srl.vxlan_interface": {
+    "unknown": 14
+   },
+   "static_route": {
+    "supported": 3,
+    "unsupported": 11
+   },
+   "system.banner": {
+    "supported": 14
+   },
+   "system.dns_server": {
+    "supported": 14
+   },
+   "system.hostname": {
+    "supported": 14
+   },
+   "system.ntp_server": {
+    "supported": 14
+   },
+   "vlan": {
+    "supported": 3,
+    "unsupported": 11
+   }
+  },
+  "versions": [
+   "2531"
+  ]
+ },
+ "lldp_neighbours": [],
+ "management_interfaces": [
+  "MgmtEth0/RP0/CPU0/0"
+ ],
+ "missing_for_safe_changes": [],
+ "model": "",
+ "os": "iosxr",
+ "proposed_asset": {
+  "features": [
+   "acl.entry",
+   "bgp.global",
+   "bgp.neighbor",
+   "bgp.peer_group",
+   "interface.access_vlan",
+   "interface.description",
+   "interface.ipv4",
+   "lag.member",
+   "ospf.interface",
+   "static_route",
+   "system.banner",
+   "system.dns_server",
+   "system.hostname"
+  ],
+  "note": "owner review required; nothing is enabled until the owner approves it",
+  "ports": [
+   "GigabitEthernet0/0/0/0",
+   "GigabitEthernet0/0/0/1"
+  ],
+  "protocol_names": {
+   "STATIC": "DEFAULT"
+  }
+ },
+ "safe_changes": true,
+ "security_notes": [
+  "port 22 announces SSH-2.0-OpenSSH_9.6 PKIX[14.4.2]",
+  "port 830 announces SSH-2.0-OpenSSH_9.6 PKIX[14.4.2]"
+ ],
+ "serial": "",
+ "time": 1794300618.4460018,
+ "vendor": "cisco",
+ "version": "25.3.1"
+}

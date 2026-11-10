@@ -19,7 +19,7 @@ import time
 import zlib
 from xml.etree import ElementTree as ET
 
-from .capability import RELEVANT_ROOTS, evaluate_all, identify, parse_capabilities, parse_deviations
+from .capability import PROTOCOL_NAMES, RELEVANT_ROOTS, evaluate_all, identify, parse_capabilities, parse_deviations
 
 PROBE_PORTS = (22, 23, 80, 443, 830, 5985, 5986, 502, 1883, 8883, 57400)
 INSECURE = {23: "telnet (cleartext management)", 80: "HTTP (cleartext management)", 1883: "MQTT without TLS"}
@@ -213,7 +213,7 @@ class Discovery:
                     row["status"] = "unsupported"
         prior = self._kb_prior(vendor, os_, version)
         ports = [i["name"] for i in silver["interfaces"] if not i["management"]
-                 and i["type"] in ("ethernetCsmacd", "ieee8023adLag", "")][:64]
+                 and i["type"] in ("ethernetCsmacd", "ieee8023adLag")][:64]   # untyped entries (e.g. XR SR-TE tunnels) are not ports
         notes = []
         for svc in contact.get("open", []):
             if svc["port"] in INSECURE:
@@ -233,5 +233,6 @@ class Discovery:
                 "lldp_neighbours": silver["lldp_neighbours"][:64], "features": features, "knowledge_base": prior,
                 "security_notes": notes,
                 "proposed_asset": {"features": usable, "ports": ports,
+                                   **({"protocol_names": PROTOCOL_NAMES[(vendor, os_)]} if (vendor, os_) in PROTOCOL_NAMES else {}),
                                    "note": "owner review required; nothing is enabled until the owner approves it"}}
 

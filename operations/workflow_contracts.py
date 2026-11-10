@@ -72,7 +72,12 @@ def _netconf_asset(asset,InvalidParameters):
     password login also requires the full pinned `host_key`, enforced before auth."""
     import base64, hashlib
     base={'platform','host','port','username','host_key_sha256','state_dir'}
-    keys=set(asset)-base-{'features','ports'}      # ports: required separately by actions that change interfaces
+    keys=set(asset)-base-{'features','ports','protocol_names'}      # ports: required separately by actions that change interfaces
+    if 'protocol_names' in asset:                  # device naming convention for protocol instances, found by discovery
+        from .netconf_features import NAME, PROTOCOL_KINDS
+        names=asset['protocol_names']
+        if not isinstance(names,dict) or not set(names)<=set(PROTOCOL_KINDS) or not all(isinstance(v,str) and NAME.fullmatch(v) for v in names.values()):
+            raise InvalidParameters('protocol_names maps STATIC/OSPF/BGP to valid instance names')
     if 'features' in asset:
         from .netconf_features import FEATURES
         if not isinstance(asset['features'],list) or not set(asset['features'])<=set(FEATURES):raise InvalidParameters('Unknown NETCONF feature in allowlist')

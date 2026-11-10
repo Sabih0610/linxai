@@ -37,6 +37,10 @@ SAMPLES = {
     "srl.qos_dscp_rule": {"policy": "linxai-probe", "dscp": 46, "forwarding_class": "fc5"},
     "srl.qos_interface_policy": {"interface": P, "policy": "linxai-probe"}}
 SYNTHETIC = {"host": "192.0.2.10", "ports": [P, P2], "features": sorted(nf.FEATURES)}
+# Protocol instance names a vendor requires, proposed for the asset and checked by the device probe.
+# IOS XR 25.3.1 (sandbox, 10 Nov 2026) rejects an OpenConfig static route under instance "static"
+# and validates it under "DEFAULT".
+PROTOCOL_NAMES = {("cisco", "iosxr"): {"STATIC": "DEFAULT"}}
 VENDORS = ((r"^Cisco-IOS-XR-", "cisco", "iosxr"), (r"^Cisco-IOS-XE-", "cisco", "iosxe"), (r"^Cisco-NX-OS-", "cisco", "nxos"),
            (r"^(junos|jnx-)", "juniper", "junos"), (r"^huawei-", "huawei", "vrp"), (r"^srl_nokia-", "nokia", "srlinux"),
            (r"^nokia-(conf|state)", "nokia", "sros"), (r"^arista-", "arista", "eos"), (r"^arrcus-", "arrcus", "arcos"))

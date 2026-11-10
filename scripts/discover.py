@@ -18,6 +18,10 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import time
+
+TRANSIENT = {"validation_failed", "verification_failed", "execution_failed", "failed"}
+RETRY_PAUSES = (10, 20)          # then one last attempt
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -60,8 +64,21 @@ def main(argv=None):
         os.chmod(temp, 0o700)
 
         def service(asset_map):
-            return OperationService(ActionRegistry(temp, actor_uid=uid, assets_json=json.dumps(asset_map)), WorkflowSystem(),
-                                    LocalPolicy(uid), JsonlAudit(Path(temp) / "audit.jsonl"))
+            svc = OperationService(ActionRegistry(temp, actor_uid=uid, assets_json=json.dumps(asset_map)), WorkflowSystem(),
+                                   LocalPolicy(uid), JsonlAudit(Path(temp) / "audit.jsonl"))
+            run = svc.run
+
+            def retrying(request):
+                # Only read-only and validate-only actions run here, so repeating them is safe. Shared
+                # sandboxes (Cisco Always-On) drop sessions under load; each attempt is audited.
+                for pause in RETRY_PAUSES:
+                    result = run(request)
+                    if result.status not in TRANSIENT:
+                        return result
+                    time.sleep(pause)
+                return run(request)
+            svc.run = retrying
+            return svc
         result = service(assets).run({"action": "device.discover", "parameters": {"asset": args.asset}})
         if result.status != "succeeded":
             print(json.dumps({"status": result.status, "reason": result.reason, "error": (result.stderr or "")[-400:]}))
@@ -72,6 +89,8 @@ def main(argv=None):
             ports = gold["proposed_asset"]["ports"]
             lags = [i["name"] for i in gold["interfaces"] if i["type"] == "ieee8023adLag"]
             probe_asset = dict(asset, features=sorted(FEATURES), ports=sorted(set(ports[:2] + lags[:1])))
+            if "protocol_names" in gold["proposed_asset"]:            # the device's naming convention is checked by the probe too
+                probe_asset["protocol_names"] = gold["proposed_asset"]["protocol_names"]
             svc, probes = service({args.asset: probe_asset}), []
             for row in gold["features"]:
                 feature = row["feature"]

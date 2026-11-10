@@ -104,8 +104,33 @@ The profiles match the hand-made lab findings:
 srl2's proposal excludes OpenConfig QoS only because of srl1's evidence on the same
 version. Validate-only probes alone would have offered it.
 
-Cisco IOS XR sandbox: the pinned host key still matched, but the login was refused. The
-shared sandbox password has changed and the owner has to refresh the password file.
+### Cisco IOS XR (DevNet "IOS XR Always On" sandbox, `gold-cisco-xr.json`)
+
+Same procedure: the owner launched the sandbox and saved its password file; LINxAI connected
+with the pinned host key. Identity: Cisco IOS XR 25.3.1 (XRd), hostname `xrd-1`,
+`MgmtEth0/RP0/CPU0/0` flagged as management. Probes are validate-only and always discarded.
+The sandbox is shared, so nothing was committed.
+
+| Result | Features |
+| --- | --- |
+| Validated by the device (10) | hostname, banner, DNS server, interface description, IPv4, static route, OSPF interface, BGP global, ACL entry |
+| Not validated alone (needs another feature first) | BGP neighbour, BGP peer group, access VLAN |
+| Rejected by the device | NTP server (`unknown-namespace`), although the knowledge base predicts support from the advertised models |
+| Unsupported by model | VLAN, OpenConfig QoS, the SR Linux native profiles |
+| Not probed | LAG member (the device has no LAG interface) |
+
+What the Cisco run found and fixed:
+* **Protocol instance naming.** IOS XR rejects an OpenConfig static route under the instance
+  name `static` (SR Linux's name) and validates it under `DEFAULT`. The first probe run therefore
+  marked static routes unsupported, which was wrong. An asset can now carry `protocol_names`
+  (`{"STATIC": "DEFAULT"}`); discovery proposes it for IOS XR and the probe checks it.
+* **Tunnel entries are not ports.** XR lists SR-TE tunnels (`srte_c_...`) in the interface
+  model without a type or state. Only typed Ethernet/LAG interfaces are proposed as ports now.
+* **Shared sandboxes drop sessions under load.** Some runs failed LINxAI's pre- or post-check
+  at random. Discovery now repeats read-only and validate-only actions up to three times
+  (10 s and 20 s pauses), each attempt audited, before reporting "not probed".
+* NTP: the same `unknown-namespace` rejection was seen on IOS XR 7.9 earlier, so the knowledge
+  base's model-level prediction is overruled by device evidence on both releases.
 
 ## 4. Chat grounded in the gold profile (`ai/network_planner.py`)
 
@@ -170,8 +195,8 @@ with the whole config identical.
 * SSH command-line families (Cisco/Huawei/Juniper `show`/`display` output). The
   ntc-templates parsing templates and their real sample outputs are downloaded for this;
   the parser needs the TextFSM library.
-* Cisco discovery: the shared sandbox now rejects the saved password, so the owner must
-  refresh the password file (the host key still matched).
+* Cisco commit and restore: the Always-On router is shared, so only validate-only probes ran.
+  Proving commits needs a private reservable sandbox (or the sandbox rules allowing it).
 * Model accuracy on more varied phrasing: the 1.5B model handles slot-filling well but
   not open-ended feature choice; a larger local model can be swapped in behind the same
   bounds.

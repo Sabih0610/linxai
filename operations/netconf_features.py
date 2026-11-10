@@ -76,14 +76,20 @@ def _mgmt_safe(network, asset):
         raise ValueError("change would affect the device's management address")
 
 
-def _protocol(kind, s):
+def _protocol(kind, s, asset):
+    name = _pname(s, kind, asset)
     return [("ni", "network-instances", {}), _instance(s),
-            ("ni", "protocols", {}), ("ni", "protocol", {"identifier": Identity(NS["pt"], kind), "name": _pname(s, kind)},
-                                       {"config": {"identifier": Identity(NS["pt"], kind), "name": _pname(s, kind)}})]
+            ("ni", "protocols", {}), ("ni", "protocol", {"identifier": Identity(NS["pt"], kind), "name": name},
+                                       {"config": {"identifier": Identity(NS["pt"], kind), "name": name}})]
 
 
-def _pname(s, kind):
-    name = s.get("protocol_name", {"STATIC": "static"}.get(kind, kind))
+PROTOCOL_KINDS = ("STATIC", "OSPF", "BGP")
+
+
+def _pname(s, kind, asset):
+    """Protocol instance name: the request, else the device's convention found by discovery
+    (asset `protocol_names`, e.g. IOS XR's static instance is `DEFAULT`), else the OpenConfig default."""
+    name = s.get("protocol_name") or (asset.get("protocol_names") or {}).get(kind) or {"STATIC": "static"}.get(kind, kind)
     if not NAME.fullmatch(str(name)):
         raise ValueError("invalid protocol instance name")
     return name
@@ -158,7 +164,7 @@ def static_route(s, asset):
     hop = ipaddress.ip_address(s["next_hop"])
     if hop.is_loopback or hop.is_unspecified or hop.version != prefix.version:
         raise ValueError("next hop must be a routable address of the same family")
-    return _protocol("STATIC", s) + [("ni", "static-routes", {}), ("ni", "static", {"prefix": str(prefix)})], \
+    return _protocol("STATIC", s, asset) + [("ni", "static-routes", {}), ("ni", "static", {"prefix": str(prefix)})], \
         {"config": {"prefix": str(prefix)},
          "next-hops": {"next-hop": {"index": "1", "config": {"index": "1", "next-hop": str(hop)}}}}
 
@@ -166,7 +172,7 @@ def static_route(s, asset):
 def ospf_interface(s, asset):
     name = _iface(s["interface"], asset)
     area = str(ipaddress.ip_address(s.get("area", "0.0.0.0")))
-    return _protocol("OSPF", s) + [("ni", "ospfv2", {}), ("ni", "areas", {}), ("ni", "area", {"identifier": area}),
+    return _protocol("OSPF", s, asset) + [("ni", "ospfv2", {}), ("ni", "areas", {}), ("ni", "area", {"identifier": area}),
                                    ("ni", "interfaces", {}), ("ni", "interface", {"id": name})], \
         {"config": {"id": name, **({"passive": bool(s["passive"])} if "passive" in s else {})}}
 
@@ -176,7 +182,7 @@ def bgp_global(s, asset):
     if s.get("router_id"):
         config["router-id"] = str(ipaddress.IPv4Address(s["router_id"]))
     v4 = Identity(NS["bt"], "IPV4_UNICAST")      # some devices (SR Linux) need an enabled address family
-    return _protocol("BGP", s) + [("ni", "bgp", {}), ("ni", "global", {})],         {"config": config, "afi-safis": {"afi-safi": {"afi-safi-name": v4, "config": {"afi-safi-name": v4, "enabled": True}}}}
+    return _protocol("BGP", s, asset) + [("ni", "bgp", {}), ("ni", "global", {})],         {"config": config, "afi-safis": {"afi-safi": {"afi-safi-name": v4, "config": {"afi-safi-name": v4, "enabled": True}}}}
 
 
 def bgp_peer_group(s, asset):
@@ -186,13 +192,13 @@ def bgp_peer_group(s, asset):
     config = {"peer-group-name": name}
     if s.get("peer_as") is not None:
         config["peer-as"] = _int(s["peer_as"], 1, 4294967295)
-    return _protocol("BGP", s) + [("ni", "bgp", {}), ("ni", "peer-groups", {}), ("ni", "peer-group", {"peer-group-name": name})],         {"config": config}
+    return _protocol("BGP", s, asset) + [("ni", "bgp", {}), ("ni", "peer-groups", {}), ("ni", "peer-group", {"peer-group-name": name})],         {"config": config}
 
 
 def bgp_neighbor(s, asset):
     neighbor = _ip(s["neighbor"])
     _mgmt_safe(ipaddress.ip_network(neighbor), asset)
-    return _protocol("BGP", s) + [("ni", "bgp", {}), ("ni", "neighbors", {}), ("ni", "neighbor", {"neighbor-address": neighbor})], \
+    return _protocol("BGP", s, asset) + [("ni", "bgp", {}), ("ni", "neighbors", {}), ("ni", "neighbor", {"neighbor-address": neighbor})], \
         {"config": {"neighbor-address": neighbor, "peer-as": _int(s["peer_as"], 1, 4294967295),
                     **({"peer-group": s["peer_group"]} if isinstance(s.get("peer_group"), str) and NAME.fullmatch(s["peer_group"]) else {})}}
 

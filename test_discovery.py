@@ -95,6 +95,7 @@ class LiveDiscoveryTests(unittest.TestCase):
         intf = ('<data><interfaces xmlns="http://openconfig.net/yang/interfaces">'
                 '<interface><name>mgmt0</name><state><type>iana-if-type:ethernetCsmacd</type><oper-status>UP</oper-status></state></interface>'
                 '<interface><name>ethernet-1/1</name><state><type>iana-if-type:ethernetCsmacd</type><oper-status>DOWN</oper-status></state></interface>'
+                '<interface><name>srte_c_333_ep_3.0.3.6</name></interface>'          # IOS XR SR-TE tunnel: no type, no state
                 '</interfaces></data>')
         system = '<data><system xmlns="http://openconfig.net/yang/system"><state><hostname>leaf1</hostname><software-version>26.7.2</software-version></state></system></data>'
         return {"discovery": [packed("hello", hello), packed("interfaces", intf), packed("system", system), packed("lldp", "<data><broken"),
@@ -118,7 +119,7 @@ class LiveDiscoveryTests(unittest.TestCase):
             self.assertEqual((gold["vendor"], gold["os"], gold["version"], gold["hostname"]), ("nokia", "srlinux", "26.7.2", "leaf1"))
             self.assertTrue(gold["safe_changes"])
             self.assertEqual(gold["management_interfaces"], ["mgmt0"])
-            self.assertEqual(gold["proposed_asset"]["ports"], ["ethernet-1/1"])           # management port never offered
+            self.assertEqual(gold["proposed_asset"]["ports"], ["ethernet-1/1"])           # management port and untyped tunnels never offered
             self.assertEqual(features["system.hostname"]["status"], "proven")
             self.assertIn("never completed", features["qos.queue"]["warning"])
             self.assertNotIn("qos.queue", gold["proposed_asset"]["features"])
