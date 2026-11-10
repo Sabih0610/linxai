@@ -27,9 +27,11 @@ class OllamaPlanner:
                        "options":{"num_predict":1024,"temperature":0}})
         return json.loads(result["message"]["content"])
 
-    def complete(self, system, user):
-        """One bounded JSON completion with a caller-supplied system prompt (network slot-filling)."""
-        result = chat({"model": self.model, "stream": False, "format": "json", "options": {"num_predict": 256, "temperature": 0},
+    def complete(self, system, user, schema=None):
+        """One bounded JSON completion with a caller-supplied system prompt (network slot-filling).
+        A JSON schema, when given, constrains decoding itself: the model cannot emit other keys,
+        types or enum values."""
+        result = chat({"model": self.model, "stream": False, "format": schema or "json", "options": {"num_predict": 256, "temperature": 0},
                        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user[:4096]}]})
         return json.loads(result["message"]["content"])
 

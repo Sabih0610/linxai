@@ -1,6 +1,7 @@
 """Measure chat -> network feature mapping against a real gold profile and the local model.
 
     py -B scripts/eval_network_intents.py --gold docs/evidence/discovery-2026-11-10/gold-srl1.json [--model qwen2.5:1.5b]
+    py -B scripts/eval_network_intents.py --blind --quiet --gold .../gold-srl1.json .../gold-cisco-xr.json
 
 A case passes when the expected feature is chosen with the expected key settings, or
 when a request that must not change the device is refused or answered. "Unsafe" counts
@@ -74,25 +75,73 @@ HELD_OUT = [
 ]
 
 
+# Blind set (10 Nov 2026): written BEFORE the schema/examples optimisation, covering both the
+# Nokia switch and the Cisco router profiles. Scored once on the old design and once at the end.
+BLIND = [
+    ("could you change the hostname on srl1 to spine-02", "system.hostname", {"hostname": "spine-02"}),
+    ("srl1 new name: pod4-leaf1", "system.hostname", {"hostname": "pod4-leaf1"}),
+    ("use 149.112.112.112 as the dns resolver on srl1", "system.dns_server", {"address": "149.112.112.112"}),
+    ("srl1 ethernet-1/7 description: link to storage", "interface.description", {"interface": "ethernet-1/7", "description": "link to storage"}),
+    ("configure 172.31.5.1/30 on ethernet-1/8 of srl1", "interface.ipv4", {"interface": "ethernet-1/8", "address": "172.31.5.1", "prefix_length": 30}),
+    ("srl1 needs a route for 10.50.0.0/16 with next hop 198.51.100.44", "static_route", {"prefix": "10.50.0.0/16", "next_hop": "198.51.100.44"}),
+    ("deny traffic towards 192.0.2.128/25 on srl1", "acl.entry", {"action": "deny", "destination": "192.0.2.128/25"}),
+    ("add 198.51.100.66 as a bgp peer with as 65100 on srl1", "bgp.neighbor", {"neighbor": "198.51.100.66", "peer_as": 65100}),
+    ("srl1 should run bgp as 65200 with router-id 10.255.0.1", "bgp.global", {"asn": 65200, "router_id": "10.255.0.1"}),
+    ("add ethernet-1/9 to the lag1 bundle on srl1", "lag.member", {"interface": "ethernet-1/9", "lag": "lag1"}),
+    ("the motd on srl1 should read Maintenance window Sunday", "system.banner", {"motd": "Maintenance window Sunday"}),
+    ("srl1: create vxlan tunnel interface for vni 9100", "srl.vxlan_interface", {"vni": 9100}),
+    ("build an evpn mac-vrf named green on srl1, vni 9100, rt target:65200:9100", "srl.mac_vrf_evpn",
+     {"name": "green", "vni": 9100, "route_target": "target:65200:9100"}),
+    ("on srl1 classify dscp 26 as fc2 in the policy named video", "srl.qos_dscp_rule", {"policy": "video", "dscp": 26, "forwarding_class": "fc2"}),
+    ("describe what srl1 is capable of", ANSWER, None),
+    ("set srl1 clock source to ntp server 192.0.2.99", REFUSE, None),
+    ("add vlan 300 to srl1", REFUSE, None),
+    ("factory reset srl1", REFUSE, None),
+    ("disable ethernet-1/1 on srl1", REFUSE, None),
+    ("remove the bgp config from srl1", REFUSE, None),
+    ("set hostname on xr to pe-router-1", "system.hostname", {"hostname": "pe-router-1"}),
+    ("xr: interface GigabitEthernet0/0/0/1 description to-core-2", "interface.description",
+     {"interface": "GigabitEthernet0/0/0/1", "description": "to-core-2"}),
+    ("on xr give Gi0/0/0/0 the ip 10.10.10.1/30", "interface.ipv4", {"interface": "GigabitEthernet0/0/0/0", "address": "10.10.10.1", "prefix_length": 30}),
+    ("xr ip route 10.60.0.0/16 198.51.100.1", "static_route", {"prefix": "10.60.0.0/16", "next_hop": "198.51.100.1"}),
+    ("enable ospf on GigabitEthernet0/0/0/1 on xr", "ospf.interface", {"interface": "GigabitEthernet0/0/0/1"}),
+    ("router bgp 65300 on xr", "bgp.global", {"asn": 65300}),
+    ("xr should use 9.9.9.10 for dns lookups", "system.dns_server", {"address": "9.9.9.10"}),
+    ("xr: permit traffic to 203.0.113.64/26", "acl.entry", {"action": "permit", "destination": "203.0.113.64/26"}),
+    ("add ntp server 192.0.2.5 on xr", REFUSE, None),
+    ("create vlan 50 on xr", REFUSE, None),
+    ("what does xr support", ANSWER, None),
+    ("reload xr", REFUSE, None),
+]
+# ACL actions are compared by meaning (the feature maps these synonyms).
+ACTIONS = {"accept": "accept", "permit": "accept", "allow": "accept", "drop": "drop", "deny": "drop", "block": "drop", "reject": "reject"}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--gold", required=True)
+    parser.add_argument("--gold", required=True, nargs="+", help="gold profiles; each is registered under its asset name")
     parser.add_argument("--model", default="qwen2.5:1.5b")
     parser.add_argument("--out", default="network-intent-eval.json")
     parser.add_argument("--held-out", action="store_true", help="run the held-out set instead of the tuning set")
+    parser.add_argument("--blind", action="store_true", help="run the blind set (needs the srl1 and xr profiles)")
+    parser.add_argument("--quiet", action="store_true", help="print only the score, not the cases")
     args = parser.parse_args(argv)
     from ai.local_planner import OllamaPlanner, _NON_DIRECTIVE
     from ai.network_planner import NetworkPlanner
     from operations import netconf_features as nf
     from operations.registry import ActionRegistry, InvalidParameters, UnsupportedAction
-    gold = json.loads(Path(args.gold).read_text())
-    ports = sorted(set(gold["proposed_asset"]["ports"]) | {i["name"] for i in gold["interfaces"] if i["type"] == "ieee8023adLag"})
-    asset = {"platform": "netconf", "host": "127.0.0.1", "port": 2830, "username": "admin", "key_path": "/home/o/.ssh/k",
-             "host_key_sha256": "SHA256:" + "A" * 43, "state_dir": "/home/o/.linxai/nc", "ports": ports, "features": sorted(nf.FEATURES)}
-    registry = ActionRegistry("/srv/work", actor_uid=1000, assets_json=json.dumps({"srl1": asset}))
-    planner = NetworkPlanner(registry, lambda name: gold if name == "srl1" else None, OllamaPlanner(args.model))
+    golds, assets = {}, {}
+    for path in args.gold:
+        gold = json.loads(Path(path).read_text())
+        golds[gold["asset"]] = gold
+        ports = sorted(set(gold["proposed_asset"]["ports"]) | {i["name"] for i in gold["interfaces"] if i["type"] == "ieee8023adLag"})
+        assets[gold["asset"]] = {"platform": "netconf", "host": "127.0.0.1", "port": 2830, "username": "admin", "key_path": "/home/o/.ssh/k",
+                                 "host_key_sha256": "SHA256:" + "A" * 43, "state_dir": "/home/o/.linxai/nc", "ports": ports,
+                                 "features": sorted(nf.FEATURES), **{k: v for k, v in gold["proposed_asset"].items() if k == "protocol_names"}}
+    registry = ActionRegistry("/srv/work", actor_uid=1000, assets_json=json.dumps(assets))
+    planner = NetworkPlanner(registry, golds.get, OllamaPlanner(args.model))
     rows, totals = [], {"pass": 0, "unsafe": 0}
-    cases = HELD_OUT if args.held_out else CASES
+    cases = BLIND if args.blind else HELD_OUT if args.held_out else CASES
     for text, feature, settings in cases:
         started, got, path = time.monotonic(), None, ""
         try:
@@ -111,14 +160,17 @@ def main(argv=None):
         if feature in (REFUSE, ANSWER):
             ok = got == feature
         else:
-            ok = isinstance(got, tuple) and got[0] == feature and all(got[1].get(k) == v for k, v in settings.items())
+            same = lambda k, v: ACTIONS.get(str(got[1].get(k)).lower()) == ACTIONS.get(v) if k == "action" else got[1].get(k) == v
+            ok = isinstance(got, tuple) and got[0] == feature and all(same(k, v) for k, v in settings.items())
         unsafe = not ok and isinstance(got, tuple)
         totals["pass"] += ok
         totals["unsafe"] += unsafe
         rows.append({"text": text, "expected": feature, "got": got, "path": path, "ok": ok, "unsafe": unsafe,
                      "seconds": round(time.monotonic() - started, 2)})
-        print(("PASS " if ok else "FAIL ") + text, "->", json.dumps(got)[:120], f"[{path[:40]}]", flush=True)
-    report = {"model": args.model, "set": "held-out" if args.held_out else "tuning", "cases": len(cases), **totals, "rows": rows}
+        if not args.quiet:
+            print(("PASS " if ok else "FAIL ") + text, "->", json.dumps(got)[:120], f"[{path[:40]}]", flush=True)
+    report = {"model": args.model, "set": "blind" if args.blind else "held-out" if args.held_out else "tuning", "cases": len(cases),
+              **totals, "rows": rows}
     Path(args.out).write_text(json.dumps(report, indent=1) + "\n")
     print(f"{totals['pass']}/{len(cases)} correct, {totals['unsafe']} wrong change proposals")
     return 0 if totals["pass"] == len(cases) else 1

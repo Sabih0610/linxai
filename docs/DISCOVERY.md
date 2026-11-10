@@ -172,7 +172,35 @@ Other requests go to the existing planner unchanged.
 | Held-out set after general fixes (no longer blind) | 17/20 | 0 |
 
 The tuning-set score is optimistic because the design was tuned on it. The held-out
-first run is the honest estimate. The remaining misses are refusals ("no supported
+first run is the honest estimate.
+
+**Optimising the small model (same qwen2.5:1.5b, no new model).** A new **blind set** of 32
+requests across both profiles (Nokia srl1 and Cisco xr, including Cisco-style phrasing such
+as `router bgp 65300` and `Gi0/0/0/0`) was written first and scored on the old design. Only
+the score was looked at, not the cases. Then:
+
+1. **Schema-constrained decoding** (Ollama `format` = JSON schema): the choose step can only
+   emit one of the tied features or `none`; the fill step can only emit the feature's own keys,
+   integers where the feature takes numbers, the profile's port names and the ACL action words.
+2. **One worked example per feature** in the fill step, with documentation values used in no
+   evaluation set.
+3. **Interface abbreviations**: `Gi0/0/0/0` resolves to the profile's `GigabitEthernet0/0/0/0`
+   only when exactly one port matches; grounding accepts the abbreviation.
+4. Fixes found on the (no longer blind) held-out set:
+   * the request's own action word wins over one copied from the example;
+   * an invented value for an *optional* setting (BGP router id) is dropped instead of refusing
+     the request, while an invented required value still refuses;
+   * free text never keeps a trailing "on <device>".
+
+| Blind set (32 requests, two vendors) | Correct | Wrong change proposals | Avg. time per model request |
+| --- | --- | --- | --- |
+| Old design (`chat-blind-baseline.json`) | 26/32 | 0 | 2.6 s |
+| **Optimised, scored once** (`chat-blind-final-1.5b.json`) | **30/32** | **0** | 2.9 s |
+
+The optimised design also scores 27/27 on the tuning set and 20/20 on the old held-out set
+(both seen before, so not blind). The two blind misses are refusals ("srl1 new name:
+pod4-leaf1" and "on xr give Gi0/0/0/0 the ip 10.10.10.1/30"); they were left unfixed so the
+blind score stays honest. The remaining misses are refusals ("no supported
 network change recognised"), not wrong changes. Every wrong proposal would still have
 been shown in the preview for confirmation.
 
@@ -197,8 +225,8 @@ with the whole config identical.
   the parser needs the TextFSM library.
 * Cisco commit and restore: the Always-On router is shared, so only validate-only probes ran.
   Proving commits needs a private reservable sandbox (or the sandbox rules allowing it).
-* Model accuracy on more varied phrasing: the 1.5B model handles slot-filling well but
-  not open-ended feature choice; a larger local model can be swapped in behind the same
-  bounds.
+* Smaller model: the same bounds may let `qwen2.5:0.5b` reach a similar score faster. It is
+  not installed; comparing it needs the owner's OK to download it. A fine-tuned (LoRA) model
+  on phrasings generated from the typed registry is the next step after that.
 * Data from sources that need an account: Cisco DevNet reservable sandboxes, Juniper
   vLabs, Arista cEOS.

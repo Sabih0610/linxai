@@ -87,6 +87,43 @@ class NetworkPlannerTests(unittest.TestCase):
         with self.assertRaisesRegex(UnsupportedAction, "model unavailable"):
             self.planner(model).plan(text)
 
+    def test_model_output_is_schema_constrained_with_a_worked_example(self):
+        model = Mock()
+        model.complete.side_effect = [{"feature": "acl.entry"}, {"action": "drop", "destination": "198.51.100.0/24"}]
+        kind, base, _ = self.planner(model).plan("on srl1 drop the bgp traffic to 198.51.100.0/24")
+        self.assertEqual(base["settings"], {"action": "drop", "destination": "198.51.100.0/24", "acl": "linxai-probe", "sequence": 10})
+        choose, fill = model.complete.call_args_list
+        self.assertIn("none", choose.kwargs["schema"]["properties"]["feature"]["enum"])
+        self.assertNotIn("qos.queue", choose.kwargs["schema"]["properties"]["feature"]["enum"])
+        schema = fill.kwargs["schema"]
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(schema["properties"]["sequence"], {"type": "integer"})
+        self.assertIn('Example: "reject packets for 192.0.2.160/27"', fill.args[0])
+        # The request's own action word beats a value copied from the example.
+        model.complete.side_effect = [{"action": "reject", "destination": "198.51.100.0/24"}]
+        self.assertEqual(self.planner(model).plan("srl1: block 198.51.100.0/24")[1]["settings"]["action"], "block")
+        # An invented OPTIONAL value is dropped; an invented required value refuses the request.
+        model.complete.side_effect = [{"asn": 64512, "router_id": "10.0.0.1"}]
+        self.assertEqual(self.planner(model).plan("enable bgp on srl1 using as 64512")[1]["settings"], {"asn": 64512})
+        model.complete.side_effect = [{"asn": 64999}]
+        with self.assertRaises(UnsupportedAction):
+            self.planner(model).plan("enable bgp on srl1 using as 64512")
+        # Free text never carries the trailing device reference.
+        model.complete.side_effect = [{"motd": "Lab use only on srl1"}]
+        self.assertEqual(self.planner(model).plan("show the message of the day Lab use only on srl1")[1]["settings"], {"motd": "Lab use only"})
+
+    def test_interface_abbreviations_resolve_to_the_profile_port(self):
+        xr = json.loads((Path(__file__).parent / "docs/evidence/discovery-2026-11-10/gold-cisco-xr.json").read_text())
+        registry = ActionRegistry("/srv/work", actor_uid=1000, assets_json=json.dumps({"xr": dict(ASSET, ports=xr["proposed_asset"]["ports"])}))
+        planner = NetworkPlanner(registry, lambda name: xr if name == "xr" else None)
+        kind, base, _ = planner.plan("assign 192.0.2.5/31 to Gi0/0/0/1 on xr")
+        self.assertEqual(base["settings"], {"interface": "GigabitEthernet0/0/0/1", "address": "192.0.2.5", "prefix_length": 31})
+        from ai.network_planner import canonical_port, mentioned
+        self.assertEqual(canonical_port("Te0/0/0/1", xr["proposed_asset"]["ports"]), "Te0/0/0/1")   # wrong type: left for the registry to refuse
+        self.assertFalse(mentioned("ethernet-1/1", "set ethernet-1/10 up"))
+        with self.assertRaisesRegex(UnsupportedAction, "cannot do system.ntp_server"):           # rejected by the Cisco router itself
+            planner.plan("add ntp server 192.0.2.1 on xr")
+
 
 @unittest.skipUnless(sys.platform == "linux" and hasattr(os, "getuid") and os.getuid() != 0, "native agent")
 class NativeAgentChatTests(unittest.TestCase):
