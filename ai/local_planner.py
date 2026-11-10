@@ -58,7 +58,7 @@ _NON_DIRECTIVE = re.compile(
     r"\bas the (?:system )?administrator i\b|admin says|i authori[sz]e you",
     re.IGNORECASE)
 READ_ONLY = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list",
-                       "resource.forecast", "device.inspect", "path.inspect", "user.lookup", "iot.inspect", "device.config.read"})
+                       "resource.forecast", "device.inspect", "path.inspect", "user.lookup", "iot.inspect", "device.config.read", "device.discover"})
 _PRONOUN = r"(?:it|that|this|the service|that service|this service)"
 _SERVICE_VERBS = {"start": "service.start", "stop": "service.stop", "restart": "service.restart",
                   "check": "service.status", "status of": "service.status", "show the status of": "service.status"}

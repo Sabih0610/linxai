@@ -11,7 +11,7 @@ from .registry import Privilege
 from .service import Approval
 
 READS = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list", "resource.forecast",
-                   "path.inspect", "user.lookup", "iot.inspect", "device.config.read"})
+                   "path.inspect", "user.lookup", "iot.inspect", "device.config.read", "device.discover"})
 TERMINAL = frozenset({"succeeded", "failed", "cancelled", "unknown", "review_required", "interrupted_before_dispatch"})
 
 

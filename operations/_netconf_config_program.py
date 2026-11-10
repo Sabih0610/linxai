@@ -60,6 +60,23 @@ def config_main(m):
         saved = json.loads(read(transaction)); feature, settings = saved['feature'], saved['settings']
     path, config = resolve(feature, settings, _asset_resolved())     # guards re-run with the resolved address
     node, text, current, prefixes = read_target(m, path)
+    if action == 'device.config.probe':
+        # Validate-only: stage an example edit, let the device validate it, ALWAYS discard.
+        # Running config must be unchanged (checked in every mode against the preview revision).
+        if current != params['expected_revision']: raise ValueError('Device state changed; read and preview again')
+        ok, error = False, ''
+        if mode == 'apply':
+            try: m.lock('candidate')
+            except RPCError as exc: raise ValueError('Device candidate is locked or holds uncommitted changes') from exc
+            try:
+                _discard(m); m.edit_config(target='candidate', config=_wrap(render(path, config))); m.validate(source='candidate'); ok = True
+            except RPCError as exc: error = ' '.join(str(exc).split())[:300]
+            finally:
+                _discard(m)
+                try: m.unlock('candidate')
+                except Exception: pass
+        print(json.dumps({'verified': True, 'platform': 'netconf', 'feature': feature, 'validated': ok,
+                          'device_error': error, 'revision': current})); return
     if action == 'device.config.read':
         print(json.dumps({'verified': True, 'platform': 'netconf', 'feature': feature, 'present': node is not None,
                           'current': text[:8192], 'revision': current})); return

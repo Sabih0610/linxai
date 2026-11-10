@@ -47,6 +47,12 @@ class ConfigRestore:
     transaction_id:str
     expected_revision:str
 @dataclass(frozen=True)
+class ConfigProbe:
+    asset:str
+    feature:str
+    settings_json:str
+    expected_revision:str
+@dataclass(frozen=True)
 class ConfigBatch:
     changes_json:str
     transaction_id:str
@@ -56,8 +62,8 @@ class Remote:
     action:str
     parameters_json:str
 
-WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})|iot_contracts.IOT_ACTIONS|{'device.config.read','device.config.set','device.config.restore','device.config.batch'}
-TYPES=(Project,Device,Interface,Restore,Remote,ConfigRead,ConfigSet,ConfigRestore,ConfigBatch,*iot_contracts.TYPES)
+WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})|iot_contracts.IOT_ACTIONS|{'device.config.read','device.config.set','device.config.restore','device.config.batch','device.config.probe','device.discover'}
+TYPES=(Project,Device,Interface,Restore,Remote,ConfigRead,ConfigSet,ConfigRestore,ConfigBatch,ConfigProbe,*iot_contracts.TYPES)
 
 
 def _netconf_asset(asset,InvalidParameters):
@@ -65,13 +71,13 @@ def _netconf_asset(asset,InvalidParameters):
     Login is key-only (`key_path`) or by a private password file (`password_file`); a
     password login also requires the full pinned `host_key`, enforced before auth."""
     import base64, hashlib
-    base={'platform','host','port','username','host_key_sha256','state_dir','ports'}
-    keys=set(asset)-base-{'features'}
+    base={'platform','host','port','username','host_key_sha256','state_dir'}
+    keys=set(asset)-base-{'features','ports'}      # ports: required separately by actions that change interfaces
     if 'features' in asset:
         from .netconf_features import FEATURES
         if not isinstance(asset['features'],list) or not set(asset['features'])<=set(FEATURES):raise InvalidParameters('Unknown NETCONF feature in allowlist')
     if not base<=set(asset) or keys not in ({'key_path'},{'key_path','host_key'},{'password_file','host_key'}):
-        raise InvalidParameters('NETCONF asset requires platform, host, port, username, host_key_sha256, state_dir, ports and '
+        raise InvalidParameters('NETCONF asset requires platform, host, port, username, host_key_sha256, state_dir and '
                                 'either key_path or password_file+host_key')
     if not isinstance(asset['host'],str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}',asset['host']):raise InvalidParameters('Invalid NETCONF host')
     if type(asset['port']) is not int or not 1<=asset['port']<=65535:raise InvalidParameters('Invalid NETCONF port')
@@ -162,12 +168,15 @@ def prepare(registry,identifier,parameters,contract):
             from .netconf_features import resolve
             if asset.get('platform')!='netconf':raise InvalidParameters('Config features need a NETCONF asset')
             _netconf_asset(asset,InvalidParameters)
-            expected={'asset','feature','settings'}|({'expected_revision','transaction_id'} if identifier!='device.config.read' else set())
+            expected={'asset','feature','settings'}|({'device.config.read':set(),'device.config.probe':{'expected_revision'}}.get(identifier,{'expected_revision','transaction_id'}))
             if set(parameters)!=expected:raise InvalidParameters('Exact config feature fields required')
             try:resolve(parameters['feature'],parameters['settings'],asset)
             except ValueError as exc:raise InvalidParameters(str(exc)) from None
             settings=json.dumps(parameters['settings'],sort_keys=True,separators=(',',':'))
             if identifier=='device.config.read':typed=ConfigRead(name,parameters['feature'],settings)
+            elif identifier=='device.config.probe':
+                if not isinstance(parameters['expected_revision'],str) or not re.fullmatch(r'[0-9a-f]{64}',parameters['expected_revision']):raise InvalidParameters('Expected revision SHA256 required')
+                typed=ConfigProbe(name,parameters['feature'],settings,parameters['expected_revision'])
             else:
                 token,revision=parameters['transaction_id'],parameters['expected_revision']
                 if not isinstance(token,str) or str(UUID(token))!=token:raise InvalidParameters('Canonical transaction UUID required')
@@ -175,6 +184,15 @@ def prepare(registry,identifier,parameters,contract):
                 typed=(ConfigSet(name,parameters['feature'],settings,revision,token) if identifier=='device.config.set'
                        else ConfigRestore(name,parameters['feature'],settings,token,revision))
             payload={'action':identifier,'parameters':asdict(typed),'asset':asset}
+            checks=(requirement('linux_runtime'),requirement('trusted_executable',path='/usr/bin/python3'),
+                    requirement('workflow_prerequisites',payload=json.dumps(payload,sort_keys=True)))
+            post=(requirement('exit_code',value=0),requirement('workflow_verified',payload=json.dumps(payload,sort_keys=True)))
+            return PreparedAction(contract,typed,('/usr/bin/python3','-I','-c',WORKFLOW_PROGRAM,'apply'),checks,post,json.dumps(payload,sort_keys=True).encode())
+        if identifier=='device.discover':
+            if asset.get('platform')!='netconf':raise InvalidParameters('Discovery needs a NETCONF asset')
+            _netconf_asset(asset,InvalidParameters)
+            if set(parameters)!={'asset'}:raise InvalidParameters('Exact discovery fields required')
+            typed=Device(name);payload={'action':identifier,'parameters':asdict(typed),'asset':asset}
             checks=(requirement('linux_runtime'),requirement('trusted_executable',path='/usr/bin/python3'),
                     requirement('workflow_prerequisites',payload=json.dumps(payload,sort_keys=True)))
             post=(requirement('exit_code',value=0),requirement('workflow_verified',payload=json.dumps(payload,sort_keys=True)))

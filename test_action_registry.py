@@ -58,6 +58,8 @@ class RegistryContractTests(OfflineRegistryTest):
                 {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "a1"}, "expected_revision": "0" * 64},
                 {"asset": "core2", "feature": "system.hostname", "settings": {"hostname": "a2"}, "expected_revision": "0" * 64}]},
             "device.config.read": {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "lab1"}},
+            "device.config.probe": {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "lab1"}, "expected_revision": "0" * 64},
+            "device.discover": {"asset": "core"},
             "device.config.set": {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "lab1"},
                                   "expected_revision": "0" * 64, "transaction_id": "00000000-0000-4000-8000-000000000005"},
             "device.config.restore": {"asset": "core", "feature": "system.hostname", "settings": {"hostname": "lab1"},

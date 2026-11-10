@@ -40,7 +40,7 @@ def connect(write=True):
         m.close_session(); raise PermissionError('Device host key does not match the pinned fingerprint')
     caps = list(m.server_capabilities)
     missing = [c for c in REQUIRED if not any(s.startswith(c) for s in caps)]
-    if not any(OC in s for s in caps):
+    if not any(OC in s for s in caps) and action != 'device.discover':     # discovery may meet any device
         m.close_session(); raise ValueError('Device lacks the OpenConfig interfaces model')
     if write and missing:
         m.close_session(); raise ValueError('Device lacks required NETCONF capabilities for safe changes: ' + ', '.join(missing))
@@ -126,8 +126,10 @@ def change(m, name, enabled):
     commit_edit(m, edit_xml, lambda: interfaces(m)[name]['enabled'] is enabled)
     return interfaces(m)
 IFACE_RE = _re.compile(r'[A-Za-z][A-Za-z0-9_./:-]{0,31}')
-m = connect(write=action not in ('device.inspect', 'device.config.read'))
+m = connect(write=action not in ('device.inspect', 'device.config.read', 'device.discover'))
 try:
+    if action == 'device.discover':
+        discover_main(m); raise SystemExit(0)
     if action.startswith('device.config.'):
         config_main(m); raise SystemExit(0)
     value = interfaces(m); current = revision(value)
@@ -181,11 +183,12 @@ finally:
 def _with_config_engine(code):
     from pathlib import Path
     from ._netconf_config_program import CONFIG_CODE
+    from ._discovery_program import DISCOVER_CODE
     catalog = Path(__file__).with_name("netconf_features.py").read_text(encoding="utf-8")
     marker = "m = connect(write="
     if code.count(marker) != 1:
         raise RuntimeError("netconf worker layout changed")
-    return code.replace(marker, "\n".join((catalog, CONFIG_CODE, marker)))
+    return code.replace(marker, "\n".join((catalog, CONFIG_CODE, DISCOVER_CODE, marker)))
 
 
 NETCONF_CODE = _with_config_engine(NETCONF_CODE)

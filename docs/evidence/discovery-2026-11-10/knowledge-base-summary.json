@@ -1,0 +1,550 @@
+{
+ "bronze_files": 11911,
+ "platforms": {
+  "cisco/iosxe": 379,
+  "cisco/iosxr": 809,
+  "cisco/nxos": 79,
+  "huawei/vrp": 23,
+  "juniper/junos": 8,
+  "juniper/junos-evo": 8
+ },
+ "quarantined": 20,
+ "support": {
+  "cisco/iosxe": {
+   "acl.entry": {
+    "supported": 6,
+    "supported_with_limits": 361,
+    "unsupported": 12
+   },
+   "bgp.global": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "bgp.neighbor": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "bgp.peer_group": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "interface.access_vlan": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "interface.description": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "interface.ipv4": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "lag.member": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "ospf.interface": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "qos.classifier_term": {
+    "unsupported": 379
+   },
+   "qos.forwarding_group": {
+    "supported": 19,
+    "unsupported": 360
+   },
+   "qos.interface_classifier": {
+    "unsupported": 379
+   },
+   "qos.queue": {
+    "supported": 19,
+    "unsupported": 360
+   },
+   "srl.mac_vrf_evpn": {
+    "unknown": 379
+   },
+   "srl.qos_dscp_rule": {
+    "unknown": 379
+   },
+   "srl.qos_forwarding_class": {
+    "unknown": 379
+   },
+   "srl.qos_interface_policy": {
+    "unknown": 379
+   },
+   "srl.qos_queue": {
+    "unknown": 379
+   },
+   "srl.vxlan_interface": {
+    "unknown": 379
+   },
+   "static_route": {
+    "supported": 367,
+    "unsupported": 12
+   },
+   "system.banner": {
+    "supported": 213,
+    "unsupported": 166
+   },
+   "system.dns_server": {
+    "supported": 213,
+    "unsupported": 166
+   },
+   "system.hostname": {
+    "supported": 213,
+    "unsupported": 166
+   },
+   "system.ntp_server": {
+    "supported": 213,
+    "unsupported": 166
+   },
+   "vlan": {
+    "supported": 182,
+    "unsupported": 197
+   }
+  },
+  "cisco/iosxr": {
+   "acl.entry": {
+    "supported": 752,
+    "unsupported": 57
+   },
+   "bgp.global": {
+    "supported": 555,
+    "unsupported": 254
+   },
+   "bgp.neighbor": {
+    "supported": 555,
+    "unsupported": 254
+   },
+   "bgp.peer_group": {
+    "supported": 555,
+    "unsupported": 254
+   },
+   "interface.access_vlan": {
+    "supported": 514,
+    "unsupported": 295
+   },
+   "interface.description": {
+    "supported": 746,
+    "unsupported": 63
+   },
+   "interface.ipv4": {
+    "supported": 744,
+    "unsupported": 65
+   },
+   "lag.member": {
+    "supported": 744,
+    "unsupported": 65
+   },
+   "ospf.interface": {
+    "supported": 555,
+    "unsupported": 254
+   },
+   "qos.classifier_term": {
+    "supported": 53,
+    "unsupported": 756
+   },
+   "qos.forwarding_group": {
+    "supported": 53,
+    "unsupported": 756
+   },
+   "qos.interface_classifier": {
+    "supported": 53,
+    "unsupported": 756
+   },
+   "qos.queue": {
+    "supported": 53,
+    "unsupported": 756
+   },
+   "srl.mac_vrf_evpn": {
+    "unknown": 809
+   },
+   "srl.qos_dscp_rule": {
+    "unknown": 809
+   },
+   "srl.qos_forwarding_class": {
+    "unknown": 809
+   },
+   "srl.qos_interface_policy": {
+    "unknown": 809
+   },
+   "srl.qos_queue": {
+    "unknown": 809
+   },
+   "srl.vxlan_interface": {
+    "unknown": 809
+   },
+   "static_route": {
+    "supported": 555,
+    "unsupported": 254
+   },
+   "system.banner": {
+    "supported": 612,
+    "unsupported": 197
+   },
+   "system.dns_server": {
+    "supported": 705,
+    "unsupported": 104
+   },
+   "system.hostname": {
+    "supported": 705,
+    "unsupported": 104
+   },
+   "system.ntp_server": {
+    "supported": 705,
+    "unsupported": 104
+   },
+   "vlan": {
+    "supported": 393,
+    "unsupported": 416
+   }
+  },
+  "cisco/nxos": {
+   "acl.entry": {
+    "supported": 8,
+    "supported_with_limits": 52,
+    "unsupported": 19
+   },
+   "bgp.global": {
+    "supported": 57,
+    "unsupported": 22
+   },
+   "bgp.neighbor": {
+    "supported": 60,
+    "unsupported": 19
+   },
+   "bgp.peer_group": {
+    "supported": 60,
+    "unsupported": 19
+   },
+   "interface.access_vlan": {
+    "supported": 60,
+    "unsupported": 19
+   },
+   "interface.description": {
+    "supported": 75,
+    "unsupported": 4
+   },
+   "interface.ipv4": {
+    "supported": 75,
+    "unsupported": 4
+   },
+   "lag.member": {
+    "supported": 60,
+    "unsupported": 19
+   },
+   "ospf.interface": {
+    "supported": 60,
+    "unsupported": 19
+   },
+   "qos.classifier_term": {
+    "supported": 49,
+    "unsupported": 30
+   },
+   "qos.forwarding_group": {
+    "supported": 49,
+    "unsupported": 30
+   },
+   "qos.interface_classifier": {
+    "supported_with_limits": 49,
+    "unsupported": 30
+   },
+   "qos.queue": {
+    "supported": 49,
+    "unsupported": 30
+   },
+   "srl.mac_vrf_evpn": {
+    "unknown": 79
+   },
+   "srl.qos_dscp_rule": {
+    "unknown": 79
+   },
+   "srl.qos_forwarding_class": {
+    "unknown": 79
+   },
+   "srl.qos_interface_policy": {
+    "unknown": 79
+   },
+   "srl.qos_queue": {
+    "unknown": 79
+   },
+   "srl.vxlan_interface": {
+    "unknown": 79
+   },
+   "static_route": {
+    "supported": 60,
+    "unsupported": 19
+   },
+   "system.banner": {
+    "supported": 60,
+    "unsupported": 19
+   },
+   "system.dns_server": {
+    "supported": 57,
+    "unsupported": 22
+   },
+   "system.hostname": {
+    "supported": 42,
+    "supported_with_limits": 18,
+    "unsupported": 19
+   },
+   "system.ntp_server": {
+    "supported": 57,
+    "unsupported": 22
+   },
+   "vlan": {
+    "supported": 11,
+    "supported_with_limits": 49,
+    "unsupported": 19
+   }
+  },
+  "huawei/vrp": {
+   "acl.entry": {
+    "supported_with_limits": 7,
+    "unsupported": 16
+   },
+   "bgp.global": {
+    "unsupported": 23
+   },
+   "bgp.neighbor": {
+    "unsupported": 23
+   },
+   "bgp.peer_group": {
+    "unsupported": 23
+   },
+   "interface.access_vlan": {
+    "unsupported": 23
+   },
+   "interface.description": {
+    "supported_with_limits": 20,
+    "unsupported": 3
+   },
+   "interface.ipv4": {
+    "supported_with_limits": 20,
+    "unsupported": 3
+   },
+   "lag.member": {
+    "supported_with_limits": 20,
+    "unsupported": 3
+   },
+   "ospf.interface": {
+    "unsupported": 23
+   },
+   "qos.classifier_term": {
+    "unsupported": 23
+   },
+   "qos.forwarding_group": {
+    "unsupported": 23
+   },
+   "qos.interface_classifier": {
+    "unsupported": 23
+   },
+   "qos.queue": {
+    "unsupported": 23
+   },
+   "srl.mac_vrf_evpn": {
+    "unknown": 23
+   },
+   "srl.qos_dscp_rule": {
+    "unknown": 23
+   },
+   "srl.qos_forwarding_class": {
+    "unknown": 23
+   },
+   "srl.qos_interface_policy": {
+    "unknown": 23
+   },
+   "srl.qos_queue": {
+    "unknown": 23
+   },
+   "srl.vxlan_interface": {
+    "unknown": 23
+   },
+   "static_route": {
+    "unsupported": 23
+   },
+   "system.banner": {
+    "unsupported": 23
+   },
+   "system.dns_server": {
+    "supported": 15,
+    "unsupported": 8
+   },
+   "system.hostname": {
+    "supported_with_limits": 7,
+    "unsupported": 16
+   },
+   "system.ntp_server": {
+    "supported": 7,
+    "unsupported": 16
+   },
+   "vlan": {
+    "unsupported": 23
+   }
+  },
+  "juniper/junos": {
+   "acl.entry": {
+    "supported_with_limits": 8
+   },
+   "bgp.global": {
+    "supported_with_limits": 8
+   },
+   "bgp.neighbor": {
+    "supported": 5,
+    "supported_with_limits": 3
+   },
+   "bgp.peer_group": {
+    "supported": 5,
+    "supported_with_limits": 3
+   },
+   "interface.access_vlan": {
+    "supported": 8
+   },
+   "interface.description": {
+    "supported": 8
+   },
+   "interface.ipv4": {
+    "supported": 8
+   },
+   "lag.member": {
+    "supported": 8
+   },
+   "ospf.interface": {
+    "supported": 5,
+    "supported_with_limits": 3
+   },
+   "qos.classifier_term": {
+    "supported": 8
+   },
+   "qos.forwarding_group": {
+    "supported": 8
+   },
+   "qos.interface_classifier": {
+    "supported": 8
+   },
+   "qos.queue": {
+    "supported": 8
+   },
+   "srl.mac_vrf_evpn": {
+    "unknown": 8
+   },
+   "srl.qos_dscp_rule": {
+    "unknown": 8
+   },
+   "srl.qos_forwarding_class": {
+    "unknown": 8
+   },
+   "srl.qos_interface_policy": {
+    "unknown": 8
+   },
+   "srl.qos_queue": {
+    "unknown": 8
+   },
+   "srl.vxlan_interface": {
+    "unknown": 8
+   },
+   "static_route": {
+    "supported": 5,
+    "supported_with_limits": 3
+   },
+   "system.banner": {
+    "supported": 8
+   },
+   "system.dns_server": {
+    "supported": 8
+   },
+   "system.hostname": {
+    "supported": 8
+   },
+   "system.ntp_server": {
+    "supported": 8
+   },
+   "vlan": {
+    "supported_with_limits": 8
+   }
+  },
+  "juniper/junos-evo": {
+   "acl.entry": {
+    "supported_with_limits": 8
+   },
+   "bgp.global": {
+    "supported_with_limits": 8
+   },
+   "bgp.neighbor": {
+    "supported": 5,
+    "supported_with_limits": 3
+   },
+   "bgp.peer_group": {
+    "supported": 5,
+    "supported_with_limits": 3
+   },
+   "interface.access_vlan": {
+    "supported": 8
+   },
+   "interface.description": {
+    "supported": 8
+   },
+   "interface.ipv4": {
+    "supported": 8
+   },
+   "lag.member": {
+    "supported": 8
+   },
+   "ospf.interface": {
+    "supported": 5,
+    "supported_with_limits": 3
+   },
+   "qos.classifier_term": {
+    "supported": 8
+   },
+   "qos.forwarding_group": {
+    "supported": 8
+   },
+   "qos.interface_classifier": {
+    "supported": 8
+   },
+   "qos.queue": {
+    "supported": 8
+   },
+   "srl.mac_vrf_evpn": {
+    "unknown": 8
+   },
+   "srl.qos_dscp_rule": {
+    "unknown": 8
+   },
+   "srl.qos_forwarding_class": {
+    "unknown": 8
+   },
+   "srl.qos_interface_policy": {
+    "unknown": 8
+   },
+   "srl.qos_queue": {
+    "unknown": 8
+   },
+   "srl.vxlan_interface": {
+    "unknown": 8
+   },
+   "static_route": {
+    "supported": 5,
+    "supported_with_limits": 3
+   },
+   "system.banner": {
+    "supported": 8
+   },
+   "system.dns_server": {
+    "supported": 8
+   },
+   "system.hostname": {
+    "supported": 8
+   },
+   "system.ntp_server": {
+    "supported": 8
+   },
+   "vlan": {
+    "supported_with_limits": 8
+   }
+  }
+ }
+}

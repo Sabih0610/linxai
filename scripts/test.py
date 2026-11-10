@@ -7,7 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 GROUPS = {
-    "offline": ["test_safety_regressions", "test_action_registry", "test_operations_service", "test_dev_environment", "test_gate_a", "test_broker", "test_application", "test_security_monitor", "test_security_warnings", "test_resources", "test_lake", "test_followups", "test_explain", "test_conflicts", "test_workflow_graph", "test_iot", "test_netconf_features", "test_response_policy", "test_local_http", "test_workflows", "test_auth_voice", "test_candidate"],
+    "offline": ["test_safety_regressions", "test_action_registry", "test_operations_service", "test_dev_environment", "test_gate_a", "test_broker", "test_application", "test_security_monitor", "test_security_warnings", "test_resources", "test_lake", "test_followups", "test_explain", "test_conflicts", "test_workflow_graph", "test_iot", "test_netconf_features", "test_discovery", "test_response_policy", "test_local_http", "test_workflows", "test_auth_voice", "test_candidate"],
     "linux": ["tests.test_linux_integration", "tests.test_native_runtime", "tests.test_native_agent", "tests.test_native_workflows"],
     "privileged": ["tests.test_opt_in.PrivilegedTests"],
     "desktop": ["tests.test_opt_in.DesktopTests", "tests.test_desktop"],
