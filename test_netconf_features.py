@@ -28,7 +28,14 @@ class FeatureTests(unittest.TestCase):
                  "bgp.peer_group": {"name": "peers", "peer_as": 65002},
                  "bgp.neighbor": {"neighbor": "198.51.100.2", "peer_as": 65002, "peer_group": "peers"},
                  "lag.member": {"interface": "ge-0/0/2", "lag": "ae0"},
-                 "acl.entry": {"acl": "edge", "sequence": 10, "action": "drop", "destination": "203.0.113.0/24"}}
+                 "acl.entry": {"acl": "edge", "sequence": 10, "action": "drop", "destination": "203.0.113.0/24"},
+                 "qos.queue": {"name": "voice-q"}, "qos.forwarding_group": {"name": "voice", "queue": "voice-q"},
+                 "qos.classifier_term": {"classifier": "edge-in", "term": 1, "dscp": [46, 34], "forwarding_group": "voice"},
+                 "qos.interface_classifier": {"interface": "ge-0/0/1", "classifier": "edge-in"},
+                 "srl.vxlan_interface": {"vni": 100}, "srl.mac_vrf_evpn": {"name": "tenant-a", "vni": 100, "route_target": "target:65001:100"},
+                 "srl.qos_queue": {"queue": "unicast-5"}, "srl.qos_forwarding_class": {"name": "fc5", "unicast_queue": "unicast-5"},
+                 "srl.qos_dscp_rule": {"policy": "edge", "dscp": 46, "forwarding_class": "fc5"},
+                 "srl.qos_interface_policy": {"interface": "ge-0/0/1", "policy": "edge"}}
         self.assertEqual(set(cases), set(nf.FEATURES))
         for feature, settings in cases.items():
             root, path, config = self.render(feature, settings)
@@ -50,7 +57,17 @@ class FeatureTests(unittest.TestCase):
                                   ("bgp.neighbor", {"neighbor": "192.0.2.10", "peer_as": 1}),
                                   ("interface.description", {"interface": "mgmt0", "description": "x"}),
                                   ("system.hostname", {"hostname": "bad host;"}),
-                                  ("lag.member", {"interface": "ge-0/0/2", "lag": "ge-0/0/2"})):
+                                  ("lag.member", {"interface": "ge-0/0/2", "lag": "ge-0/0/2"}),
+                                  ("qos.classifier_term", {"classifier": "c", "term": 1, "dscp": [64], "forwarding_group": "g"}),
+                                  ("qos.classifier_term", {"classifier": "c", "term": 1, "dscp": [], "forwarding_group": "g"}),
+                                  ("qos.interface_classifier", {"interface": "mgmt0", "classifier": "c"}),
+                                  ("srl.vxlan_interface", {"tunnel": "vxlan256", "vni": 1}),
+                                  ("srl.mac_vrf_evpn", {"name": "default", "vni": 100, "route_target": "target:1:1"}),
+                                  ("srl.mac_vrf_evpn", {"name": "mgmt", "vni": 100, "route_target": "target:1:1"}),
+                                  ("srl.mac_vrf_evpn", {"name": "t", "vni": 100, "route_target": "65001:100"}),
+                                  ("srl.qos_queue", {"queue": "unicast-8"}), ("srl.qos_forwarding_class", {"name": "fc9", "unicast_queue": "unicast-1"}),
+                                  ("srl.qos_dscp_rule", {"policy": "p", "dscp": 64, "forwarding_class": "fc1"}),
+                                  ("srl.qos_interface_policy", {"interface": "mgmt0", "policy": "p"})):
             with self.assertRaises(ValueError, msg=(feature, settings)):
                 nf.resolve(feature, settings, ASSET)
         # an accept rule may match management traffic; a drop rule to elsewhere is fine
@@ -62,6 +79,10 @@ class FeatureTests(unittest.TestCase):
         self.assertIn("<type>ACL_IPV4</type>", acl)                      # same module: unprefixed
         route = nf.render(*nf.resolve("static_route", {"prefix": "203.0.113.0/24", "next_hop": "198.51.100.2"}, ASSET))
         self.assertIn('xmlns:oc-pol-types="http://openconfig.net/yang/policy-types">oc-pol-types:STATIC', route)
+        vx = nf.render(*nf.resolve("srl.vxlan_interface", {"vni": 100}, ASSET))       # vendor-native identity
+        self.assertIn(">srl_nokia-interfaces:bridged</type>", vx)
+        term = nf.render(*nf.resolve("qos.classifier_term", {"classifier": "c", "term": 1, "dscp": [46, 10], "forwarding_group": "g"}, ASSET))
+        self.assertIn("<dscp-set>10</dscp-set><dscp-set>46</dscp-set>", term)          # leaf-list, one element per value
 
     def test_features_must_be_enabled_per_asset_and_contracts_are_strict(self):
         limited = dict(ASSET, features=["system.hostname"])
@@ -115,6 +136,11 @@ class FeatureTests(unittest.TestCase):
         prepared = registry.prepare("device.config.batch", {"transaction_id": str(uuid4()), "changes": [change("a"), change("b")]})
         self.assertEqual(len(json.loads(prepared.parameters.changes_json)), 2)
         compile(prepared.argv[3], "workflow", "exec")
+        evpn = [{"asset": "a", "feature": "srl.vxlan_interface", "settings": {"vni": 100}, "expected_revision": "0" * 64},
+                {"asset": "a", "feature": "srl.mac_vrf_evpn", "expected_revision": "0" * 64,
+                 "settings": {"name": "t", "vni": 100, "route_target": "target:65001:100"}}]
+        prepared = registry.prepare("device.config.batch", {"transaction_id": str(uuid4()), "changes": evpn})   # 2 nodes, 1 device
+        self.assertEqual(list(json.loads(prepared.stdin)["assets"]), ["a"])
         for changes in ([change("a")], [change("a"), change("a", "r2")], [change(n) for n in "abcde"],
                         [change("a"), {**change("b"), "settings": {"hostname": "bad host"}}]):
             with self.assertRaises(InvalidParameters, msg=len(changes)):

@@ -1,0 +1,94 @@
+{
+  "srl.qos_queue": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "srl.qos_forwarding_class": {
+    "ok": true,
+    "prerequisites": [
+      "succeeded"
+    ],
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "prerequisites_restored": [
+      "succeeded"
+    ],
+    "whole_config_unchanged": true
+  },
+  "srl.qos_dscp_rule": {
+    "ok": true,
+    "prerequisites": [
+      "succeeded",
+      "succeeded"
+    ],
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "prerequisites_restored": [
+      "succeeded",
+      "succeeded"
+    ],
+    "whole_config_unchanged": true
+  },
+  "srl.qos_interface_policy": {
+    "ok": true,
+    "prerequisites": [
+      "succeeded",
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ],
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "prerequisites_restored": [
+      "succeeded",
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ],
+    "whole_config_unchanged": true
+  },
+  "srl.vxlan_interface": {
+    "ok": true,
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "whole_config_unchanged": true
+  },
+  "srl.mac_vrf_evpn": {
+    "ok": true,
+    "prerequisites": [
+      "succeeded"
+    ],
+    "read": "succeeded",
+    "set": "succeeded",
+    "verified": true,
+    "present_after_set": true,
+    "restore": "succeeded",
+    "back_to_original": true,
+    "prerequisites_restored": [
+      "succeeded"
+    ],
+    "whole_config_unchanged": true
+  }
+}

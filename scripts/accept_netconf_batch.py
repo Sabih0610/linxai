@@ -1,6 +1,7 @@
 """Coordinated multi-device change acceptance (device.config.batch) on two lab devices.
 
-1. A batch that both devices accept: both confirmed, verified by independent reads,
+1. A batch that both devices accept (--ok-change: one change, or a JSON list applied in order
+   on each device, e.g. an EVPN VXLAN interface then its MAC-VRF): all confirmed, verified by independent reads,
    then each restored through its offered typed restoration.
 2. A batch where the second device rejects its change at commit: the batch fails and
    the FIRST device must be back exactly as before (its provisional commit cancelled).
@@ -54,27 +55,27 @@ def main(argv=None):
             r = service.run({"action": "device.config.batch", "parameters": {"changes": entries, "transaction_id": str(uuid4())}})
             return r, (json.loads(r.stdout) if r.stdout.strip().startswith("{") else {})
 
-        second_ok = {"feature": ok_change["feature"], "settings": {**ok_change["settings"],
-                     **({"hostname": ok_change["settings"]["hostname"] + "-2"} if "hostname" in ok_change["settings"] else {})}}
+        firsts = ok_change if isinstance(ok_change, list) else [ok_change]          # ordered changes per device
+        seconds = [{"feature": c["feature"], "settings": {**c["settings"], **({"hostname": c["settings"]["hostname"] + "-2"}
+                    if "hostname" in c["settings"] else {})}} for c in firsts]
+        pairs = [(args.first, c) for c in firsts] + [(args.second, c) for c in seconds]
         whole = {a: whole_config(assets[a]) for a in (args.first, args.second)}
-        before = {a: read(a, c).get("revision") for a, c in ((args.first, ok_change), (args.second, second_ok))}
-        result, out = batch([(args.first, ok_change), (args.second, second_ok)])
-        after = {a: read(a, c) for a, c in ((args.first, ok_change), (args.second, second_ok))}
+        before = [read(a, c).get("revision") for a, c in pairs]
+        result, out = batch(pairs)
+        after = [read(a, c) for a, c in pairs]
         step("batch_applied_and_verified_on_both", result.status == "succeeded" and result.verified
-             and all(v.get("revision") != before[a] for a, v in after.items()), status=result.status, reason=result.reason,
-             err=(result.stderr or "")[-200:])
-        restored = [service.run(r) for r in out.get("restorations", [])]
-        back = {a: read(a, c).get("revision") for a, c in ((args.first, ok_change), (args.second, second_ok))}
-        step("each_device_restored", len(restored) == 2 and all(r.status == "succeeded" and r.verified for r in restored)
-             and back == before
+             and all(v.get("present") and v.get("revision") != r for v, r in zip(after, before)), status=result.status,
+             reason=result.reason, changes=len(pairs), err=(result.stderr or "")[-200:])
+        restored = [service.run(r) for r in out.get("restorations", [])]              # already in reverse order
+        back = [read(a, c).get("revision") for a, c in pairs]
+        step("each_change_restored_whole_configs_identical", len(restored) == len(pairs)
+             and all(r.status == "succeeded" and r.verified for r in restored) and back == before
              and all(whole_config(assets[a]) == h for a, h in whole.items()), restores=[r.status for r in restored])
 
-        first_before = read(args.first, ok_change).get("revision")
-        failed, _ = batch([(args.first, ok_change), (args.second, bad_change)])
-        first_after = read(args.first, ok_change).get("revision")
-        first_after = first_after if whole_config(assets[args.first]) == whole[args.first] else "whole-config-changed"
-        step("rejected_batch_leaves_first_device_unchanged", failed.status != "succeeded" and first_after == first_before,
-             status=failed.status, first_unchanged=first_after == first_before, err=(failed.stderr or "")[-160:])
+        failed, _ = batch([(args.first, c) for c in firsts] + [(args.second, bad_change)])
+        first_unchanged = whole_config(assets[args.first]) == whole[args.first]
+        step("rejected_batch_leaves_first_device_unchanged", failed.status != "succeeded" and first_unchanged,
+             status=failed.status, first_unchanged=first_unchanged, err=(failed.stderr or "")[-160:])
 
     Path(args.out).write_text(json.dumps(steps, indent=2, default=str) + "\n")
     passed = all(s["ok"] for s in steps.values())

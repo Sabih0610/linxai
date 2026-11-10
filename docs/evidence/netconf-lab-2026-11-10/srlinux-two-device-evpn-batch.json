@@ -1,0 +1,24 @@
+{
+  "batch_applied_and_verified_on_both": {
+    "ok": true,
+    "status": "succeeded",
+    "reason": "All required postconditions verified",
+    "changes": 4,
+    "err": ""
+  },
+  "each_change_restored_whole_configs_identical": {
+    "ok": true,
+    "restores": [
+      "succeeded",
+      "succeeded",
+      "succeeded",
+      "succeeded"
+    ]
+  },
+  "rejected_batch_leaves_first_device_unchanged": {
+    "ok": true,
+    "status": "execution_failed",
+    "first_unchanged": true,
+    "err": " in _request\n    raise self._reply.error\nncclient.operations.rpc.RPCError: \n            Error [InvalidArgument]: Generic Error - SRL path: /system/ntp\n        \n"
+  }
+}

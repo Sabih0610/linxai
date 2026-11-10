@@ -107,24 +107,40 @@ management address, strict hostname/name patterns, LAG member cannot be the LAG 
 | bgp.neighbor | **commit + restore, whole config identical** | validated |
 | lag.member | **commit + restore, whole config identical** | validated |
 | acl.entry | **commit + restore, whole config identical** | validated |
+| qos.queue, qos.forwarding_group, qos.classifier_term, qos.interface_classifier (OpenConfig) | rejected: SR Linux's OpenConfig QoS translation needs a native queue-index; use the native profile below | not offered (no openconfig-qos) |
 
-Evidence: `evidence/netconf-lab-2026-11-10/` (SR Linux 10/11 with the whole-config
-check, batch 3/3, IOS XR 11/15 validated). "Commit + restore" means `scripts/accept_netconf_features.py` committed the change, an
-independent read showed the desired values, the typed restore put the feature back, and
-the device's **entire running config was identical** to the start of the case.
-"Validated" means the router accepted and validated the exact edit in its candidate,
-which was then discarded (no commits on the shared sandbox).
+**QoS and EVPN-VXLAN on SR Linux (vendor-native profile).** SR Linux marks OpenConfig
+EVPN, connection-points and BGP l2vpn-evpn as not-supported, and its OpenConfig QoS cannot
+create queues or classes, so these are typed features on Nokia's native models, run by
+the same engine (snapshot, confirmed commit, read-back, typed restore). The lab case
+chains each feature on its prerequisites and restores them in reverse.
 
-**Coordinated multi-device change** (`device.config.batch`, 2–4 devices, one change
-each): every device gets a provisional confirmed commit, all are read back, then all are
-confirmed; any failure cancels every provisional commit (the 60 s timer and session drop
-are backstops). Each device gets its own typed restore. Accepted on two SR Linux nodes with `scripts/accept_netconf_batch.py` 3/3: both
-changed and verified, each restored with whole configs identical, and a batch the second
-device rejected (NTP) left the first device's whole config unchanged.
+| Feature (SR Linux native) | Settings | Lab result |
+| --- | --- | --- |
+| srl.qos_queue | queue `unicast-0..7` / `multicast-0..7` (index derived) | **commit + restore, whole config identical** |
+| srl.qos_forwarding_class | class `fc0..fc7`, unicast queue | **commit + restore, whole config identical** |
+| srl.qos_dscp_rule | policy, DSCP 0–63, class | **commit + restore, whole config identical** |
+| srl.qos_interface_policy | allowlisted interface (subinterface 0), policy | **commit + restore, whole config identical** |
+| srl.vxlan_interface | `vxlanN`, VNI 1–16777215, bridged | **commit + restore, whole config identical** |
+| srl.mac_vrf_evpn | MAC-VRF name (never default/mgmt), VNI, EVI, route target | **commit + restore, whole config identical** |
 
-Not yet built: QoS (SR Linux only; IOS XR lacks openconfig-qos), EVPN/VXLAN templates
-(the batch mechanism is the building block), wireless mesh via the Meraki/Catalyst
-controller APIs (needs an API key), Juniper vJunos (needs the image download).
+**Coordinated multi-device change** (`device.config.batch`, 2–4 ordered changes across one
+or more devices, each device node changed once): every device gets ONE provisional
+confirmed commit holding all its changes, all are read back, then all are confirmed. A
+failure before confirming cancels every provisional commit (and discards the cancelled
+edits, which SR Linux otherwise keeps in the candidate); a failure while confirming
+compensates any device already confirmed by restoring its snapshots in one commit and
+reports which were compensated. Each change gets its own typed restore, returned in
+reverse order. Accepted with `scripts/accept_netconf_batch.py` on two SR Linux nodes: a
+hostname change on both (3/3) and EVPN-VXLAN on both — VXLAN interface then MAC-VRF on
+each, 4 changes in one transaction (3/3): applied and verified, every change restored
+with both whole configs identical, and a batch the second node rejected left the first
+node's whole config unchanged.
+
+Not yet built: wireless mesh via the Meraki/Catalyst controller APIs (needs an API key),
+Juniper vJunos (needs the image download). EVPN data-plane traffic between the two lab
+nodes is not tested (they have no data links); the evidence covers the control-plane
+configuration on both nodes.
 
 ## Findings from the lab feature runs
 
@@ -143,6 +159,15 @@ controller APIs (needs an API key), Juniper vJunos (needs the image download).
   than discarding edits it cannot prove are its own; the owner clears it on the device.
   The batch keeps the project-wide 30 s action bound, so all provisional commits are
   confirmed well inside their 60 s timers.
+- After `cancel-commit`, SR Linux keeps the cancelled edits in the shared candidate, which
+  blocks every later change; the worker now discards right after every cancel.
+- In a two-device EVPN batch the second device answered "commit already in progress"
+  while confirming, after the first had confirmed; the first device kept the change. The
+  worker now retries that transient answer and, if confirming still fails, compensates
+  every already-confirmed device from its snapshots and reports the outcome.
+- SR Linux QoS: OpenConfig queues and forwarding groups are rejected at commit (a native
+  `queue-index` is required, and both unicast and multicast queues for a class); the
+  native chain queue -> forwarding class -> DSCP policy -> subinterface binding works.
 - SR Linux's own OpenConfig translation adds a native `dns-instance mgmt` binding the
   first time a DNS server is configured and keeps it after the server is removed. The
   OpenConfig DNS node is restored exactly; the empty native binding is a device-side

@@ -117,9 +117,9 @@ def _agentless(registry,contract,name,asset,parameters):
 
 
 def _batch(assets,contract,parameters):
-    """Coordinated change across 2-4 NETCONF devices (one change per device)."""
+    """Coordinated change: 2-4 ordered changes across one or more NETCONF devices, each node changed once."""
     from .registry import InvalidParameters, PreparedAction, requirement
-    from .netconf_features import resolve
+    from .netconf_features import render, resolve
     if set(parameters)!={'changes','transaction_id'}:raise InvalidParameters('Exact batch fields required')
     changes,token=parameters['changes'],parameters['transaction_id']
     if not isinstance(token,str) or str(UUID(token))!=token:raise InvalidParameters('Canonical transaction UUID required')
@@ -131,10 +131,11 @@ def _batch(assets,contract,parameters):
         if not isinstance(asset,dict) or asset.get('platform')!='netconf':raise InvalidParameters('Each change needs a configured NETCONF asset')
         _netconf_asset(asset,InvalidParameters)
         if not isinstance(ch['expected_revision'],str) or not re.fullmatch(r'[0-9a-f]{64}',ch['expected_revision']):raise InvalidParameters('Expected revision SHA256 required')
-        try:resolve(ch['feature'],ch['settings'],asset)
+        try:target=(ch['asset'],render(resolve(ch['feature'],ch['settings'],asset)[0]))
         except ValueError as exc:raise InvalidParameters('%s: %s'%(ch['asset'],exc)) from None
-        names.append(ch['asset']);clean.append({k:ch[k] for k in ('asset','feature','settings','expected_revision')})
-    if len(set(names))!=len(names):raise InvalidParameters('One change per device per batch')
+        names.append(target);clean.append({k:ch[k] for k in ('asset','feature','settings','expected_revision')})
+    if len(set(names))!=len(names):raise InvalidParameters('Each device node may change only once per batch')
+    names=list(dict.fromkeys(n for n,_ in names))
     typed=ConfigBatch(json.dumps(clean,sort_keys=True,separators=(',',':')),token)
     payload={'action':'device.config.batch','parameters':asdict(typed),'asset':assets[names[0]],'assets':{n:assets[n] for n in names}}
     checks=(requirement('linux_runtime'),requirement('trusted_executable',path='/usr/bin/python3'),

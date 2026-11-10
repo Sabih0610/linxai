@@ -17,9 +17,15 @@ NS = {"sys": "http://openconfig.net/yang/system", "if": "http://openconfig.net/y
       "vlan": "http://openconfig.net/yang/vlan", "ni": "http://openconfig.net/yang/network-instance",
       "pt": "http://openconfig.net/yang/policy-types", "lag": "http://openconfig.net/yang/interfaces/aggregate",
       "acl": "http://openconfig.net/yang/acl", "nit": "http://openconfig.net/yang/network-instance-types",
-      "vt": "http://openconfig.net/yang/vlan-types", "bt": "http://openconfig.net/yang/bgp-types"}
+      "vt": "http://openconfig.net/yang/vlan-types", "bt": "http://openconfig.net/yang/bgp-types",
+      "qos": "http://openconfig.net/yang/qos",
+      # Nokia SR Linux native models (EVPN-VXLAN is not-supported in its OpenConfig deviations)
+      "srlvx": "urn:nokia.com:srlinux:vxlan:tunnel-interfaces", "srlif": "urn:nokia.com:srlinux:chassis:interfaces",
+      "srlni": "urn:nokia.com:srlinux:net-inst:network-instance", "srlevpn": "urn:nokia.com:srlinux:net-inst:bgp-evpn",
+      "srlvpn": "urn:nokia.com:srlinux:bgp:bgp-vpn", "srlqos": "urn:nokia.com:srlinux:qos:qos"}
 # Conventional module prefixes; some devices only accept identityref values with these.
-PREFIX = {NS["pt"]: "oc-pol-types", NS["acl"]: "oc-acl", NS["nit"]: "oc-ni-types", NS["vt"]: "oc-vlan-types", NS["bt"]: "oc-bgp-types"}
+PREFIX = {NS["pt"]: "oc-pol-types", NS["acl"]: "oc-acl", NS["nit"]: "oc-ni-types", NS["vt"]: "oc-vlan-types", NS["bt"]: "oc-bgp-types",
+          NS["srlif"]: "srl_nokia-interfaces"}
 NC = "urn:ietf:params:xml:ns:netconf:base:1.0"
 IFACE = re.compile(r"[A-Za-z][A-Za-z0-9_./:-]{0,31}")
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,62}")
@@ -218,11 +224,116 @@ def acl_entry(s, asset):
          "actions": {"config": {"forwarding-action": Identity(NS["acl"], action)}}}
 
 
+def _name(s, key, what):
+    value = s.get(key)
+    if not isinstance(value, str) or not NAME.fullmatch(value):
+        raise ValueError(f"{what} name required")
+    return value
+
+
+def qos_queue(s, asset):
+    name = _name(s, "name", "queue")
+    return [("qos", "qos", {}), ("qos", "queues", {}), ("qos", "queue", {"name": name})], {"config": {"name": name}}
+
+
+def qos_forwarding_group(s, asset):
+    name, queue = _name(s, "name", "forwarding group"), _name(s, "queue", "output queue")
+    return [("qos", "qos", {}), ("qos", "forwarding-groups", {}), ("qos", "forwarding-group", {"name": name})],         {"config": {"name": name, "output-queue": queue}}
+
+
+def qos_classifier_term(s, asset):
+    name, group = _name(s, "classifier", "classifier"), _name(s, "forwarding_group", "forwarding group")
+    dscp = s["dscp"]
+    if not isinstance(dscp, list) or not 1 <= len(dscp) <= 8 or len(set(dscp)) != len(dscp):
+        raise ValueError("dscp must be a list of 1-8 distinct values")
+    term = str(_int(s["term"], 1, 65535))
+    return [("qos", "qos", {}), ("qos", "classifiers", {}),
+            ("qos", "classifier", {"name": name}, {"config": {"name": name, "type": "IPV4"}}),
+            ("qos", "terms", {}), ("qos", "term", {"id": term})],         {"config": {"id": term}, "conditions": {"ipv4": {"config": {"dscp-set": sorted(_int(d, 0, 63) for d in dscp)}}},
+         "actions": {"config": {"target-group": group}}}
+
+
+def qos_interface_classifier(s, asset):
+    name, classifier = _iface(s["interface"], asset), _name(s, "classifier", "classifier")
+    return [("qos", "qos", {}), ("qos", "interfaces", {}),
+            ("qos", "interface", {"interface-id": name}, {"config": {"interface-id": name}}),
+            ("qos", "input", {}), ("qos", "classifiers", {}), ("qos", "classifier", {"type": "IPV4"})],         {"config": {"type": "IPV4", "name": classifier}}
+
+
+def _vni(s):
+    tunnel = s.get("tunnel", "vxlan1")
+    if not isinstance(tunnel, str) or not re.fullmatch(r"vxlan(25[0-5]|2[0-4]\d|1?\d?\d)", tunnel):
+        raise ValueError("tunnel must be vxlan0..vxlan255")
+    return tunnel, _int(s["vni"], 1, 16777215)
+
+
+def srl_vxlan_interface(s, asset):
+    """SR Linux native: a bridged VXLAN interface <tunnel>.<vni>."""
+    tunnel, vni = _vni(s)
+    return [("srlvx", "tunnel-interface", {"name": tunnel}), ("srlvx", "vxlan-interface", {"index": vni})],         {"type": Identity(NS["srlif"], "bridged"), "ingress": {"vni": vni}}
+
+
+def srl_mac_vrf_evpn(s, asset):
+    """SR Linux native: an EVPN-VXLAN MAC-VRF bound to <tunnel>.<vni> with one route target."""
+    name = _name(s, "name", "MAC-VRF")
+    if name in ("default", "mgmt"):
+        raise ValueError("the default and management instances cannot be changed")
+    tunnel, vni = _vni(s)
+    rt = s["route_target"]
+    if not isinstance(rt, str) or not re.fullmatch(r"target:\d{1,10}:\d{1,10}", rt):
+        raise ValueError("route target must look like target:65001:100")
+    vxi = f"{tunnel}.{vni}"
+    return [("srlni", "network-instance", {"name": name})],         {"type": "mac-vrf", "admin-state": "enable", "vxlan-interface": {"name": vxi},
+         "protocols": {"bgp-evpn": {"{srlevpn}bgp-instance": {"id": 1, "admin-state": "enable", "vxlan-interface": vxi,
+                                                              "evi": _int(s.get("evi", vni if vni <= 65535 else 0), 1, 65535)}},
+                       "{srlvpn}bgp-vpn": {"bgp-instance": {"id": 1, "route-target": {"export-rt": rt, "import-rt": rt}}}}}
+
+
+# SR Linux QoS is native-only in practice: its OpenConfig translation needs a queue-index
+# that OpenConfig cannot express. Classes fc0-fc7 and queues unicast-0..7 are fixed.
+def _pick(s, key, pattern, what):
+    value = s.get(key)
+    if not isinstance(value, str) or not re.fullmatch(pattern, value):
+        raise ValueError(f"{what} required")
+    return value
+
+
+def srl_qos_queue(s, asset):
+    queue = _pick(s, "queue", r"(unicast|multicast)-[0-7]", "queue unicast-0..7 or multicast-0..7")
+    return [("srlqos", "qos", {}), ("srlqos", "queues", {}), ("srlqos", "queue", {"name": queue})], {"queue-index": int(queue[-1])}
+
+
+def srl_qos_forwarding_class(s, asset):
+    name = _pick(s, "name", r"fc[0-7]", "forwarding class fc0..fc7")
+    queue = _pick(s, "unicast_queue", r"unicast-[0-7]", "unicast queue unicast-0..7")
+    return [("srlqos", "qos", {}), ("srlqos", "forwarding-classes", {}), ("srlqos", "forwarding-class", {"name": name})], \
+        {"output": {"unicast-queue": queue}}
+
+
+def srl_qos_dscp_rule(s, asset):
+    policy, dscp = _name(s, "policy", "DSCP policy"), _int(s["dscp"], 0, 63)
+    fc = _pick(s, "forwarding_class", r"fc[0-7]", "forwarding class fc0..fc7")
+    return [("srlqos", "qos", {}), ("srlqos", "classifiers", {}), ("srlqos", "dscp-policy", {"name": policy}),
+            ("srlqos", "dscp", {"value": dscp})], {"forwarding-class": fc}
+
+
+def srl_qos_interface_policy(s, asset):
+    name, policy = _iface(s["interface"], asset), _name(s, "policy", "DSCP policy")
+    ident = "linxai-" + re.sub(r"[^A-Za-z0-9]", "-", name)
+    return [("srlqos", "qos", {}), ("srlqos", "interfaces", {}), ("srlqos", "interface", {"interface-id": ident})], \
+        {"interface-ref": {"interface": name, "subinterface": 0}, "input": {"classifiers": {"dscp-policy": policy}}}
+
+
 FEATURES = {"interface.description": interface_description, "system.hostname": system_hostname,
             "system.banner": system_banner, "system.ntp_server": system_ntp_server, "system.dns_server": system_dns_server,
             "interface.ipv4": interface_ipv4, "vlan": vlan, "interface.access_vlan": interface_access_vlan,
             "static_route": static_route, "ospf.interface": ospf_interface, "bgp.global": bgp_global, "bgp.peer_group": bgp_peer_group, "bgp.neighbor": bgp_neighbor,
-            "lag.member": lag_member, "acl.entry": acl_entry}
+            "lag.member": lag_member, "acl.entry": acl_entry,
+            "qos.queue": qos_queue, "qos.forwarding_group": qos_forwarding_group,
+            "qos.classifier_term": qos_classifier_term, "qos.interface_classifier": qos_interface_classifier,
+            "srl.vxlan_interface": srl_vxlan_interface, "srl.mac_vrf_evpn": srl_mac_vrf_evpn,
+            "srl.qos_queue": srl_qos_queue, "srl.qos_forwarding_class": srl_qos_forwarding_class,
+            "srl.qos_dscp_rule": srl_qos_dscp_rule, "srl.qos_interface_policy": srl_qos_interface_policy}
 
 
 def resolve(feature, settings, asset):
@@ -264,6 +375,8 @@ def _body(config, ns):
             out.append(f'<{name} xmlns="{NS[ns_key]}">{inner}</{name}>')
         elif isinstance(value, dict):
             out.append(f"<{key}>{_body(value, ns)}</{key}>")
+        elif isinstance(value, list):                 # YANG leaf-list
+            out.extend(_leaf(key, item, ns) for item in value)
         else:
             out.append(_leaf(key, value, ns))
     return "".join(out)
@@ -290,5 +403,8 @@ def expected_leaves(config, prefix=()):
         name = key.split("}")[-1]
         if isinstance(value, dict):
             yield from expected_leaves(value, prefix + (name,))
+        elif isinstance(value, list):
+            for item in value:
+                yield prefix + (name,), str(item)
         else:
             yield prefix + (name,), ("true" if value is True else "false" if value is False else str(value))

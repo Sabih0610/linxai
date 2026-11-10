@@ -71,13 +71,20 @@ def _discard(m):
     try: m.discard_changes()
     except RPCError as exc:
         if 'without starting a configuration session' not in str(exc): raise
+def _cancel(m):
+    """Roll back a provisional commit now. SR Linux keeps the cancelled edits in the candidate,
+    which would block every later change, so discard them too."""
+    try: m.cancel_commit()
+    except Exception: pass
+    try: _discard(m)
+    except Exception: pass
 def _busy(call):
-    """Devices may answer 'commit confirmed in progress' while still applying the previous commit
+    """Devices may answer 'commit (confirmed|already) in progress' while still applying the previous commit
     (SR Linux removing a protocol); retry briefly, well inside the confirmed-commit timer."""
     for delay in (0.5, 1, 2, 4, 8, None):
         try: return call()
         except RPCError as exc:
-            if delay is None or 'confirmed in progress' not in str(exc): raise
+            if delay is None or not any(t in str(exc) for t in ('confirmed in progress', 'commit already in progress')): raise
             time.sleep(delay)
 def _attempt(m, xml, check):
     _discard(m)
@@ -91,8 +98,7 @@ def _attempt(m, xml, check):
         if not check(): raise ValueError('Read-back did not match; confirmed commit cancelled and rolled back')
         _busy(m.commit)
     except Exception:
-        try: m.cancel_commit()      # roll back now instead of waiting for the timer
-        except Exception: pass
+        _cancel(m)                  # roll back now instead of waiting for the timer
         raise
 def commit_edit(m, xml, check):
     """Generic safe change: lock (or refuse), edit, validate, confirmed commit, read-back, confirm."""

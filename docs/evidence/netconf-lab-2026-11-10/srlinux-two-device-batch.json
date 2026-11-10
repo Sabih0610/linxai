@@ -3,9 +3,10 @@
     "ok": true,
     "status": "succeeded",
     "reason": "All required postconditions verified",
+    "changes": 2,
     "err": ""
   },
-  "each_device_restored": {
+  "each_change_restored_whole_configs_identical": {
     "ok": true,
     "restores": [
       "succeeded",

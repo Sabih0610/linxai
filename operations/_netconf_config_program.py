@@ -94,89 +94,107 @@ def config_main(m):
     if mode in ('check', 'apply') and (saved['state'] != 'captured' or current != params['expected_revision']):
         raise ValueError('Restoration stale, consumed or altered')
     if mode == 'check': print(json.dumps({'revision': current, 'feature': feature, 'restore_present': bool(saved['prior'])})); return
-    prior, want = saved['prior'], _leaves(saved['prior'])
-    if prior:
-        decls = ''.join(' xmlns:%s="%s"' % (p, u) for p, u in saved['prefixes'].items() if _re.fullmatch(r'[A-Za-z_][\w.-]*', p) and p != 'nc')
-        inner = ''.join(ET.tostring(c, encoding='unicode') for c in ET.fromstring(prior))
-        xml = _wrap(render(path, operation='replace', inner_xml=inner, extra=decls))
-    else:
-        # Remove the highest LIST ENTRY this change created (e.g. a new protocol instance or
-        # subinterface), never a bare container, which devices may refuse to remove.
-        depth = saved.get('existing_depth', len(path) - 1)
-        top = next((i for i in range(depth, len(path)) if path[i][2]), len(path) - 1)
-        xml = _wrap(render(path[:top + 1], operation='remove'))
-    def restored():
-        n, t, _, _ = read_target(m, path)
-        return n is None if not prior else set(want) <= set(_leaves(t))
+    prior = saved['prior']
+    xml = _wrap(_undo_xml(path, prior, saved['prefixes'], saved.get('existing_depth', len(path) - 1)))
+    restored = lambda: _is_restored(m, path, prior)
     if mode == 'apply':
         commit_edit(m, xml, restored); saved['state'] = 'restored'; atomic(transaction, encoded(saved))
     if not restored(): raise ValueError('Restoration postcondition failed')
     print(json.dumps({'verified': True, 'platform': 'netconf', 'restored': True, 'feature': feature}))
+def _undo_xml(path, prior, prefixes, depth):
+    """Replace the target with its snapshot, or remove the highest LIST ENTRY the change created
+    (e.g. a new protocol instance or subinterface), never a bare container devices may refuse."""
+    if prior:
+        decls = ''.join(' xmlns:%s="%s"' % (p, u) for p, u in prefixes.items() if _re.fullmatch(r'[A-Za-z_][\w.-]*', p) and p != 'nc')
+        inner = ''.join(ET.tostring(c, encoding='unicode') for c in ET.fromstring(prior))
+        return render(path, operation='replace', inner_xml=inner, extra=decls)
+    top = next((i for i in range(depth, len(path)) if path[i][2]), len(path) - 1)
+    return render(path[:top + 1], operation='remove')
+def _is_restored(m, path, prior):
+    n, t, _, _ = read_target(m, path)
+    return n is None if not prior else set(_leaves(prior)) <= set(_leaves(t))
 def _provisional(m, xml):
     """Stage, validate and confirmed-commit WITHOUT confirming (lock-or-refuse, private-candidate fallback)."""
-    try: m.lock('candidate'); locked = True
-    except RPCError as exc: raise ValueError('Device candidate is locked or holds uncommitted changes') from exc
-    try:
-        _discard(m); m.edit_config(target='candidate', config=xml); m.validate(source='candidate')
-        _busy(lambda: m.commit(confirmed=True, timeout=str(CONFIRM_TIMEOUT_S))); return
-    except RPCError as exc:
+    def stage():                       # any failure leaves the candidate clean
         _discard(m)
+        try:
+            m.edit_config(target='candidate', config=xml); m.validate(source='candidate')
+            _busy(lambda: m.commit(confirmed=True, timeout=str(CONFIRM_TIMEOUT_S)))
+        except Exception:
+            _discard(m); raise
+    try: m.lock('candidate')
+    except RPCError as exc: raise ValueError('Device candidate is locked or holds uncommitted changes') from exc
+    try: return stage()
+    except RPCError as exc:
         if 'same configuration session' not in str(exc): raise
     finally:
         try: m.unlock('candidate')
         except Exception: pass
-    _discard(m); m.edit_config(target='candidate', config=xml); m.validate(source='candidate')
-    _busy(lambda: m.commit(confirmed=True, timeout=str(CONFIRM_TIMEOUT_S)))
+    stage()
+def _compensate(m, mine):
+    """Undo a device whose part of a failed batch was already confirmed (reverse order, one commit)."""
+    try:
+        commit_edit(m, _wrap(''.join(_undo_xml(it['path'], it['prior'], it['prefixes'], it['depth']) for it in reversed(mine))),
+                    lambda: all(_is_restored(m, it['path'], it['prior']) for it in mine))
+        for it in mine:
+            tx = it['state_dir'] / 'transactions' / (it['token'] + '.json')
+            saved = json.loads(read(tx)); saved['state'] = 'compensated'; atomic(tx, encoded(saved))
+        return True
+    except Exception:
+        return False
 def batch_main():
-    """Coordinated change across up to 4 devices: all confirmed-committed, all verified, then all
-    confirmed; any failure cancels every provisional commit (timer and session drop are backstops)."""
+    """Coordinated change: ordered changes on up to 4 devices. Each device gets ONE provisional
+    confirmed commit holding all its changes; all are read back, then all confirmed; any failure
+    cancels every provisional commit (the timer and session drop are backstops)."""
     global asset, state_dir
     changes, devices, token = json.loads(params['changes_json']), request['assets'], params['transaction_id']
-    sessions = []
+    conns, items = {}, []
     try:
-        for ch in changes:
-            asset = devices[ch['asset']]; state_dir = pathlib.Path(asset['state_dir']); chain(state_dir, True)
-            m = connect(write=True)
+        for i, ch in enumerate(changes):
+            name = ch['asset']; asset = devices[name]; state_dir = pathlib.Path(asset['state_dir']); chain(state_dir, True)
+            if name not in conns: conns[name] = connect(write=True)
             path, config = resolve(ch['feature'], ch['settings'], _asset_resolved())
-            node, text, current, prefixes = read_target(m, path)
-            sessions.append({'m': m, 'ch': ch, 'path': path, 'config': config, 'prior': text, 'prefixes': prefixes,
-                             'depth': existing_depth(m, path), 'state_dir': state_dir, 'asset': asset})
+            node, text, current, prefixes = read_target(conns[name], path)
             if mode in ('check', 'apply') and current != ch['expected_revision']:
-                raise ValueError('%s: device state changed; read and preview again' % ch['asset'])
+                raise ValueError('%s: device state changed; read and preview again' % name)
+            items.append({'m': conns[name], 'ch': ch, 'path': path, 'config': config, 'prior': text, 'prefixes': prefixes,
+                          'state_dir': state_dir, 'token': str(uuid.uuid5(uuid.UUID(token), '%s/%d' % (name, i)))})
         if mode == 'check':
-            print(json.dumps({'devices': [s['ch']['asset'] for s in sessions]})); return
+            print(json.dumps({'devices': list(conns)})); return
         if mode == 'apply':
-            for s in sessions:               # one single-device transaction per device enables typed restores
-                sub = str(uuid.uuid5(uuid.UUID(token), s['ch']['asset'])); s['token'] = sub
-                txdir = s['state_dir'] / 'transactions'
+            for it in items:                # one single-node transaction per change enables typed restores
+                txdir = it['state_dir'] / 'transactions'
                 if not txdir.exists(): txdir.mkdir(mode=0o700)
-                atomic(txdir / (sub + '.json'), encoded({'schema': 1, 'asset': s['ch']['asset'], 'uid': uid, 'feature': s['ch']['feature'],
-                       'settings': s['ch']['settings'], 'prior': s['prior'], 'prefixes': s['prefixes'], 'existing_depth': s['depth'],
+                atomic(txdir / (it['token'] + '.json'), encoded({'schema': 1, 'asset': it['ch']['asset'], 'uid': uid,
+                       'feature': it['ch']['feature'], 'settings': it['ch']['settings'], 'prior': it['prior'],
+                       'prefixes': it['prefixes'], 'existing_depth': it.setdefault('depth', existing_depth(it['m'], it['path'])),
                        'created': time.time(), 'state': 'captured', 'operation_id': request['operation_id'], 'batch': token}), True)
-            committed = []
+            committed, confirmed = [], []
             try:
-                for s in sessions:
-                    _provisional(s['m'], _wrap(render(s['path'], s['config']))); committed.append(s)
-                if not all(matches(read_target(s['m'], s['path'])[0], s['config']) for s in sessions):
+                for name, m in conns.items():
+                    _provisional(m, _wrap(''.join(render(it['path'], it['config']) for it in items if it['ch']['asset'] == name)))
+                    committed.append(name)
+                if not all(matches(read_target(it['m'], it['path'])[0], it['config']) for it in items):
                     raise ValueError('Read-back failed on at least one device')
-                for s in sessions: _busy(s['m'].commit)
-            except Exception:
-                for s in committed:
-                    try: s['m'].cancel_commit()
-                    except Exception: pass
+                for name in committed: _busy(conns[name].commit); confirmed.append(name)
+            except Exception as exc:
+                for name in committed:
+                    if name not in confirmed: _cancel(conns[name])
+                undone = [name for name in confirmed if _compensate(conns[name], [it for it in items if it['ch']['asset'] == name])]
+                if confirmed:
+                    raise ValueError('Batch failed after %s confirmed: %s; compensated %s; NOT compensated %s'
+                                     % (confirmed, exc, undone, [n for n in confirmed if n not in undone])) from exc
                 raise
-        else:
-            for s in sessions: s['token'] = str(uuid.uuid5(uuid.UUID(token), s['ch']['asset']))
-        if not all(matches(read_target(s['m'], s['path'])[0], s['config']) for s in sessions):
+        if not all(matches(read_target(it['m'], it['path'])[0], it['config']) for it in items):
             raise ValueError('Batch postcondition failed')
-        restorations = [{'action': 'device.config.restore', 'parameters': {'asset': s['ch']['asset'], 'feature': s['ch']['feature'],
-                         'settings': s['ch']['settings'], 'transaction_id': s['token'], 'expected_revision': read_target(s['m'], s['path'])[2]}}
-                        for s in sessions]
-        print(json.dumps({'verified': True, 'platform': 'netconf', 'batch': True, 'devices': [s['ch']['asset'] for s in sessions],
-                          'restorations': restorations}))
+        restorations = [{'action': 'device.config.restore', 'parameters': {'asset': it['ch']['asset'], 'feature': it['ch']['feature'],
+                         'settings': it['ch']['settings'], 'transaction_id': it['token'],
+                         'expected_revision': read_target(it['m'], it['path'])[2]}} for it in reversed(items)]
+        print(json.dumps({'verified': True, 'platform': 'netconf', 'batch': True, 'devices': list(conns),
+                          'restorations': restorations}))           # restore in this order (reverse of apply)
     finally:
-        for s in sessions:
-            try: s['m'].close_session()
+        for m in conns.values():
+            try: m.close_session()
             except Exception: pass
 if action == 'device.config.batch':
     batch_main(); raise SystemExit(0)
