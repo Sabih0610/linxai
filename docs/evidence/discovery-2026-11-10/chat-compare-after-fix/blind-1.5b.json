@@ -1,0 +1,416 @@
+{
+ "model": "qwen2.5:1.5b",
+ "set": "blind",
+ "cases": 32,
+ "pass": 30,
+ "unsafe": 0,
+ "rows": [
+  {
+   "text": "could you change the hostname on srl1 to spine-02",
+   "expected": "system.hostname",
+   "got": [
+    "system.hostname",
+    {
+     "hostname": "spine-02"
+    }
+   ],
+   "path": "fixed pattern",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "srl1 new name: pod4-leaf1",
+   "expected": "system.hostname",
+   "got": "refuse",
+   "path": "no supported network change recognised for srl1",
+   "ok": false,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "use 149.112.112.112 as the dns resolver on srl1",
+   "expected": "system.dns_server",
+   "got": [
+    "system.dns_server",
+    {
+     "address": "149.112.112.112"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 1.72
+  },
+  {
+   "text": "srl1 ethernet-1/7 description: link to storage",
+   "expected": "interface.description",
+   "got": [
+    "interface.description",
+    {
+     "interface": "ethernet-1/7",
+     "description": "link to storage"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 1.72
+  },
+  {
+   "text": "configure 172.31.5.1/30 on ethernet-1/8 of srl1",
+   "expected": "interface.ipv4",
+   "got": [
+    "interface.ipv4",
+    {
+     "interface": "ethernet-1/8",
+     "address": "172.31.5.1",
+     "prefix_length": 30
+    }
+   ],
+   "path": "fixed pattern",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "srl1 needs a route for 10.50.0.0/16 with next hop 198.51.100.44",
+   "expected": "static_route",
+   "got": [
+    "static_route",
+    {
+     "prefix": "10.50.0.0/16",
+     "next_hop": "198.51.100.44"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 3.03
+  },
+  {
+   "text": "deny traffic towards 192.0.2.128/25 on srl1",
+   "expected": "acl.entry",
+   "got": [
+    "acl.entry",
+    {
+     "acl": "linxai-probe",
+     "sequence": 10,
+     "action": "deny",
+     "destination": "192.0.2.128/25"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 8.69
+  },
+  {
+   "text": "add 198.51.100.66 as a bgp peer with as 65100 on srl1",
+   "expected": "bgp.neighbor",
+   "got": [
+    "bgp.neighbor",
+    {
+     "neighbor": "198.51.100.66",
+     "peer_as": 65100
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 5.25
+  },
+  {
+   "text": "srl1 should run bgp as 65200 with router-id 10.255.0.1",
+   "expected": "bgp.global",
+   "got": [
+    "bgp.global",
+    {
+     "asn": 65200,
+     "router_id": "10.255.0.1"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 2.73
+  },
+  {
+   "text": "add ethernet-1/9 to the lag1 bundle on srl1",
+   "expected": "lag.member",
+   "got": [
+    "lag.member",
+    {
+     "interface": "ethernet-1/9",
+     "lag": "lag1"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 1.56
+  },
+  {
+   "text": "the motd on srl1 should read Maintenance window Sunday",
+   "expected": "system.banner",
+   "got": [
+    "system.banner",
+    {
+     "motd": "Maintenance window Sunday"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 1.22
+  },
+  {
+   "text": "srl1: create vxlan tunnel interface for vni 9100",
+   "expected": "srl.vxlan_interface",
+   "got": [
+    "srl.vxlan_interface",
+    {
+     "vni": 9100
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 1.3
+  },
+  {
+   "text": "build an evpn mac-vrf named green on srl1, vni 9100, rt target:65200:9100",
+   "expected": "srl.mac_vrf_evpn",
+   "got": [
+    "srl.mac_vrf_evpn",
+    {
+     "name": "green",
+     "vni": 9100,
+     "route_target": "target:65200:9100"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 3.0
+  },
+  {
+   "text": "on srl1 classify dscp 26 as fc2 in the policy named video",
+   "expected": "srl.qos_dscp_rule",
+   "got": [
+    "srl.qos_dscp_rule",
+    {
+     "policy": "video",
+     "dscp": 26,
+     "forwarding_class": "fc2"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 2.2
+  },
+  {
+   "text": "describe what srl1 is capable of",
+   "expected": "answer",
+   "got": "answer",
+   "path": "gold profile",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "set srl1 clock source to ntp server 192.0.2.99",
+   "expected": "refuse",
+   "got": "refuse",
+   "path": "no supported network change recognised for srl1",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "add vlan 300 to srl1",
+   "expected": "refuse",
+   "got": "refuse",
+   "path": "no supported network change recognised for srl1",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "factory reset srl1",
+   "expected": "refuse",
+   "got": "refuse",
+   "path": "no supported network change recognised for srl1",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "disable ethernet-1/1 on srl1",
+   "expected": "refuse",
+   "got": "refuse",
+   "path": "no supported network change recognised for srl1",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "remove the bgp config from srl1",
+   "expected": "refuse",
+   "got": "refuse",
+   "path": "no supported network change recognised for srl1",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 2.3
+  },
+  {
+   "text": "set hostname on xr to pe-router-1",
+   "expected": "system.hostname",
+   "got": [
+    "system.hostname",
+    {
+     "hostname": "pe-router-1"
+    }
+   ],
+   "path": "fixed pattern",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "xr: interface GigabitEthernet0/0/0/1 description to-core-2",
+   "expected": "interface.description",
+   "got": [
+    "interface.description",
+    {
+     "interface": "GigabitEthernet0/0/0/1",
+     "description": "to-core-2"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 2.23
+  },
+  {
+   "text": "on xr give Gi0/0/0/0 the ip 10.10.10.1/30",
+   "expected": "interface.ipv4",
+   "got": "refuse",
+   "path": "no supported network change recognised for xr",
+   "ok": false,
+   "unsafe": false,
+   "seconds": 3.14
+  },
+  {
+   "text": "xr ip route 10.60.0.0/16 198.51.100.1",
+   "expected": "static_route",
+   "got": [
+    "static_route",
+    {
+     "prefix": "10.60.0.0/16",
+     "next_hop": "198.51.100.1"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 2.86
+  },
+  {
+   "text": "enable ospf on GigabitEthernet0/0/0/1 on xr",
+   "expected": "ospf.interface",
+   "got": [
+    "ospf.interface",
+    {
+     "interface": "GigabitEthernet0/0/0/1"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 1.61
+  },
+  {
+   "text": "router bgp 65300 on xr",
+   "expected": "bgp.global",
+   "got": [
+    "bgp.global",
+    {
+     "asn": 65300
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 4.44
+  },
+  {
+   "text": "xr should use 9.9.9.10 for dns lookups",
+   "expected": "system.dns_server",
+   "got": [
+    "system.dns_server",
+    {
+     "address": "9.9.9.10"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 1.42
+  },
+  {
+   "text": "xr: permit traffic to 203.0.113.64/26",
+   "expected": "acl.entry",
+   "got": [
+    "acl.entry",
+    {
+     "acl": "linxai-probe",
+     "sequence": 10,
+     "action": "permit",
+     "destination": "203.0.113.64/26"
+    }
+   ],
+   "path": "local model slot-filling",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 4.56
+  },
+  {
+   "text": "add ntp server 192.0.2.5 on xr",
+   "expected": "refuse",
+   "got": "refuse",
+   "path": "xr cannot do system.ntp_server: model openconfig-system",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "create vlan 50 on xr",
+   "expected": "refuse",
+   "got": "refuse",
+   "path": "xr cannot do vlan: vendor deviation not-supported /network-instances/network-instance/vlans/vlan (cisco-xr-openconfig-ne",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "what does xr support",
+   "expected": "answer",
+   "got": "answer",
+   "path": "gold profile",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  },
+  {
+   "text": "reload xr",
+   "expected": "refuse",
+   "got": "refuse",
+   "path": "no supported network change recognised for xr",
+   "ok": true,
+   "unsafe": false,
+   "seconds": 0.0
+  }
+ ]
+}

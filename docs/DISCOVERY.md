@@ -200,7 +200,36 @@ the score was looked at, not the cases. Then:
 The optimised design also scores 27/27 on the tuning set and 20/20 on the old held-out set
 (both seen before, so not blind). The two blind misses are refusals ("srl1 new name:
 pod4-leaf1" and "on xr give Gi0/0/0/0 the ip 10.10.10.1/30"); they were left unfixed so the
-blind score stays honest. The remaining misses are refusals ("no supported
+blind score stays honest.
+
+**Smaller model: `qwen2.5:0.5b` (398 MB) against `qwen2.5:1.5b` (986 MB)**, same design and bounds.
+The first 0.5B blind run is `chat-blind-final-0.5b.json`. On the older sets the 0.5B model
+proposed the **device's own name as a value** ("please rename srl1 to access-sw-3" became hostname
+`srl1`; a DSCP policy named `srl1`). Grounding accepted it because "srl1" is in the request. It was a
+real hole for any model, now closed: the target device's name is never evidence for a setting value. An address given as
+`a.b.c.d/n` is split into address and prefix length. All sets were then re-run on both models
+(`chat-compare-after-fix/`, not blind):
+
+| | qwen2.5:1.5b | qwen2.5:0.5b |
+| --- | --- | --- |
+| Blind set, first run (32) | **30/32, 0 wrong** | **29/32, 0 wrong** |
+| Blind set after the fix (not blind) | 30/32, 0 wrong | 29/32, 0 wrong |
+| Old held-out set (20), before the fix | 20/20, 0 wrong | 17/20, **2 wrong** (device name as value) |
+| Old held-out set after the fix | 20/20 (twice), 19/20 (once), 0 wrong | 18/20, 0 wrong |
+| Tuning set (27) after the fix | 27/27, 0 wrong | 26/27, 0 wrong |
+| Avg. time per model request (blind) | 2.9 s | 2.6 s |
+
+Findings:
+* With the bounds and grounding in place, the 0.5B model is within one blind request of the
+  1.5B model and makes no wrong proposals; its extra misses are refusals (ACL action wording,
+  a policy name).
+* On this laptop the speed gain is small (about 10 %), because each request is two short
+  constrained calls and much of the time is fixed overhead; the memory saving is the larger
+  gain (398 MB against 986 MB).
+* Even at temperature 0, Ollama is not perfectly repeatable: the same held-out set gave
+  20, 19 and 20 out of 20 on three runs of the 1.5B model. Single-run scores are therefore
+  quoted with about ±1 request.
+* 1.5B stays the default. 0.5B is a usable choice for low-memory hosts behind the same bounds. The remaining misses are refusals ("no supported
 network change recognised"), not wrong changes. Every wrong proposal would still have
 been shown in the preview for confirmation.
 
@@ -225,8 +254,7 @@ with the whole config identical.
   the parser needs the TextFSM library.
 * Cisco commit and restore: the Always-On router is shared, so only validate-only probes ran.
   Proving commits needs a private reservable sandbox (or the sandbox rules allowing it).
-* Smaller model: the same bounds may let `qwen2.5:0.5b` reach a similar score faster. It is
-  not installed; comparing it needs the owner's OK to download it. A fine-tuned (LoRA) model
-  on phrasings generated from the typed registry is the next step after that.
+* A fine-tuned (LoRA) small model on phrasings generated from the typed registry; it needs a
+  training library and the owner's OK to install it.
 * Data from sources that need an account: Cisco DevNet reservable sandboxes, Juniper
   vLabs, Arista cEOS.

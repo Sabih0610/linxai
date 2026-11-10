@@ -121,10 +121,14 @@ class NetworkPlanner:
         settings = {k: _typed(v, SAMPLES[feature].get(k)) for k, v in settings.items() if v not in (None, "", [])}
         if not settings or not set(settings) <= set(SAMPLES[feature]):
             raise refused                                       # extra keys: refused, never repaired
+        address = str(settings.get("address", ""))
+        if "prefix_length" in SAMPLES[feature] and re.fullmatch(r"[\d.]+/\d{1,2}", address):
+            settings["address"], length = address.split("/")       # "10.1.1.1/31" given as one value
+            settings.setdefault("prefix_length", int(length))
         words = [w for w in ACTION_WORDS if re.search(rf"\b{w}\b", text.lower())]
         if "action" in settings and len(words) == 1:
             settings["action"] = words[0]                       # the request's own action word wins over the model's
-        invented = {k for k, v in settings.items() if not grounded({k: v}, SAMPLES[feature], text)}
+        invented = {k for k, v in settings.items() if not grounded({k: v}, SAMPLES[feature], text, device=name)}
         if invented - OPTIONAL.get(feature, set()):
             raise refused                                       # a required value the request does not contain
         settings = {k: v for k, v in settings.items() if k not in invented}    # an invented optional value is dropped
@@ -275,8 +279,9 @@ def worked_example(feature, ports):
     return fill(request), {k: fill(v) if isinstance(v, str) else v for k, v in answer.items()}
 
 
-def grounded(settings, example, text):
-    """Anti-hallucination: values must come from the request (case-insensitive), except naming defaults."""
+def grounded(settings, example, text, device=None):
+    """Anti-hallucination: values must come from the request (case-insensitive), except naming defaults.
+    The target device's own name is how the request picks the device, never evidence for a value."""
     low = text.lower()
     for key, value in settings.items():
         if key in NAMING and value == example[key]:
@@ -285,6 +290,8 @@ def grounded(settings, example, text):
             return False
         items = value if isinstance(value, list) else [value]
         for item in items:
+            if device and isinstance(item, str) and item.strip().lower() == device.lower():
+                return False
             if key in PORT_KEYS and isinstance(item, str):
                 if not mentioned(item, text):                   # the port, or its usual abbreviation, is in the request
                     return False

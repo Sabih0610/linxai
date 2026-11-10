@@ -108,6 +108,13 @@ class NetworkPlannerTests(unittest.TestCase):
         model.complete.side_effect = [{"asn": 64999}]
         with self.assertRaises(UnsupportedAction):
             self.planner(model).plan("enable bgp on srl1 using as 64512")
+        # The device's own name is never accepted as a setting value (seen with qwen2.5:0.5b).
+        model.complete.side_effect = [{"hostname": "srl1"}]
+        with self.assertRaises(UnsupportedAction):
+            self.planner(model).plan("please call srl1 something like access-sw-3")
+        model.complete.side_effect = [{"interface": "ethernet-1/1", "address": "10.1.1.1/31"}]
+        self.assertEqual(self.planner(model).plan("srl1 ethernet-1/1 ipv4 10.1.1.1/31")[1]["settings"],
+                         {"interface": "ethernet-1/1", "address": "10.1.1.1", "prefix_length": 31})   # address/prefix split
         # Free text never carries the trailing device reference.
         model.complete.side_effect = [{"motd": "Lab use only on srl1"}]
         self.assertEqual(self.planner(model).plan("show the message of the day Lab use only on srl1")[1]["settings"], {"motd": "Lab use only"})
