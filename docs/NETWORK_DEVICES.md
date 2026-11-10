@@ -100,7 +100,7 @@ management address, strict hostname/name patterns, LAG member cannot be the LAG 
 | system.ntp_server | not supported (SR Linux needs a network-instance for NTP) | not supported (unknown namespace) |
 | interface.ipv4 | **commit + restore, whole config identical** | validated |
 | static_route | **commit + restore, whole config identical** | validated |
-| vlan, interface.access_vlan | not applicable (router image; needs a switch OS) | not supported on the router |
+| vlan, interface.access_vlan | not supported by SR Linux's OpenConfig (this 7220 IXR-D3L switch does layer 2 through MAC-VRFs and bridged subinterfaces; a native profile is needed) | not supported on the router |
 | ospf.interface | not supported by this SR Linux OpenConfig release | validated |
 | bgp.global | **commit + restore, whole config identical** | rejected (sandbox already runs its own BGP instance) |
 | bgp.peer_group | **commit + restore, whole config identical** | validated |
