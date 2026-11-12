@@ -29,5 +29,13 @@ response and validated recurring policies, account-bound face/password and voice
 Unknown source requirements remain unknown. No measured detection/overhead,
 biometric assurance or universal threat-prevention claim is made.
 
+Network and system engineering extensions (November 2026):
+[network devices over NETCONF](docs/NETWORK_DEVICES.md) (typed OpenConfig and native
+features, confirmed commit, verified restore, coordinated multi-device batches),
+[device discovery, vendor knowledge base and chat grounded in gold capability
+profiles](docs/DISCOVERY.md) (Nokia SR Linux lab and Cisco IOS XR sandbox, local
+`qwen2.5:1.5b`/`0.5b` with blind evaluation), [IoT](docs/IOT.md) and
+[agentless Linux/Windows targets](docs/AGENTLESS.md). Progress log: [PROGRESS.md](docs/PROGRESS.md).
+
 Older status, sudo-installer and timing claims are retained only as
 [historical documentation](docs/history/README_PRE_CANDIDATE.md).

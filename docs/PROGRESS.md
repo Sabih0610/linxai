@@ -68,3 +68,25 @@ Development (uncommitted): requirement 41 preview warnings; 46–50 process.list
 process.priority.lower/restore (broker, org.linxai.process.manage), resource.forecast.
 Offline 209/0 failures on Windows and on the VM (no skips there). Pending: deploy the
 new policy action and run a polkit-approved process restore on the VM.
+
+Update 9 November 2026: the items above were committed and accepted on the VM (process
+restore, Gate E BPF LSM qualification, real-kernel reverse-shell/attack-tool/backdoor-port
+detection, 8.9 h integrated soak, end-to-end acceptance 13/13). New platforms: NETCONF
+network devices (SR Linux accepted 11/11; Cisco IOS XR validated without commit), IoT
+(MQTT, Modbus/TCP), agentless Linux and Windows targets (Windows 8/8 on the owner's PC).
+
+Update 10 November 2026 (branch codex/cloud-handoff-2026-11-02, see NETWORK_DEVICES.md
+and DISCOVERY.md):
+- Typed OpenConfig and native SR Linux configuration features (hostname to EVPN-VXLAN and
+  QoS) with confirmed commit, read-back, restore and whole-config identity checks; all-or-
+  nothing coordinated batches across devices.
+- Vendor knowledge base from public YANG data (1,306 Cisco/Juniper/Huawei platform
+  releases) and read-only device discovery to a gold capability profile (bronze/silver/gold).
+  Profiles for two SR Linux switches and the Cisco IOS XR 25.3.1 sandbox router.
+- Chat requests naming a network device are answered or planned from its gold profile only.
+  Live srl1 chat-to-change-to-restore 6/6.
+- Small local model optimisation: on a 32-request two-vendor blind set, qwen2.5:1.5b went
+  from 26/32 to 30/32 with 0 wrong proposals; qwen2.5:0.5b scores 29/32 with 0 wrong.
+- Offline suite 280 tests, 0 failures on Windows and Linux.
+Pending: account-based sandboxes (private Cisco reservation for commit/restore, Juniper
+vLabs, Arista cEOS), SSH CLI discovery, LoRA fine-tune, merge of the branch into main.

@@ -18,6 +18,13 @@ one of these typed actions, which the owner previews and confirms.
 
 Rows marked Accepted or Validated are verified claims; IOS XR is validated without committing.
 
+Update 10 November 2026 (later): Cisco retired the old shared sandbox; the owner launched
+the new DevNet "IOS XR Always On" deployment (same host, per-deployment password). LINxAI
+discovered it read-only as IOS XR 25.3.1 (XRd) and its validate-only probes accepted 10
+features; NTP was rejected. Still no commit on the shared router. Device discovery, the gold
+capability profiles and the chat planner that reads them are documented in
+[DISCOVERY.md](DISCOVERY.md).
+
 ## How a change is made (fixed worker, ordinary user)
 
 1. Connect with key-only SSH; compare the device host key with the pinned SHA256
@@ -185,3 +192,9 @@ configuration on both nodes.
   key, enforced in the SSH handshake before the password is sent. The sandbox does
   not publish its fingerprint, so the pin was trust-on-first-use. The password is
   kept in a private file written by the owner; LINxAI never logs or returns it.
+- IOS XR 25.3.1 names its OpenConfig static-routing instance `DEFAULT`; SR Linux uses
+  `static`. An asset may carry `protocol_names` (`{"STATIC": "DEFAULT"}`), which discovery
+  proposes for IOS XR and the probe confirms. Requests may still override it.
+- XR lists SR-TE tunnels in the interface model without a type; they are not offered as ports.
+- The shared sandbox drops sessions under load; discovery repeats its read-only and
+  validate-only actions up to three times, each attempt audited.
