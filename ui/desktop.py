@@ -180,14 +180,15 @@ def build_window(client, voice_model=None):
             self.preview = None
             def preview(value):
                 if revision != self.revision: return
-                self.preview = value
-                self.preview_text.setPlainText(json.dumps(value, indent=2)[:65536])
-                self.confirm_button.setEnabled(True)
-                self.status.setText("Preview ready. Mandatory system checks run again at dispatch.")
+                self.show_preview(value)                  # an informational answer leaves Confirm disabled
+                if self.preview:
+                    self.status.setText("Preview ready. Mandatory system checks run again at dispatch.")
+                else:
+                    self.status.setText("Answered from the device profile; nothing to confirm.")
             self.call(lambda: client.call("preview", text=text), preview)
 
         def confirm(self):
-            if not self.preview: return
+            if not self.preview or "id" not in self.preview or "digest" not in self.preview: return
             row = self.preview
             self.confirm_button.setEnabled(False)
             self.preview = None
