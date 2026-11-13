@@ -119,6 +119,12 @@ class SecurityMonitorTests(unittest.TestCase):
             self.assertEqual(f(ev("process_exec", 11, 999, "/bin/sh")), {})                         # recycled PID: no facts
             self.assertEqual(f(ev("network_connect", 14, 140, process="kworker"))["tool_identity"], "nc")
             self.assertEqual(f(ev("network_connect", 15, 150, process="nc")), {})                    # the real nc is not masquerading
+            # sudo is setuid root: real uid 1000 (what the kernel reports), effective uid 0.
+            proc(16, "sudo", 1, 160)
+            with open(f"{root}/16/status", "w") as s: s.write("Uid:\t1000\t0\t0\t0\n")
+            self.assertEqual(f({"kind": "file_open", "pid": 16, "start_ns": 160 * 10_000_000, "target": {"path": "/etc/shadow"}}),
+                             {"privileged": True})
+            self.assertEqual(f({"kind": "file_open", "pid": 15, "start_ns": 150 * 10_000_000, "target": {"path": "/etc/shadow"}}), {})
         def norm(kind, payload):
             return normalize({"event_type": kind, "payload": {"uid": 1000, "pid": 9, "process": "x", **payload}}, "h", "b", source="simulated")
         shell = norm("process_exec", {"filename": "/bin/sh"}); shell["facts"] = {"stdio_tcp": "self"}
@@ -130,6 +136,8 @@ class SecurityMonitorTests(unittest.TestCase):
             self.assertEqual(detect(norm("file_open", {"filename": path, "flags": flags}))["rule"], "persistence_write_attempt", path)
             self.assertTrue(admit({"event_type": "file_open", "payload": {"filename": path, "flags": flags, "uid": 1000}}), path)
         self.assertIsNone(detect(norm("file_open", {"filename": "/home/u/.bashrc", "flags": 0})))              # reading .bashrc
+        sudo_read = norm("file_open", {"filename": "/etc/shadow", "flags": 0}); sudo_read["facts"] = {"privileged": True}
+        self.assertIsNone(detect(sudo_read))                                       # the owner's own sudo authentication
         self.assertFalse(admit({"event_type": "file_open", "payload": {"filename": "/home/u/.bashrc", "flags": 0, "uid": 1000}}))
         root_upgrade = normalize({"event_type": "file_open", "payload": {"uid": 0, "pid": 9, "filename": "/etc/systemd/system/x.service",
                                                                           "flags": 0o101}}, "h", "b", source="simulated")

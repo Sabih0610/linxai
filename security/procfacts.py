@@ -126,6 +126,19 @@ def facts(event, *, proc_root="/proc", tools=None, hz=None):
     start_ns = event.get("start_ns")
     if start_ns is None or abs(first["start_ticks"] * 1_000_000_000 // hz - start_ns) > TOLERANCE_NS:
         return out                                      # PID not provably the event's process
+    if event.get("kind") == "file_open":
+        # The kernel reports the REAL uid; a setuid-root program (sudo checking the owner's
+        # password reads /etc/shadow) runs with effective uid 0 and is not a non-root attempt.
+        try:
+            with open(f"{proc_root}/{pid}/status", "rb") as stream:
+                for line in stream.read(8192).decode(errors="replace").splitlines():
+                    if line.startswith("Uid:"):
+                        if int(line.split()[2]) == 0:
+                            out["privileged"] = True
+                        break
+        except (OSError, ValueError, IndexError):
+            pass
+        return out
     if event.get("kind") == "process_exec" and shellish(event.get("target", {}).get("path")):
         if _stdio_on_tcp(proc_root, pid):
             out["stdio_tcp"] = "self"

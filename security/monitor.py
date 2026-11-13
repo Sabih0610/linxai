@@ -9,7 +9,7 @@ import time
 
 from operations.store import Store
 from operations.supervised import SupervisedLinuxAdapter
-from .events import detect, validate
+from .events import detect, validate, watched
 from .sensor import SensorClient
 
 
@@ -58,7 +58,8 @@ class Monitor:
                     if not self.source.trusted: event["source"] = "simulated"
                     if event["id"] in seen or self.store.get("event", event["id"]): continue
                     seen.add(event["id"])
-                    if self.facts and event["kind"] in {"process_exec", "network_connect"}:
+                    if self.facts and (event["kind"] in {"process_exec", "network_connect"}
+                                       or event["kind"] == "file_open" and watched(event["target"].get("path"))):
                         try:
                             found = self.facts(event)
                             if found: event["facts"] = found

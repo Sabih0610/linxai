@@ -161,7 +161,7 @@ def detect(event):
         severity = "high"
     elif event["kind"] == "file_open" and event["target"].get("write") and persistence_target(path, event["uid"]):
         rule = "persistence_write_attempt"
-    elif event["kind"] == "file_open" and event["uid"] != 0 and watched(path):
+    elif event["kind"] == "file_open" and event["uid"] != 0 and not facts.get("privileged") and watched(path):
         rule = "sensitive_file_attempt"
     elif event["kind"] == "process_exec" and path.startswith(TEMP_DIRS):
         rule = "temporary_executable_attempt"

@@ -1,0 +1,189 @@
+{
+  "summary": {
+    "detected_expected": 14,
+    "expected_detections": 14,
+    "missed_expected": [],
+    "known_gaps_confirmed": [
+      "python_socket_client_only",
+      "perl_socket_client_only",
+      "attack_tool_renamed",
+      "inbound_listener_only"
+    ],
+    "false_alarms": []
+  },
+  "cases": [
+    {
+      "id": "bash_dev_tcp_reverse_shell",
+      "technique": "T1059.004 reverse shell via bash /dev/tcp",
+      "expected_rule": "shell_network_connection",
+      "rules": [
+        "shell_network_connection"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.33
+    },
+    {
+      "id": "netcat_reverse_shell",
+      "technique": "T1059 netcat call-back",
+      "expected_rule": "shell_network_connection",
+      "rules": [
+        "shell_network_connection"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.26
+    },
+    {
+      "id": "python_reverse_shell",
+      "technique": "T1059.006 python reverse shell (socket dup2'd to a shell)",
+      "expected_rule": "remote_shell_socket_stdio",
+      "rules": [
+        "remote_shell_socket_stdio"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.37
+    },
+    {
+      "id": "python_pty_reverse_shell",
+      "technique": "T1059.006 python pty.spawn reverse shell",
+      "expected_rule": "remote_shell_socket_stdio",
+      "rules": [
+        "remote_shell_socket_stdio"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.46
+    },
+    {
+      "id": "perl_reverse_shell",
+      "technique": "T1059 perl reverse shell",
+      "expected_rule": "remote_shell_socket_stdio",
+      "rules": [
+        "remote_shell_socket_stdio"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.64
+    },
+    {
+      "id": "inbound_bind_shell",
+      "technique": "T1059 bind shell on 4446 (inbound connection drives a shell)",
+      "expected_rule": "remote_shell_socket_stdio",
+      "rules": [
+        "remote_shell_socket_stdio"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 1.41
+    },
+    {
+      "id": "renamed_netcat",
+      "technique": "T1036.003 masquerading: netcat copied as 'kworker'",
+      "expected_rule": "masqueraded_tool_execution",
+      "rules": [
+        "masqueraded_tool_connection",
+        "masqueraded_tool_execution"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.05
+    },
+    {
+      "id": "c2_backdoor_port",
+      "technique": "T1571 connection to a classic backdoor port (4444)",
+      "expected_rule": "unusual_connection_attempt",
+      "rules": [
+        "unusual_connection_attempt"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.23
+    },
+    {
+      "id": "ipv6_reverse_shell",
+      "technique": "reverse shell over IPv6 loopback",
+      "expected_rule": "shell_network_connection",
+      "rules": [
+        "shell_network_connection"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.25
+    },
+    {
+      "id": "attack_tool_by_name",
+      "technique": "T1046 scanner executed as 'nmap'",
+      "expected_rule": "attack_tool_execution",
+      "rules": [
+        "attack_tool_execution"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.35
+    },
+    {
+      "id": "exec_from_tmp",
+      "technique": "T1204 payload executed from /tmp",
+      "expected_rule": "temporary_executable_attempt",
+      "rules": [
+        "temporary_executable_attempt"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.42
+    },
+    {
+      "id": "read_etc_shadow",
+      "technique": "T1003.008 credential dump attempt on /etc/shadow",
+      "expected_rule": "sensitive_file_attempt",
+      "rules": [
+        "sensitive_file_attempt"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.51
+    },
+    {
+      "id": "read_etc_gshadow",
+      "technique": "T1003.008 credential dump attempt on /etc/gshadow",
+      "expected_rule": "sensitive_file_attempt",
+      "rules": [
+        "sensitive_file_attempt"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.56
+    },
+    {
+      "id": "persistence_authorized_keys",
+      "technique": "T1098.004 open ~/.ssh/authorized_keys for writing (no bytes written)",
+      "expected_rule": "persistence_write_attempt",
+      "rules": [
+        "persistence_write_attempt"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.12
+    },
+    {
+      "id": "python_socket_client_only",
+      "technique": "python opens a socket on an ordinary port, no shell attached",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "perl_socket_client_only",
+      "technique": "perl opens a socket on an ordinary port, no shell attached",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "attack_tool_renamed",
+      "technique": "T1036 an unknown scanner script under a new name",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "inbound_listener_only",
+      "technique": "netcat listening on 4445, no shell attached",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    }
+  ]
+}
