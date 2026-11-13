@@ -26,7 +26,34 @@ def canonical(path):
 def watched(path):
     path = canonical(path)
     return path in WATCHED_FILES or (isinstance(path, str) and path.startswith(WATCHED_DIRS))
-AF_INET = 2
+
+
+# Persistence (13 Nov 2026): places an attacker writes to survive a logout or reboot. Only
+# opens with write intent count, so a shell reading ~/.bashrc at start-up is not an incident.
+PERSISTENCE_SUFFIXES = ("/.ssh/authorized_keys", "/.ssh/authorized_keys2", "/.bashrc", "/.bash_profile", "/.bash_login",
+                        "/.profile", "/.zshrc", "/.zprofile")
+PERSISTENCE_PREFIXES = ("/etc/cron", "/var/spool/cron/", "/etc/systemd/system/", "/etc/profile.d/", "/etc/init.d/",
+                        "/etc/rc.local", "/etc/ld.so.preload", "/etc/environment", "/etc/update-motd.d/")
+PERSISTENCE_PARTS = ("/.config/systemd/user/", "/.config/autostart/", "/.local/share/systemd/user/")
+# Root legitimately writes most system locations (package upgrades); for root only these count.
+ROOT_PERSISTENCE = ("/etc/ld.so.preload", "/.ssh/authorized_keys", "/.ssh/authorized_keys2")
+WRITE_FLAGS = 0o1 | 0o2 | 0o100 | 0o1000 | 0o2000      # O_WRONLY O_RDWR O_CREAT O_TRUNC O_APPEND
+
+
+def writes(flags):
+    return type(flags) is int and bool(flags & WRITE_FLAGS)
+
+
+def persistence_target(path, uid=None):
+    if not isinstance(path, str) or not path:
+        return False
+    path = canonical(path) if path.startswith("/") else "/" + path      # relative: judged by its tail
+    if uid == 0:
+        return path.startswith(ROOT_PERSISTENCE[:1]) or path.endswith(ROOT_PERSISTENCE[1:])
+    return path.endswith(PERSISTENCE_SUFFIXES) or path.startswith(PERSISTENCE_PREFIXES) or any(p in path for p in PERSISTENCE_PARTS)
+
+
+AF_INET, AF_INET6 = 2, 10
 # Requirement 39: a shell or raw network tool making an outbound TCP connection is the
 # kernel-visible shape of a reverse shell (e.g. bash /dev/tcp, nc -e, socat exec).
 # Task names (comm) are at most 15 characters, as reported by the sensor.
@@ -52,10 +79,11 @@ def admit(record):
         return True
     kind = record.get("event_type")
     if kind == "file_open":
-        return watched(payload.get("filename"))
+        filename = payload.get("filename")
+        return watched(filename) or (writes(payload.get("flags")) and persistence_target(filename, payload.get("uid")))
     if kind == "network_connect":
         family = payload.get("family")
-        return (family is None or family == AF_INET) and payload.get("dest_port") not in (0, None)
+        return family in (None, AF_INET, AF_INET6) and payload.get("dest_port") not in (0, None)
     return True
 
 
@@ -84,11 +112,16 @@ def normalize(record, host, boot, *, source):
     if timestamp is not None: timestamp = integer(timestamp, 1)
     target = {}
     if record["event_type"] == "network_connect":
-        target["address"] = str(ipaddress.ip_address(payload.get("dest_ip")))
+        address = ipaddress.ip_address(payload.get("dest_ip"))
+        if address.version == 6 and address.ipv4_mapped:      # ::ffff:a.b.c.d is an IPv4 destination
+            address = address.ipv4_mapped
+        target["address"] = str(address)
         target["port"] = integer(payload.get("dest_port"), 1)
         if target["port"] > 65535: raise ValueError("Invalid event port")
     else:
         target["path"] = text(payload.get("filename", ""))
+        if record["event_type"] == "file_open" and type(payload.get("flags")) is int:
+            target["write"] = writes(payload["flags"])
     subject = hashlib.sha256(f"{host}:{boot}:{uid}:{pid}:{start}".encode()).hexdigest() if start else None
     return {"schema": 1, "id": str(uuid4()), "host": text(host, 128), "boot": text(boot, 128),
             "kind": record["event_type"], "protocol": {6:"tcp",17:"udp"}.get(payload.get("protocol"),"unknown"), "uid": uid, "pid": pid, "ppid": integer(payload.get("ppid", 0)),
@@ -118,9 +151,17 @@ def validate(event):
 
 def detect(event):
     validate(event)
-    rule = None
+    rule, severity = None, "warning"
     path = canonical(event["target"].get("path", ""))
-    if event["kind"] == "file_open" and event["uid"] != 0 and watched(path):
+    facts = event.get("facts") if isinstance(event.get("facts"), dict) else {}    # procfs facts (security.procfacts)
+    if event["kind"] == "process_exec" and facts.get("stdio_tcp") in {"self", "parent"}:
+        rule, severity = "remote_shell_socket_stdio", "critical"     # reverse or bind shell, whatever launched it
+    elif facts.get("tool_identity"):
+        rule = "masqueraded_tool_execution" if event["kind"] == "process_exec" else "masqueraded_tool_connection"
+        severity = "high"
+    elif event["kind"] == "file_open" and event["target"].get("write") and persistence_target(path, event["uid"]):
+        rule = "persistence_write_attempt"
+    elif event["kind"] == "file_open" and event["uid"] != 0 and watched(path):
         rule = "sensitive_file_attempt"
     elif event["kind"] == "process_exec" and path.startswith(TEMP_DIRS):
         rule = "temporary_executable_attempt"
@@ -132,6 +173,6 @@ def detect(event):
         rule = "unusual_connection_attempt"
     if rule is None: return None
     return {"schema": 1, "id": event["id"], "event_id": event["id"], "state": "observed",
-            "rule": rule, "severity": "warning", "evidence": event,
+            "rule": rule, "severity": severity, "evidence": event,
             "interpretation": "Deterministic suspicion; entry observation does not prove malicious intent or prevention",
             "response": "none", "created": time.time()}

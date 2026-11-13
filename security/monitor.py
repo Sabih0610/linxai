@@ -20,12 +20,18 @@ LAKE_INTERVAL_S = 600   # medallion refresh cadence
 
 
 class Monitor:
-    def __init__(self, store, source, baseline=None, lineage=None):
+    def __init__(self, store, source, baseline=None, lineage=None, facts=None):
         self.store, self.source = store, source
         # Requirement 42: procfs ancestry for real-kernel incidents only (evidence, not authority).
         if lineage is None and source.trusted:
             from .lineage import lineage
         self.lineage = lineage
+        # Widened detection: procfs facts (socket-bound shells, renamed tools) for real-kernel events.
+        if facts is None and source.trusted:
+            from .procfacts import ToolCatalog, facts as procfs_facts
+            tools = ToolCatalog()
+            facts = lambda event: procfs_facts(event, tools=tools)
+        self.facts = facts
         self.status = self.store.get("monitor", "status") or {"cursor": 0, "epoch": None, "events": 0, "incidents": 0, "invalid": 0, "gaps": 0}
         self.last_batch = 0
         # Optional learned gold baseline (security.lake); advisory anomalies only.
@@ -52,6 +58,12 @@ class Monitor:
                     if not self.source.trusted: event["source"] = "simulated"
                     if event["id"] in seen or self.store.get("event", event["id"]): continue
                     seen.add(event["id"])
+                    if self.facts and event["kind"] in {"process_exec", "network_connect"}:
+                        try:
+                            found = self.facts(event)
+                            if found: event["facts"] = found
+                        except Exception:
+                            pass                          # facts are optional evidence; rules still run
                     events.append(event)
                     incident = detect(event)
                     if incident and self.lineage:
@@ -135,3 +147,7 @@ def main(argv=None):
         lake_store.close()
         store.close()
         os.close(lock)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

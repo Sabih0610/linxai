@@ -18,6 +18,7 @@ import sys
 import json
 import time
 import signal
+import ipaddress
 import socket
 import struct
 import logging
@@ -209,10 +210,20 @@ class eBPFDaemon:
         bpf = _bpf_load_silent(src)
         bpf.attach_kprobe(event="__x64_sys_connect", fn_name="trace_connect")
         bpf.attach_kprobe(event="tcp_v4_connect", fn_name="trace_tcp_connect")
+        try:
+            bpf.attach_kprobe(event="tcp_v6_connect", fn_name="trace_tcp_v6_connect")
+        except Exception:
+            logger.warning("tcp_v6_connect not attachable; IPv6 connects keep syscall-level evidence only")
 
         def handle_connect(cpu, data, size):
             event = bpf["connect_events"].event(data)
-            dest_ip = _ip_to_str(event.dest_ip)
+            if event.family == 10:             # AF_INET6
+                try:
+                    dest_ip = str(ipaddress.IPv6Address(bytes(event.dest_ip6)))
+                except ValueError:
+                    dest_ip = "::"
+            else:
+                dest_ip = _ip_to_str(event.dest_ip)
             if self.filter_noise and (dest_ip.startswith("127.") or dest_ip == "0.0.0.0"):
                 return
             payload = {

@@ -73,6 +73,73 @@ class SecurityMonitorTests(unittest.TestCase):
         self.assertTrue(admit({"event_type": "file_open", "payload": {"filename": "/etc//gshadow"}}))
         self.assertIsNone(detect(event("file_open", "/etc/sudoers.dist")))
 
+    def _symlinks_ok(self):
+        with tempfile.TemporaryDirectory() as d:
+            try:
+                os.symlink("socket:[1]", f"{d}/l"); return True
+            except (OSError, NotImplementedError):
+                return False
+
+    def test_widened_rules_remote_shell_masquerade_persistence_ipv6(self):
+        # Widened detection (13 Nov 2026), with a fake procfs: shells whose stdio (or whose
+        # parent's stdio) is a TCP socket, renamed tool binaries, persistence writes, IPv6.
+        if not self._symlinks_ok(): self.skipTest("symlinks unavailable on this host")
+        from security.procfacts import ToolCatalog, facts
+        with tempfile.TemporaryDirectory() as root:
+            tools = os.path.join(root, "bin"); os.makedirs(tools)
+            with open(f"{tools}/nc.openbsd", "wb") as f: f.write(b"\x7fELF fake netcat" * 64)
+            with open(f"{tools}/bash", "wb") as f: f.write(b"\x7fELF fake bash" * 50)
+            with open(f"{tools}/kworker", "wb") as f: f.write(b"\x7fELF fake netcat" * 64)     # renamed copy
+            catalog = ToolCatalog(names=("nc",), which=lambda name: f"{tools}/nc.openbsd" if name == "nc" else None)
+            def proc(pid, comm, ppid, start, stdio=None, tcp=(), exe=None):
+                os.makedirs(f"{root}/{pid}/fd"); os.makedirs(f"{root}/{pid}/net")
+                fields = ["S", str(ppid)] + ["0"] * 17 + [str(start)] + ["0"] * 10
+                with open(f"{root}/{pid}/stat", "w") as f: f.write(f"{pid} ({comm}) " + " ".join(fields))
+                with open(f"{root}/{pid}/status", "w") as f: f.write("Uid:\t1000\t1000\t1000\t1000\n")
+                for fd in (0, 1, 2):
+                    os.symlink(stdio or "/dev/pts/0", f"{root}/{pid}/fd/{fd}")
+                with open(f"{root}/{pid}/net/tcp", "w") as f:
+                    f.write("  sl  local rem st tx rx tr tm retr uid timeout inode\n")
+                    for inode in tcp:      # real /proc/net/tcp layout: inode is the 10th column
+                        f.write(f"   0: 0100007F:1F90 0100007F:115C 01 00000000:00000000 00:00000000 00000000  1000        0 {inode} 1\n")
+                if exe: os.symlink(exe, f"{root}/{pid}/exe")
+            proc(10, "python3", 1, 100, stdio="socket:[777]", tcp=("777",))          # python reverse shell: socket on stdio
+            proc(11, "sh", 10, 110, stdio="socket:[777]", tcp=("777",))
+            proc(12, "bash", 10, 120)                                              # pty.spawn child: pty stdio, parent on socket
+            proc(13, "bash", 1, 130, stdio="socket:[888]")                         # sshd socketpair: AF_UNIX, not TCP
+            proc(14, "kworker", 1, 140, exe=f"{tools}/kworker")
+            proc(15, "nc", 1, 150, exe=f"{tools}/nc.openbsd")
+            def ev(kind, pid, start, path=None, process=None):
+                return {"kind": kind, "pid": pid, "start_ns": start * 10_000_000,
+                        "target": {"path": path} if path else {"address": "127.0.0.1", "port": 8080}, "process": process}
+            f = lambda e: facts(e, proc_root=root, tools=catalog, hz=100)
+            self.assertEqual(f(ev("process_exec", 11, 110, "/bin/sh")), {"stdio_tcp": "self"})
+            self.assertEqual(f(ev("process_exec", 12, 120, "/bin/bash")), {"stdio_tcp": "parent"})
+            self.assertEqual(f(ev("process_exec", 13, 130, "/bin/bash")), {})                       # no FP for SSH sessions
+            self.assertEqual(f(ev("process_exec", 11, 999, "/bin/sh")), {})                         # recycled PID: no facts
+            self.assertEqual(f(ev("network_connect", 14, 140, process="kworker"))["tool_identity"], "nc")
+            self.assertEqual(f(ev("network_connect", 15, 150, process="nc")), {})                    # the real nc is not masquerading
+        def norm(kind, payload):
+            return normalize({"event_type": kind, "payload": {"uid": 1000, "pid": 9, "process": "x", **payload}}, "h", "b", source="simulated")
+        shell = norm("process_exec", {"filename": "/bin/sh"}); shell["facts"] = {"stdio_tcp": "self"}
+        self.assertEqual((detect(shell)["rule"], detect(shell)["severity"]), ("remote_shell_socket_stdio", "critical"))
+        renamed = norm("network_connect", {"dest_ip": "127.0.0.1", "dest_port": 8080, "protocol": 6}); renamed["facts"] = {"tool_identity": "nc"}
+        self.assertEqual(detect(renamed)["rule"], "masqueraded_tool_connection")
+        for path, flags in (("/home/u/.ssh/authorized_keys", 0o2101), (".bashrc", 0o1101), ("/etc/cron.d/x", 0o101),
+                            ("/home/u/.config/systemd/user/evil.service", 0o101)):
+            self.assertEqual(detect(norm("file_open", {"filename": path, "flags": flags}))["rule"], "persistence_write_attempt", path)
+            self.assertTrue(admit({"event_type": "file_open", "payload": {"filename": path, "flags": flags, "uid": 1000}}), path)
+        self.assertIsNone(detect(norm("file_open", {"filename": "/home/u/.bashrc", "flags": 0})))              # reading .bashrc
+        self.assertFalse(admit({"event_type": "file_open", "payload": {"filename": "/home/u/.bashrc", "flags": 0, "uid": 1000}}))
+        root_upgrade = normalize({"event_type": "file_open", "payload": {"uid": 0, "pid": 9, "filename": "/etc/systemd/system/x.service",
+                                                                          "flags": 0o101}}, "h", "b", source="simulated")
+        self.assertIsNone(detect(root_upgrade))                                                                # package upgrades
+        v6 = norm("network_connect", {"dest_ip": "::1", "dest_port": 4444, "family": 10, "protocol": 6})
+        self.assertEqual(detect(v6)["rule"], "unusual_connection_attempt")
+        self.assertTrue(admit({"event_type": "network_connect", "payload": {"family": 10, "dest_port": 4444}}))
+        mapped = norm("network_connect", {"dest_ip": "::ffff:203.0.113.9", "dest_port": 443, "family": 10, "process": "bash"})
+        self.assertEqual(mapped["target"]["address"], "203.0.113.9")                                         # v4-mapped -> IPv4
+
     def test_lineage_walks_procfs_and_binds_first_hop_by_start_time(self):
         from security.lineage import lineage
         from operations.explain import explain_incident
@@ -168,7 +235,8 @@ class SecurityMonitorTests(unittest.TestCase):
         self.assertFalse(admit(record("/usr/lib/x86_64-linux-gnu/libc.so.6")))
         self.assertFalse(admit(record("/etc/shadow.backup")))
         self.assertFalse(admit(connect(family=1)))                       # AF_UNIX
-        self.assertFalse(admit(connect(family=10, dest_port=443)))       # IPv6, unsupported by rules/policy
+        self.assertTrue(admit(connect(family=10, dest_ip="2001:db8::1", dest_port=443)))   # IPv6 detected since 13 Nov 2026
+        self.assertFalse(admit(connect(family=10, dest_port=0)))         # IPv6 without a real port stays noise
         self.assertTrue(admit(connect(family=2, dest_ip="10.0.2.2", dest_port=4444)))
         self.assertTrue(admit({"event_type": "process_exec", "payload": {"filename": "/usr/bin/true"}}))
         self.assertTrue(admit({"event_type": "file_open", "payload": None}))  # malformed reaches normalize as invalid
