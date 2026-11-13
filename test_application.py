@@ -1,5 +1,8 @@
 """End-to-end planner/preview/job contracts with deterministic adapters."""
 import copy
+import os
+from pathlib import Path
+import sys
 import threading
 import unittest
 from unittest.mock import Mock
@@ -20,6 +23,13 @@ class MemoryStore:
         keys = [key for key in self.rows if key[0] == kind]
         for key in keys[:max(0,len(keys)-keep)]: self.rows.pop(key)
     def list(self, kind, limit=100): return [copy.deepcopy(v) for (k, _), v in list(self.rows.items())[::-1] if k == kind][:limit]
+    def count(self, kind): return sum(k == kind for k, _ in self.rows)
+    def retire(self, kind, removable, *, high=900, keep=500):
+        keys = [key for key in self.rows if key[0] == kind]
+        if len(keys) < high: return 0
+        doomed = [key for key in keys[:max(0, len(keys) - keep)] if removable(self.rows[key])]
+        for key in doomed: self.rows.pop(key)
+        return len(doomed)
     def write_batch(self, records=(), *, prune=None):
         self.batches = getattr(self, "batches", 0) + 1
         for kind, keep in (prune or {}).items(): self.prune(kind, keep)
@@ -46,10 +56,37 @@ class ApplicationTests(unittest.TestCase):
         self.assertTrue(result["result"]["verified"])
         self.assertEqual(result["operation_id"], result["result"]["operation_id"])
 
+    def test_job_history_is_retained_boundedly_instead_of_locking_up(self):
+        # QA finding: the 1000-record cap was never pruned, so after ~1000 previews every
+        # preview failed for good. Finished/expired jobs now retire; in-flight ones never do.
+        for i in range(950):
+            state = "unknown" if i == 0 else "dispatching" if i == 1 else "succeeded" if i % 2 else "preview"
+            self.store.put("job", f"old-{i}", {"id": f"old-{i}", "state": state, "expires": 50})
+        request, _ = Planner(self.registry, Mock()).propose("show memory usage")
+        preview = self.jobs.preview(request)
+        self.assertLess(self.store.count("job"), 600)
+        self.assertIsNotNone(self.store.get("job", preview["id"]))
+        self.assertEqual(self.store.get("job", "old-0")["state"], "unknown")        # needs review: kept
+        self.assertEqual(self.store.get("job", "old-1")["state"], "dispatching")    # in flight: kept
+
+    @unittest.skipUnless(hasattr(os, "getuid") and sys.platform == "linux", "real private SQLite store")
+    def test_real_store_retire_keeps_newest_and_unremovable(self):
+        import tempfile
+        from operations.store import Store
+        with tempfile.TemporaryDirectory(dir=Path.home()) as temp:
+            store = Store(Path(temp) / "state" / "s.sqlite")
+            for i in range(20):
+                store.put("job", f"j{i}", {"state": "keep" if i == 0 else "done"})
+            self.assertEqual(store.retire("job", lambda r: r["state"] == "done", high=30, keep=5), 0)   # below the mark
+            self.assertEqual(store.retire("job", lambda r: r["state"] == "done", high=20, keep=5), 14)
+            self.assertEqual(store.count("job"), 6)
+            self.assertIsNotNone(store.get("job", "j0"))
+            store.close()
+
     def test_untrusted_model_command_risk_and_sudo_are_not_authority(self):
         model = Mock()
         model.generate.return_value = {"intent": "service_restart", "target": "linxai-lab", "command": "rm -rf /", "requires_sudo": False, "risk_level": "low"}
-        request, plan = Planner(self.registry, model).propose("a model-only phrasing")
+        request, plan = Planner(self.registry, model).propose("please cycle the lab unit")   # model-only phrasing; verb is in the text
         self.assertEqual(request["action"], "service.restart")
         self.assertNotIn("command", request)
         preview = self.jobs.preview(request)

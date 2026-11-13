@@ -85,6 +85,7 @@ class FaceAuthority:
         with self.state_lock:
             if time.monotonic()<self.next_attempt:return {'authorized':False,'reason':'rate_limited; password_required'}
             self.next_attempt=time.monotonic()+10
+        if hasattr(self.store,'retire'):self.store.retire('face_nonce',lambda old:True,high=900,keep=600)   # nonces are single-use and short-lived
         self.store.put('face_nonce',nonce,{'uid':uid,'operation_id':operation_id,'digest':digest},replace=False,limit=1000)
         if not self.capture_lock.acquire(blocking=False):return {'authorized':False,'reason':'camera_busy; password_required'}
         try:

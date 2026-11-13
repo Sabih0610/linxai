@@ -98,6 +98,26 @@ class Store:
             rows = self.db.execute("SELECT body FROM records WHERE kind=? ORDER BY updated DESC LIMIT ?", (kind, min(max(limit, 1), 1000))).fetchall()
         return [json.loads(row[0]) for row in rows]
 
+    def count(self, kind):
+        with self.lock:
+            return self.db.execute("SELECT count(*) FROM records WHERE kind=?", (kind,)).fetchone()[0]
+
+    def retire(self, kind, removable, *, high=900, keep=500):
+        """Bounded retention for records that would otherwise hit the admission limit.
+
+        Only once `kind` holds `high` records: delete the oldest records beyond the newest
+        `keep` for which removable(body) is true (finished, expired or consumed). Records in
+        flight or needing review are never removed; evidence stays in the append-only audit."""
+        if type(keep) is not int or type(high) is not int or not 0 <= keep < high <= 10000:
+            raise ValueError("Invalid retention bound")
+        if self.count(kind) < high:
+            return 0
+        with self.lock, self.db:
+            rows = self.db.execute("SELECT id, body FROM records WHERE kind=? ORDER BY updated DESC", (kind,)).fetchall()
+            doomed = [(kind, key) for key, body in rows[keep:] if removable(json.loads(body))]
+            self.db.executemany("DELETE FROM records WHERE kind=? AND id=?", doomed)
+        return len(doomed)
+
     def prune(self, kind, keep):
         if type(keep) is not int or not 0 <= keep <= 10000:
             raise ValueError("Invalid retention bound")

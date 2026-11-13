@@ -13,6 +13,8 @@ from .service import Approval
 READS = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list", "resource.forecast",
                    "path.inspect", "user.lookup", "iot.inspect", "device.config.read", "device.discover"})
 TERMINAL = frozenset({"succeeded", "failed", "cancelled", "unknown", "review_required", "interrupted_before_dispatch"})
+# Never retired: work in flight and outcomes the owner still has to review.
+RETAINED = frozenset({"queued", "validating", "approved", "dispatching", "cancelling", "unknown", "review_required"})
 
 
 def digest(request, workspace, uid, prepared):
@@ -79,6 +81,9 @@ class Jobs:
             except Exception as exc:
                 row["conflicts"] = {"decision": "warn", "findings": [{"level": "warn", "code": "analysis_unavailable",
                                                                      "detail": type(exc).__name__}], "alternatives": []}
+        now = self.clock()                 # without retention the 1000-record cap stopped all previews for good
+        self.store.retire("job", lambda old: old.get("state") not in RETAINED
+                          and not (old.get("state") == "preview" and old.get("expires", 0) > now))
         self.save(row)
         return row
 

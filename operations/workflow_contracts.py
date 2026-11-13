@@ -100,13 +100,21 @@ def _netconf_asset(asset,InvalidParameters):
 
 
 AGENTLESS_ACTIONS=frozenset({'disk.usage','memory.usage','ports.listen','service.status','service.start','service.stop','service.restart'})
+# Remote service changes that would cut off management or authentication of the target are refused
+# (QA 13 Nov 2026: "on web1 stop ssh" needed one Confirm). An asset may narrow changes further with
+# an owner-configured `services` allowlist.
+CRITICAL_REMOTE_SERVICES=frozenset({'ssh.service','sshd.service','dbus.service','polkit.service','systemd-logind.service',
+                                    'systemd-networkd.service','systemd-resolved.service','NetworkManager.service','networking.service',
+                                    'sshd','ssh','winrm','termservice','rpcss','lanmanserver','eventlog','mpssvc'})
 
 
 def _agentless(registry,contract,name,asset,parameters):
     """Agentless Linux target: fixed command templates over pinned SSH (see _agentless_program)."""
     from .registry import ActionRegistry, InvalidParameters, PreparedAction, requirement
     expected={'platform','host','port','username','key_path','known_hosts'}|({'systemd_scope'} if asset.get('platform')=='linux_agentless' else set())
-    if set(asset)!=expected:raise InvalidParameters('Agentless asset requires exactly: '+', '.join(sorted(expected)))
+    if set(asset)-{'services'}!=expected:raise InvalidParameters('Agentless asset requires exactly: '+', '.join(sorted(expected))+' (optional: services)')
+    if 'services' in asset and (not isinstance(asset['services'],list) or not all(isinstance(s,str) and re.fullmatch(r'[A-Za-z0-9@._-]{1,255}',s) for s in asset['services'])):
+        raise InvalidParameters('services must be a list of service names')
     for field in ('host','username'):
         if not isinstance(asset[field],str) or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,252}',asset[field]):raise InvalidParameters('Invalid configured SSH endpoint')
     if type(asset['port']) is not int or not 1<=asset['port']<=65535:raise InvalidParameters('Invalid SSH port')
@@ -117,6 +125,12 @@ def _agentless(registry,contract,name,asset,parameters):
     nested=ActionRegistry('/remote-permitted',actor_uid=registry.actor_uid).prepare(parameters['action'],parameters['parameters'])
     values=asdict(nested.parameters) if parameters['action']!='ports.listen' else {k:v for k,v in asdict(nested.parameters).items() if k=='port'}
     if 'service' in values:values={'service':values['service']}
+    if parameters['action'] in {'service.start','service.stop','service.restart'}:
+        service=values['service']
+        if service in CRITICAL_REMOTE_SERVICES or service.lower() in CRITICAL_REMOTE_SERVICES:
+            raise InvalidParameters('Changing '+service+' remotely could cut off access to the target; do it at the console')
+        if 'services' in asset and service not in asset['services']:
+            raise InvalidParameters('Service is not in this asset\'s owner-approved services list')
     encoded=json.dumps(values,sort_keys=True,separators=(',',':'),allow_nan=False)
     typed=Remote(name,parameters['action'],encoded)
     payload={'action':'remote.operation','parameters':asdict(typed),'asset':asset}

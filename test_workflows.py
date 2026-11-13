@@ -87,6 +87,16 @@ class WorkflowTests(unittest.TestCase):
         for change in ({'systemd_scope':'root'},{'known_hosts':'relative'},{'extra':1},{'host':'bad host'}):
             reg=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'srv':dict(asset,**change)}))
             with self.assertRaises(ValueError,msg=change):reg.prepare('remote.operation',{'asset':'srv','action':'memory.usage','parameters':{}})
+        # QA 13 Nov 2026: changes that could cut off access are refused; status reads still work.
+        for service in ('ssh','sshd','dbus','NetworkManager'):
+            with self.assertRaises(ValueError,msg=service):
+                registry.prepare('remote.operation',{'asset':'srv','action':'service.stop','parameters':{'service':service}})
+        registry.prepare('remote.operation',{'asset':'srv','action':'service.status','parameters':{'service':'ssh'}})
+        # An owner-approved services list narrows remote changes further.
+        narrowed=ActionRegistry('/srv/work',actor_uid=1000,assets_json=json.dumps({'srv':dict(asset,services=['nginx.service'])}))
+        narrowed.prepare('remote.operation',{'asset':'srv','action':'service.restart','parameters':{'service':'nginx'}})
+        with self.assertRaises(ValueError):
+            narrowed.prepare('remote.operation',{'asset':'srv','action':'service.restart','parameters':{'service':'postgresql'}})
 
     def test_windows_agentless_uses_encoded_powershell_templates(self):
         asset={'platform':'windows_agentless','host':'192.0.2.40','port':22,'username':'ops','key_path':'/home/owner/.ssh/k',

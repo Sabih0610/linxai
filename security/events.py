@@ -8,7 +8,24 @@ from uuid import UUID, uuid4
 KINDS = frozenset({"process_exec", "network_connect", "file_open"})
 # File opens are only evidence for the deterministic file rule; every other open
 # on a running host is high-volume noise that starved the capture path on target.
-WATCHED_FILES = frozenset({"/etc/shadow", "/etc/sudoers"})
+WATCHED_FILES = frozenset({"/etc/shadow", "/etc/sudoers", "/etc/gshadow"})
+WATCHED_DIRS = ("/etc/sudoers.d/",)
+TEMP_DIRS = ("/tmp/", "/dev/shm/", "/var/tmp/")
+
+
+def canonical(path):
+    """Collapse '//', '/./' and '..' in an absolute path the kernel reported as typed by the
+    process, so '/tmp//x' or '/etc/./shadow' cannot step around a rule (QA 13 Nov 2026).
+    Relative paths stay as reported; they need the kernel-resolved path to be judged."""
+    import posixpath
+    if not (isinstance(path, str) and path.startswith("/")):
+        return path
+    return posixpath.normpath("/" + path.lstrip("/"))     # normpath keeps a leading '//' (POSIX); Linux does not
+
+
+def watched(path):
+    path = canonical(path)
+    return path in WATCHED_FILES or (isinstance(path, str) and path.startswith(WATCHED_DIRS))
 AF_INET = 2
 # Requirement 39: a shell or raw network tool making an outbound TCP connection is the
 # kernel-visible shape of a reverse shell (e.g. bash /dev/tcp, nc -e, socat exec).
@@ -35,7 +52,7 @@ def admit(record):
         return True
     kind = record.get("event_type")
     if kind == "file_open":
-        return payload.get("filename") in WATCHED_FILES
+        return watched(payload.get("filename"))
     if kind == "network_connect":
         family = payload.get("family")
         return (family is None or family == AF_INET) and payload.get("dest_port") not in (0, None)
@@ -102,11 +119,12 @@ def validate(event):
 def detect(event):
     validate(event)
     rule = None
-    if event["kind"] == "file_open" and event["uid"] != 0 and event["target"]["path"] in WATCHED_FILES:
+    path = canonical(event["target"].get("path", ""))
+    if event["kind"] == "file_open" and event["uid"] != 0 and watched(path):
         rule = "sensitive_file_attempt"
-    elif event["kind"] == "process_exec" and event["target"]["path"].startswith(("/tmp/", "/dev/shm/")):
+    elif event["kind"] == "process_exec" and path.startswith(TEMP_DIRS):
         rule = "temporary_executable_attempt"
-    elif event["kind"] == "process_exec" and event["target"]["path"].rsplit("/", 1)[-1] in ATTACK_TOOLS:
+    elif event["kind"] == "process_exec" and path.rsplit("/", 1)[-1] in ATTACK_TOOLS:
         rule = "attack_tool_execution"
     elif event["kind"] == "network_connect" and event.get("protocol") != "udp" and event.get("process") in SHELL_TOOLS:
         rule = "shell_network_connection"

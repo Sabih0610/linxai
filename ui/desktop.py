@@ -135,9 +135,12 @@ def build_window(client, voice_model=None):
 
         def show_preview(self,row):
             answer=isinstance(row,dict) and row.get("answer") is True   # informational (e.g. a device profile): nothing to confirm
-            self.preview=None if answer else row
-            self.preview_text.setPlainText(json.dumps(row,indent=2)[:65536])
-            self.confirm_button.setEnabled(not answer);self.tabs.setCurrentIndex(0)
+            text=json.dumps(row,indent=2)
+            hidden=len(text)>65536          # never confirm what the owner cannot fully see (QA 13 Nov 2026)
+            self.preview=None if answer or hidden else row
+            self.preview_text.setPlainText(text[:65536]+("\n\n[Preview too long to show in full; confirmation disabled. "
+                                                          "Make the request smaller.]" if hidden else ""))
+            self.confirm_button.setEnabled(not answer and not hidden);self.tabs.setCurrentIndex(0)
 
         def device_action(self,mode):
             asset=self.asset_name.text();interface=self.interface_name.text()
@@ -151,10 +154,7 @@ def build_window(client, voice_model=None):
         def security_preview(self, method, field):
             key = self.incident_id.text()
             def show(row):
-                self.preview = row
-                self.preview_text.setPlainText(json.dumps(row,indent=2)[:65536])
-                self.confirm_button.setEnabled(True)
-                self.tabs.setCurrentIndex(0)
+                self.show_preview(row)
             self.call(lambda: client.call(method, **{field:key}), show)
 
         def invalidate_preview(self):

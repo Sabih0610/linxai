@@ -47,7 +47,11 @@ def fingerprint(host, ports, timeout=2.0):
 
 
 def _unpack(item):
-    return zlib.decompress(base64.b64decode(item["z"])).decode("utf-8", "replace")
+    out = zlib.decompressobj()                       # bounded: a hostile reply cannot inflate without limit
+    text = out.decompress(base64.b64decode(item["z"]), 8 * 1024 * 1024)
+    if out.unconsumed_tail:
+        raise ValueError("decompressed reply exceeds 8 MiB")
+    return text.decode("utf-8", "replace")
 
 
 def _text(node, name):

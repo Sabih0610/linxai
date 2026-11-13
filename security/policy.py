@@ -81,6 +81,8 @@ class Authority:
                   "operation_id": operation_id, "provenance": provenance,
                   "verification_origin": "native_kernel" if self.kernel.real else "simulated",
                   "validation": "owner scope + qualified hook contract"}
+        if hasattr(self.store, "retire"):  # finished policies stop counting against the 1000-record cap
+            self.store.retire("policy", lambda old: old.get("state") not in {"installing", "installed", "active", "review_required"})
         self.store.put("policy", policy["id"], policy, replace=False)
         try:
             self.kernel.install(policy)

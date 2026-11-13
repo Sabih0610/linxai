@@ -7,6 +7,9 @@ import time
 
 
 def chat(body, *, timeout=30):
+    # Keep the model loaded between requests; Ollama unloads after 5 minutes by default and a
+    # cold load on CPU can exceed the 30 s deadline (QA 13 Nov 2026: first two requests timed out).
+    body={**body,"keep_alive":body.get("keep_alive","30m")}
     data=json.dumps(body,allow_nan=False).encode()
     if len(data)>65536:raise ValueError("Model request exceeds bound")
     wire=(b"POST /api/chat HTTP/1.1\r\nHost: 127.0.0.1:11434\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: "
@@ -33,3 +36,13 @@ def chat(body, *, timeout=30):
     payload=response.read(65537)
     if len(payload)>65536:raise ValueError("Model payload exceeds bound")
     return json.loads(payload)
+
+
+def warm(model, *, timeout=180):
+    """Load the model into memory ahead of the first request (empty message list = load only).
+    Called once in the background at agent start; failures are harmless and silent."""
+    try:
+        chat({"model":model,"messages":[],"stream":False},timeout=timeout)
+        return True
+    except Exception:
+        return False

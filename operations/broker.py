@@ -246,6 +246,10 @@ class Broker:
             if prepared.contract.identifier not in ADMIN:
                 raise ValueError("Only bounded service mutations are broker actions")
             # Persistent admission precedes authentication or dispatch; never retry an ID.
+            # Retention keeps the newest 8000 IDs: an older ID could only be replayed through a
+            # fresh polkit authentication of the same exact operation.
+            if hasattr(self.store, "retire"):
+                self.store.retire("broker_request", lambda old: old.get("state") != "admitted", high=9500, keep=8000)
             self.store.put("broker_request", operation_id, {"uid": identity.uid, "state": "admitted"}, replace=False, limit=10000)
             system = self.system_factory(peer)
             service = BrokerService(operation_id, request, peer, self.owner_uid, self.services, system,

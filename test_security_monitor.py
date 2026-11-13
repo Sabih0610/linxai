@@ -60,6 +60,19 @@ class SecurityMonitorTests(unittest.TestCase):
                       connect("python3", 8443), exe("/usr/bin/nmapper"), exe("/usr/bin/ls")):
             self.assertIsNone(detect(event), event)
 
+    def test_path_tricks_and_extra_credential_files_are_caught(self):
+        # QA 13 Nov 2026: '/tmp//x', '/./etc/shadow', /etc/gshadow, sudoers.d and /var/tmp evaded the rules.
+        def event(kind, path):
+            return normalize({"event_type": kind, "payload": {"filename": path, "uid": 1000, "pid": 9, "process": "x"}},
+                             "h", "b", source="simulated")
+        for path in ("/etc//shadow", "/etc/./shadow", "/etc/gshadow", "/etc/sudoers.d/90-cloud", "/tmp/../etc/shadow"):
+            self.assertEqual(detect(event("file_open", path))["rule"], "sensitive_file_attempt", path)
+        for path in ("//tmp/x", "/./tmp/x", "/var/tmp/payload", "/dev/shm/./p"):
+            self.assertEqual(detect(event("process_exec", path))["rule"], "temporary_executable_attempt", path)
+        from security.events import admit
+        self.assertTrue(admit({"event_type": "file_open", "payload": {"filename": "/etc//gshadow"}}))
+        self.assertIsNone(detect(event("file_open", "/etc/sudoers.dist")))
+
     def test_lineage_walks_procfs_and_binds_first_hop_by_start_time(self):
         from security.lineage import lineage
         from operations.explain import explain_incident

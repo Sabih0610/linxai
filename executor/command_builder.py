@@ -50,7 +50,10 @@ def build(intent: str, slots) -> str:
         return _build_system_query(intent, data)
     if intent in {"service_start", "service_stop", "service_restart"}:
         return _build_service_command(intent, data)
-    return (data.get("command", "") if isinstance(data, dict) else "").strip()
+    # QA fix (13 Nov 2026): an unknown intent used to return the model's own `command`
+    # text, which the legacy controller ran with shell=True (and sudo when the plan asked).
+    # The model never supplies executable text: unknown intents build nothing and are refused.
+    return ""
 
 
 def _user_home() -> str:

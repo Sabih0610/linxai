@@ -176,8 +176,8 @@ class Agent:
             if found is not None:            # names a registered network device: answered from its gold profile
                 if found[0] == "answer":
                     return found[1]
-                from ai.local_planner import _NON_DIRECTIVE
-                if _NON_DIRECTIVE.search(request["text"]):
+                from ai.local_planner import _NON_DIRECTIVE, _plain
+                if _NON_DIRECTIVE.search(_plain(request["text"])):
                     raise UnsupportedAction("state-changing actions must be asked for plainly, not inside quoted, translated or override text")
                 return self.config_preview(found[1], request["text"], found[2])
             history = [{"text": row.get("text", ""), "plan": row.get("plan", {}), "request": row.get("request")} for row in reversed(self.store.list("job", 5))]
@@ -289,6 +289,8 @@ def serve(agent, path, stop=None):
             server.settimeout(0.25)
             agent.jobs.start()
             agent.response_worker.thread.start()
+            from ai.local_http import warm         # background model load; the first chat no longer times out
+            threading.Thread(target=warm, args=(getattr(agent.planner.model, "model", None),), daemon=True, name="linxai-model-warm").start()
             while not stop or not stop.is_set():
                 try:
                     conn, _ = server.accept()

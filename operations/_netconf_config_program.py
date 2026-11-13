@@ -51,13 +51,21 @@ def _leaves(text):
     return out
 def _wrap(xml): return '<nc:config xmlns:nc="%s">%s</nc:config>' % (NC, xml)
 def _asset_resolved():
+    # The management-address guard needs the device's real address: fail closed when the
+    # name cannot be resolved instead of silently skipping the guard (QA 13 Nov 2026).
     try: return dict(asset, host=_socket.gethostbyname(asset['host']))
-    except OSError: return asset
+    except OSError: pass
+    try: return dict(asset, host=_socket.getaddrinfo(asset['host'], None)[0][4][0])
+    except (OSError, IndexError): raise ValueError('Device address does not resolve; the management-address guard cannot be checked')
 def config_main(m):
     feature, settings = params['feature'], json.loads(params['settings_json'])
     if action == 'device.config.restore':
         transaction = state_dir / 'transactions' / (params['transaction_id'] + '.json')
-        saved = json.loads(read(transaction)); feature, settings = saved['feature'], saved['settings']
+        saved = json.loads(read(transaction))
+        # A restore reverts exactly the change the owner was shown, never another transaction's.
+        if saved['feature'] != feature or json.dumps(saved['settings'], sort_keys=True) != json.dumps(settings, sort_keys=True):
+            raise ValueError('Restore request does not match the recorded transaction')
+        feature, settings = saved['feature'], saved['settings']
     path, config = resolve(feature, settings, _asset_resolved())     # guards re-run with the resolved address
     node, text, current, prefixes = read_target(m, path)
     if action == 'device.config.probe':

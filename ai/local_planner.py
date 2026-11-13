@@ -63,8 +63,34 @@ _NON_DIRECTIVE = re.compile(
     r"\btranslat|\bquot(?:e|ed|ing)\b|do not act|don't act|repeat after me|what does .{0,80} mean|\blog line\b|"
     r"\bpretend\b|you are (?:now|dan)\b|\bjailbreak|no restrictions|ignore (?:all|any|your|previous|the) |"
     r"without (?:asking|a preview|preview|confirmation|confirming)|system prompt|</?(?:system|user|assistant)>|"
-    r"\bas the (?:system )?administrator i\b|admin says|i authori[sz]e you",
+    r"\bas the (?:system )?administrator i\b|admin says|i authori[sz]e you|"
+    r"ignore (?:everything|anything|what)|disregard|new (?:orders|instructions)|override (?:your|the|all)|"
+    r"forget (?:your|the|all|previous)",
     re.IGNORECASE)
+_ZERO_WIDTH = dict.fromkeys(map(ord, "​‌‍⁠﻿­"))
+# A model-chosen service mutation must match the verb the person actually used
+# (QA 13 Nov 2026: "bounce ssh" was proposed as service.stop).
+_SERVICE_WORDS = {"service.stop": r"\b(?:stop|halt|shut ?down|kill|terminate|disable)\b",
+                  "service.start": r"\b(?:start|launch|bring up|spin up|enable)\b",
+                  "service.restart": r"\b(?:restart|bounce|reload|cycle|recycle|reboot)\b"}
+
+
+def _plain(text):
+    """Unicode-normalised text without zero-width characters, for the injection guard."""
+    import unicodedata
+    return unicodedata.normalize("NFKC", text).translate(_ZERO_WIDTH)
+
+
+def ground_service_verb(text, request):
+    """Return the request with its service verb taken from the person's own words."""
+    if request.get("action") not in _SERVICE_WORDS:
+        return request
+    said = [action for action, words in _SERVICE_WORDS.items() if re.search(words, text, re.IGNORECASE)]
+    if request["action"] in said:
+        return request
+    if len(said) == 1:
+        return {**request, "action": said[0]}
+    raise UnsupportedAction("the service operation (start, stop or restart) is not clear from the request; say which one")
 READ_ONLY = frozenset({"disk.usage", "memory.usage", "ports.listen", "service.status", "process.list",
                        "resource.forecast", "device.inspect", "path.inspect", "user.lookup", "iot.inspect", "device.config.read", "device.discover"})
 _PRONOUN = r"(?:it|that|this|the service|that service|this service)"
@@ -118,7 +144,16 @@ class Planner:
         """Run the planning state graph (requirement 5); see ai/workflow.py."""
         from .workflow import run_planning
         request, plan = run_planning(self, text, context)
-        if _NON_DIRECTIVE.search(text) and request["action"] not in READ_ONLY:
+        if plan.get("intent") == "follow_up":
+            pass                          # "do it again" repeats an earlier, already-confirmed verb
+        elif request["action"] == "remote.operation":
+            inner =ground_service_verb(text, {"action": request["parameters"].get("action")})
+            if inner.get("action") != request["parameters"].get("action"):
+                request = {**request, "parameters": {**request["parameters"], "action": inner["action"]}}
+        else:
+            request = ground_service_verb(text, request)
+        self.registry.prepare(request["action"], request["parameters"])
+        if _NON_DIRECTIVE.search(_plain(text)) and request["action"] not in READ_ONLY:
             # Prompt-injection guard (requirements 2, 4; intent eval run 4): quoted, translated,
             # "repeat after me" or override wording never yields a state-changing proposal.
             raise UnsupportedAction("state-changing actions must be asked for plainly, "
