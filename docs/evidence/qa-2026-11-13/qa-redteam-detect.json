@@ -1,0 +1,145 @@
+{
+  "summary": {
+    "detected_expected": 6,
+    "expected_detections": 6,
+    "missed_expected": [],
+    "known_gaps_confirmed": [
+      "python_reverse_shell",
+      "perl_reverse_shell",
+      "renamed_netcat",
+      "ipv6_reverse_shell",
+      "attack_tool_renamed",
+      "persistence_authorized_keys",
+      "inbound_bind_shell"
+    ],
+    "false_alarms": []
+  },
+  "cases": [
+    {
+      "id": "bash_dev_tcp_reverse_shell",
+      "technique": "T1059.004 reverse shell via bash /dev/tcp",
+      "expected_rule": "shell_network_connection",
+      "rules": [
+        "shell_network_connection"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.56
+    },
+    {
+      "id": "netcat_reverse_shell",
+      "technique": "T1059 netcat call-back",
+      "expected_rule": "shell_network_connection",
+      "rules": [
+        "shell_network_connection"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.53
+    },
+    {
+      "id": "python_reverse_shell",
+      "technique": "T1059.006 python socket call-back on an ordinary port",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "perl_reverse_shell",
+      "technique": "T1059 perl socket call-back on an ordinary port",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "renamed_netcat",
+      "technique": "T1036.003 masquerading: netcat copied as 'kworker'",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "c2_backdoor_port",
+      "technique": "T1571 connection to a classic backdoor port (4444)",
+      "expected_rule": "unusual_connection_attempt",
+      "rules": [
+        "unusual_connection_attempt"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.11
+    },
+    {
+      "id": "ipv6_reverse_shell",
+      "technique": "reverse shell over IPv6 loopback",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "attack_tool_by_name",
+      "technique": "T1046 scanner executed as 'nmap'",
+      "expected_rule": "attack_tool_execution",
+      "rules": [
+        "attack_tool_execution"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.66
+    },
+    {
+      "id": "attack_tool_renamed",
+      "technique": "T1036 same scanner renamed",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "exec_from_tmp",
+      "technique": "T1204 payload executed from /tmp",
+      "expected_rule": "temporary_executable_attempt",
+      "rules": [
+        "temporary_executable_attempt"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.62
+    },
+    {
+      "id": "read_etc_shadow",
+      "technique": "T1003.008 credential dump attempt on /etc/shadow",
+      "expected_rule": "sensitive_file_attempt",
+      "rules": [
+        "sensitive_file_attempt"
+      ],
+      "verdict": "DETECTED",
+      "latency_s": 0.18
+    },
+    {
+      "id": "read_etc_gshadow",
+      "technique": "T1003.008 credential dump attempt on /etc/gshadow",
+      "expected_rule": null,
+      "rules": [
+        "sensitive_file_attempt"
+      ],
+      "verdict": "DETECTED (better than expected)",
+      "latency_s": 0.36
+    },
+    {
+      "id": "persistence_authorized_keys",
+      "technique": "T1098.004 open ~/.ssh/authorized_keys for writing (no bytes written)",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    },
+    {
+      "id": "inbound_bind_shell",
+      "technique": "T1059 bind shell listening on 4445 (inbound)",
+      "expected_rule": null,
+      "rules": [],
+      "verdict": "GAP (not detected, as the rules predict)",
+      "latency_s": null
+    }
+  ]
+}

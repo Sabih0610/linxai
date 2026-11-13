@@ -28,10 +28,23 @@ sys.path.insert(0, str(ROOT))
 from scripts.accept_detection import incidents_since   # noqa: E402  (same store reader)
 
 
+class _Existing:
+    """A service already listens on the fixed port (e.g. a lab web server on 4444): any
+    listener is a valid connect target for these fixtures, so reuse it."""
+    def close(self): pass
+
+
 def listen(family=socket.AF_INET, host="127.0.0.1", port=0):
     server = socket.socket(family, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind((host, port)); server.listen(16)
+    try:
+        server.bind((host, port))
+    except OSError as exc:
+        server.close()
+        if port and exc.errno == 98:          # EADDRINUSE
+            return _Existing(), port
+        raise
+    server.listen(16)
 
     def serve():
         while True:

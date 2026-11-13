@@ -7,9 +7,13 @@ is limited to owner UID + exact IPv4 address + exact TCP destination port. It do
 not claim general threat prevention, IPv6/SCTP/UDP coverage, existing-connection
 termination or prevention of the unfamiliar incident's first syscall.
 
-An incident proposal uses the bounded loopback Ollama adapter and treats event
-text as untrusted. Only the exact observed network target may be proposed; backend
-code supplies policy/evidence IDs. A preview/confirmation produces a durable job,
+An incident proposal is built from the kernel evidence (`security/response.py`
+`block_request`): the target is always the exact observed address and port. The
+bounded loopback Ollama adapter may only suggest a duration (30–300 s) within a 10 s
+budget; a slow, absent or malformed model, or one naming any other target, leaves the
+default duration (120 s). Changed on 13 November 2026 after the red-team run, where a
+cold model on the 2-vCPU target timed out and containment depended on it. Event text is
+untrusted; backend code supplies policy/evidence IDs. A preview/confirmation produces a durable job,
 then root authorization and mandatory checks. Model commands, risk, requires_sudo,
 authenticated flags, caller UID or policy limits are never executable authority.
 Desktop Security offers response and revocation previews through the same flow.

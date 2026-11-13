@@ -1,0 +1,53 @@
+{
+  "target": "127.0.0.1:4444",
+  "block": {
+    "operation_id": "488f32cc-bf42-480c-8e9d-d7a013cc0b53",
+    "status": "succeeded",
+    "reason": "All required postconditions verified",
+    "fingerprint": "48fa980ff2a66f05c3b7f59f15246d91175b48e50c2ea64e68e413b28af25543",
+    "executed": true,
+    "verified": true,
+    "stdout": "{\"status\": \"ok\", \"result\": {\"schema\": 1, \"id\": \"a622f9e8-225d-48ee-b64d-ec82d33d730c\", \"version\": 1, \"uid\": 1000, \"address\": \"127.0.0.1\", \"port\": 4444, \"event_id\": \"225a0be9-10be-4aa3-a125-a1a9d03ac2d7\", \"expires_ns\": 20786938152194, \"expires_wall\": 1794555220.7927482, \"state\": \"installed\", \"operation_id\": \"488f32cc-bf42-480c-8e9d-d7a013cc0b53\", \"provenance\": {\"owner_uid\": 1000, \"config\": \"2c854dfe804395eafabd3fa44d5a198a7aa088389fa50aa0372afcc4f04414e3\", \"event_id\": \"225a0be9-10be-4aa3-a125-a1a9d03ac2d7\", \"event_subject\": \"10bc894692da1a4e384fafc30676fc287bbe0f1f473ee0f7728627ac37f558c9\", \"kernel\": \"5515d15bda54b4631ab1415443dae2f6f00fe7c5a62b04067e656939d6d785b1\", \"boot\": \"e30a0e00-25ed-4303-8789-4bd6c1dcfedf\", \"active\": 0, \"scope\": [\"127.0.0.1\", 4444]}, \"verification_origin\": \"native_kernel\", \"validation\": \"owner scope + qualified hook contract\"}}\n",
+    "stderr": "",
+    "recovery": "unsupported",
+    "audit_complete": true,
+    "restoration": null
+  },
+  "steps": {
+    "attacker reaches C2 before any response": {
+      "ok": true
+    },
+    "monitor raised an incident for the reverse shell": {
+      "ok": true,
+      "rule": "shell_network_connection",
+      "seconds": 0.14
+    },
+    "response proposed for exactly the evidenced target": {
+      "ok": true,
+      "origin": "evidence; model unavailable (TimeoutError)",
+      "duration": 30
+    },
+    "root broker installed and verified the kernel policy": {
+      "ok": true,
+      "status": "succeeded",
+      "reason": "All required postconditions verified",
+      "seconds_from_attack": 21.3
+    },
+    "attacker bash reverse shell retry is blocked": {
+      "ok": false,
+      "result": "connected"
+    },
+    "attacker python retry is blocked": {
+      "ok": true,
+      "result": "EPERM (blocked)"
+    },
+    "adjacent port 4443 still connects (scope)": {
+      "ok": true,
+      "result": "connected"
+    },
+    "block expired by itself in the kernel; target reachable again": {
+      "ok": true,
+      "waited_s": 51.4
+    }
+  }
+}

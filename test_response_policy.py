@@ -125,15 +125,33 @@ class ResponsePolicyTests(unittest.TestCase):
         self.assertEqual(self.store.get("policy",self.params["policy_id"])["operation_id"],op)
         self.assertTrue(all(row["operation_id"]==op for row in audit.records))
 
-    def test_model_target_changes_and_authority_claims_rejected(self):
+    def test_block_target_always_comes_from_evidence_never_the_model(self):
+        # QA 13 Nov 2026: containment no longer depends on the model. A changed target, an
+        # authority claim, a malformed answer or a slow/absent model all yield the EVIDENCE
+        # target with the default duration; only a well-formed matching answer sets duration.
+        from security.response import DEFAULT_DURATION
         model=Mock();jobs=Mock();registry=ActionRegistry(actor_uid=1000)
+        jobs.preview.side_effect=lambda request,text="":{"request":request,"text":text}
         incident={"id":self.event["id"],"evidence":self.event}
         responses=Responses(registry,jobs,model)
-        model.generate_response.return_value={"action":"response.network.block","address":"127.0.0.2","port":4444,"duration":60}
-        with self.assertRaises(ValueError):responses.propose(incident)
-        model.generate_response.return_value={"action":"response.network.block","address":"127.0.0.1","port":4444,"duration":60,"authenticated":True}
-        with self.assertRaises(ValueError):responses.propose(incident)
-        jobs.preview.assert_not_called()
+        target=self.event["target"]
+        for answer in ({"action":"response.network.block","address":"127.0.0.2","port":4444,"duration":60},
+                       {"action":"response.network.block","address":"127.0.0.1","port":4444,"duration":60,"authenticated":True},
+                       "not json", TimeoutError("cold model")):
+            model.generate_response.side_effect=answer if isinstance(answer,Exception) else None
+            model.generate_response.return_value=answer
+            params=responses.propose(incident)["request"]["parameters"]
+            self.assertEqual({"address":params["address"],"port":params["port"]},target,answer)
+            self.assertEqual(params["duration"],DEFAULT_DURATION,answer)
+        model.generate_response.side_effect=None
+        model.generate_response.return_value={"action":"response.network.block",**target,"duration":45}
+        preview=responses.propose(incident)
+        self.assertEqual(preview["request"]["parameters"]["duration"],45)
+        self.assertIn("duration from local model",preview["text"])
+        self.assertEqual(model.generate_response.call_args.kwargs["timeout"],10)     # bounded model budget
+        # Without any model at all, containment still proceeds from the evidence.
+        from security.response import block_request
+        self.assertEqual(block_request(self.event,None)[0]["parameters"]["port"],target["port"])
 
     def test_known_policy_recurrence_does_not_call_model(self):
         policy=self.authority.apply(1000,self.params,str(uuid4()));self.authority.verify(policy["id"])

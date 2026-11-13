@@ -8,23 +8,47 @@ from ai.local_planner import OllamaPlanner
 from .policy_daemon import PolicyClient
 
 
+DEFAULT_DURATION = 120          # seconds; the root config's max_duration still bounds it
+MODEL_BUDGET_S = 10            # the model only refines the duration, so it never delays containment
+
+
+def block_request(event, model=None):
+    """The block request for a TCP connection incident, built from the kernel EVIDENCE.
+
+    QA 13 Nov 2026: containment used to depend on the local model answering within 30 s;
+    a cold model on a small host timed out and the attacker stayed unblocked. The target
+    now always comes from the evidence. The model may only suggest a duration (30-300 s);
+    if it is unavailable, slow, malformed or names any other target, the default is used.
+    Root configuration and the broker still decide whether the block is allowed."""
+    if event["kind"] != "network_connect" or event.get("protocol") != "tcp":
+        raise ValueError("This response workflow supports only scoped IPv4 TCP connection incidents")
+    target = event["target"]
+    duration, origin = DEFAULT_DURATION, "evidence; model unavailable"
+    if model is not None:
+        try:
+            proposal = model.generate_response(event, timeout=MODEL_BUDGET_S)
+            if (isinstance(proposal, dict) and set(proposal) == {"action", "address", "port", "duration"}
+                    and proposal.get("action") == "response.network.block"
+                    and {"address": proposal.get("address"), "port": proposal.get("port")} == target
+                    and type(proposal.get("duration")) is int and 30 <= proposal["duration"] <= 300):
+                duration, origin = proposal["duration"], "evidence; duration from local model"
+            else:
+                origin = "evidence; model answer ignored (malformed or different target)"
+        except Exception as exc:
+            origin = f"evidence; model unavailable ({type(exc).__name__})"
+    request = {"action": "response.network.block", "parameters": {"policy_id": str(uuid4()), "event_id": event["id"],
+               "address": target["address"], "port": target["port"], "duration": duration}}
+    return request, origin
+
+
 class Responses:
     def __init__(self, registry, jobs, model=None):
         self.registry, self.jobs, self.model = registry, jobs, model or OllamaPlanner()
 
     def propose(self, incident):
-        event = incident["evidence"]
-        if event["kind"] != "network_connect" or event.get("protocol") != "tcp":
-            raise ValueError("This response workflow supports only scoped IPv4 TCP connection incidents")
-        proposal = self.model.generate_response(event)
-        if not isinstance(proposal, dict) or set(proposal) != {"action", "address", "port", "duration"} or proposal["action"] != "response.network.block":
-            raise ValueError("Unsupported or malformed model response; no fallback")
-        if {"address":proposal["address"],"port":proposal["port"]} != event["target"]:
-            raise ValueError("Model response target differs from incident evidence")
-        request = {"action":"response.network.block", "parameters":{"policy_id":str(uuid4()),"event_id":event["id"],
-                   "address":proposal["address"],"port":proposal["port"],"duration":proposal["duration"]}}
+        request, origin = block_request(incident["evidence"], self.model)
         self.registry.prepare(request["action"],request["parameters"])
-        preview = self.jobs.preview(request,text="Scoped incident response for " + incident["id"])
+        preview = self.jobs.preview(request,text=f"Scoped incident response for {incident['id']} ({origin})")
         return preview
 
 
