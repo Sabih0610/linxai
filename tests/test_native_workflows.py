@@ -56,6 +56,20 @@ class NativeWorkflowTests(unittest.TestCase):
         blocked=self.action('project.node',{'path':'web'})
         self.assertEqual(blocked.status,'validation_failed',blocked)
         self.assertFalse(blocked.executed);self.assertEqual(index.read_text(),'owner edit')
+    def test_real_go_cpp_docker_projects_are_idempotent_private_and_preserve_edits(self):
+        # 13 Nov 2026 recipes; scripts/validate_recipes.py proves they build/test/run with real toolchains.
+        for action,path,edit in (('project.go','svc','main.go'),('project.cpp','tool','main.cpp'),('project.docker','box','Dockerfile')):
+            first=self.action(action,{'path':path})
+            self.assertEqual(first.status,'succeeded',(action,first))
+            target=self.workspace/path/edit
+            self.assertEqual(target.stat().st_mode&0o777,0o600)
+            self.assertEqual(self.action(action,{'path':path}).status,'succeeded',action)
+            target.write_text('owner edit')
+            blocked=self.action(action,{'path':path})
+            self.assertEqual(blocked.status,'validation_failed',(action,blocked))
+            self.assertFalse(blocked.executed);self.assertEqual(target.read_text(),'owner edit')
+        compose=(self.workspace/'box/compose.yaml').read_text()
+        self.assertIn('"127.0.0.1:8000:8000"',compose)                    # published on loopback only
     def test_development_device_diff_apply_verified_restore_and_replay_denial(self):
         self.assertEqual(self.action('device.initialize',{'asset':'switch'}).status,'succeeded')
         inspected=self.action('device.inspect',{'asset':'switch'});revision=json.loads(inspected.stdout)['revision']

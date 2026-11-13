@@ -24,6 +24,42 @@ Natural language examples: `create a python environment in demo` and
 confirmation, mandatory checks, supervised execution and verified result. A failed
 partial environment is left for review, not recursively deleted or blindly retried.
 
+## Node.js, Go, C++ and Docker project recipes
+
+`project.node`, `project.go`, `project.cpp` and `project.docker` (13 November 2026 for the
+last three) share one fixed recipe table in the ordinary-user worker
+(`operations/_workflow_program.py`). Each writes only its own template files (mode 0600,
+atomic, exclusive create) into a new or already-managed folder under the workspace,
+records a marker (`.linxai-<stack>.json`), refuses before writing anything if an owner
+has edited a recipe file, and verifies every byte afterwards. Nothing is downloaded,
+built or run by LINxAI; the result reports whether the toolchain is installed.
+
+| Recipe | Files | Design points |
+| --- | --- | --- |
+| Node.js | `package.json`, `index.js`, `README.md`, `.gitignore` | stdlib HTTP server on 127.0.0.1 |
+| Go | `go.mod`, `main.go`, `main_test.go`, `README.md`, `.gitignore` | stdlib only (builds offline), health handler with a unit test, listens on 127.0.0.1:8080 |
+| C++ | `CMakeLists.txt`, `main.cpp`, `README.md`, `.gitignore` | C++17, `-Wall -Wextra -Wpedantic`, a `ctest` smoke test; also builds with plain `g++` |
+| Docker | `Dockerfile`, `app.py`, `compose.yaml`, `.dockerignore`, `README.md` | slim base, **non-root user**, healthcheck; Compose publishes on **127.0.0.1 only**, read-only filesystem, `no-new-privileges` |
+
+Natural language: `create a go project in svc`, `set up a golang service in svc`,
+`create a c++ project in tool`, `scaffold a cmake app in tool`, `set up a docker
+environment in box`, `create a dockerized app in box`. These are matched
+deterministically; the model is not asked.
+
+Real-toolchain proof (`scripts/validate_recipes.py`, WSL Ubuntu 24.04, 13 November 2026,
+`evidence/qa-2026-11-13/recipes-validation.json`): 9/9. Every project was generated
+through the typed service, regenerated to show idempotence, and an owner edit was
+refused. Then:
+* C++ built warning-free with host `g++ -Werror`, ran and passed its self-test;
+  CMake configure, build and `ctest` passed in an Alpine container.
+* Go `vet`, `test` and `build` passed offline in `golang:1.22-alpine`.
+* The Docker image built from the generated Dockerfile; the container served its
+  health check on 127.0.0.1, on a read-only filesystem, as uid 10001.
+
+Containers mount the project read-only; the official images are pulled by Docker.
+Installing Docker, Go or CMake themselves is a package installation (root) and is not
+part of these recipes.
+
 ## Configured assets and strict SSH
 
 The agent reads a private owner-owned ~/.linxai/assets.json at startup; it is not

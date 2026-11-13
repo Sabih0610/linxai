@@ -23,6 +23,16 @@ class WorkflowTests(unittest.TestCase):
             request,_=planner.propose(text)
             self.assertEqual(request,{'action':'project.node','parameters':{'path':'web'}})
         with self.assertRaises(ValueError):self.registry.prepare('project.node',{'path':'../escape'})
+        # Go, C++ and Docker recipes (13 Nov 2026), deterministic: the model is never asked.
+        for text,action in (('create a go project in svc','project.go'),('set up a golang service in svc','project.go'),
+                            ('create a c++ project in svc','project.cpp'),('scaffold a cmake app in svc','project.cpp'),
+                            ('set up a docker environment in svc','project.docker'),('create a dockerized app in svc','project.docker'),
+                            ('make a container service in svc','project.docker')):
+            request,plan=planner.propose(text)
+            self.assertEqual(request,{'action':action,'parameters':{'path':'svc'}},text)
+        for action in ('project.go','project.cpp','project.docker'):
+            for bad in ('../escape','/etc/x'):
+                with self.assertRaises(ValueError,msg=(action,bad)):self.registry.prepare(action,{'path':bad})
         request,_=planner.propose('on lab show memory usage')
         self.assertEqual(request['action'],'remote.operation')
         self.assertEqual(request['parameters']['action'],'memory.usage')

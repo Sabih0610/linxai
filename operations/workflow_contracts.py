@@ -62,7 +62,7 @@ class Remote:
     action:str
     parameters_json:str
 
-WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})|iot_contracts.IOT_ACTIONS|{'device.config.read','device.config.set','device.config.restore','device.config.batch','device.config.probe','device.discover'}
+WORKFLOWS=frozenset({'environment.python','project.scaffold','project.node','project.go','project.cpp','project.docker','device.initialize','device.inspect','device.interface.set','device.interface.restore','remote.operation'})|iot_contracts.IOT_ACTIONS|{'device.config.read','device.config.set','device.config.restore','device.config.batch','device.config.probe','device.discover'}
 TYPES=(Project,Device,Interface,Restore,Remote,ConfigRead,ConfigSet,ConfigRestore,ConfigBatch,ConfigProbe,*iot_contracts.TYPES)
 
 
@@ -175,7 +175,7 @@ def prepare(registry,identifier,parameters,contract):
     assets=json.loads(registry.assets_json)
     asset={}
     if identifier=='device.config.batch':return _batch(assets,contract,parameters)
-    if identifier in {'environment.python','project.scaffold','project.node'}:
+    if identifier in {'environment.python','project.scaffold','project.node','project.go','project.cpp','project.docker'}:
         if set(parameters)!={'path'}:raise InvalidParameters('Exact project path required')
         typed=Project(registry.relative_path(parameters['path']))
         payload={'action':identifier,'parameters':asdict(typed),'workspace':registry.permitted_workspace}

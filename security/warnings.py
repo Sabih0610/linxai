@@ -11,7 +11,8 @@ WINDOW_S = 1800          # incidents from the last 30 minutes
 MAX_WARNINGS = 5
 _NETWORK_ACTIONS = frozenset({"ports.listen", "service.start", "service.restart", "remote.operation",
                               "response.network.block"})
-_WORKSPACE_ACTIONS = frozenset({"file.create", "directory.create", "environment.python", "project.scaffold", "project.node"})
+_WORKSPACE_ACTIONS = frozenset({"file.create", "directory.create", "environment.python", "project.scaffold", "project.node",
+                                "project.go", "project.cpp", "project.docker"})
 _RELATED = {
     "unusual_connection_attempt": _NETWORK_ACTIONS,
     "shell_network_connection": _NETWORK_ACTIONS,

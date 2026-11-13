@@ -220,14 +220,22 @@ class Planner:
             request={"action":"user.lookup","parameters":{"user":name} if name else {}}
             self.registry.prepare(request["action"],request["parameters"])
             return request,{"intent":"user_list","target":name or "self","command":""}
-        recipe=re.fullmatch(r"(?:create|provision|scaffold) (?:a |an )?(python|node(?:\.?js)?|express) (environment|project|app) (?:at|in) (.+)",text.strip(),re.IGNORECASE)
+        recipe=re.fullmatch(r"(?:create|provision|scaffold|set ?up|make|start|new) (?:a |an |new )?"
+                            r"(python|node(?:\.?js)?|express|go(?:lang)?|c\+\+|cpp|cmake|docker(?:ized|ised)?|container(?:ized|ised)?)"
+                            r" (environment|project|app|application|service|workspace) (?:at|in) (.+)",text.strip(),re.IGNORECASE)
         if recipe:
             stack,kind,path=recipe.group(1).lower(),recipe.group(2).lower(),recipe.group(3)
             if stack=="python":
                 action="environment.python" if kind=="environment" else "project.scaffold"
-            else:
+            elif stack.startswith(("node","express")):
                 action="project.node"
+            elif stack.startswith("go"):
+                action="project.go"
+            elif stack in ("c++","cpp","cmake"):
+                action="project.cpp"
+            else:
+                action="project.docker"
             request={"action":action,"parameters":{"path":path}}
             self.registry.prepare(request["action"],request["parameters"])
-            return request,{"intent":"env_setup","target":path,"command":"","stack":"python" if stack=="python" else "node"}
+            return request,{"intent":"env_setup","target":path,"command":"","stack":action.split(".")[-1].replace("scaffold","python")}
         return None

@@ -1,0 +1,62 @@
+{
+  "project.go: generated, verified and idempotent": {
+    "ok": true,
+    "files": [
+      ".gitignore",
+      ".linxai-go.json",
+      "README.md",
+      "go.mod",
+      "main.go",
+      "main_test.go"
+    ],
+    "runtime_present": false
+  },
+  "project.cpp: generated, verified and idempotent": {
+    "ok": true,
+    "files": [
+      ".gitignore",
+      ".linxai-cpp.json",
+      "CMakeLists.txt",
+      "README.md",
+      "main.cpp"
+    ],
+    "runtime_present": true
+  },
+  "project.docker: generated, verified and idempotent": {
+    "ok": true,
+    "files": [
+      ".dockerignore",
+      ".linxai-docker.json",
+      "Dockerfile",
+      "README.md",
+      "app.py",
+      "compose.yaml"
+    ],
+    "runtime_present": true
+  },
+  "owner edit preserved (recipe refuses to overwrite)": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "C++: host g++ builds warning-free, runs and self-tests": {
+    "ok": true,
+    "compile": ""
+  },
+  "C++: CMake configure, build and ctest (alpine container)": {
+    "ok": true,
+    "tail": "t #1: smoke ............................   Passed    0.00 sec\n\n100% tests passed, 0 tests failed out of 1\n\nTotal Test time (real) =   0.00 sec\nHello from LINxAI"
+  },
+  "Go: vet, test and build offline (golang:1.22-alpine)": {
+    "ok": true,
+    "tail": "ok  \tlinxai.local/project\t0.003s\nBUILD-OK"
+  },
+  "Docker: image builds from the generated Dockerfile": {
+    "ok": true,
+    "tail": "component to build images with BuildKit:\n            https://docs.docker.com/go/buildx/\n\nsha256:22ee894a6669137dc177773bff2ea4ffe4b27498bb93bb1723b378b683abbf07"
+  },
+  "Docker: container serves health on 127.0.0.1, read-only, as a non-root user": {
+    "ok": true,
+    "body": "{\"status\": \"ok\"}",
+    "uid": "10001"
+  }
+}

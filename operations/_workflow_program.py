@@ -41,25 +41,50 @@ def atomic(path,data,exclusive=False):
         if temp.exists():temp.unlink()
 def encoded(value):return json.dumps(value,sort_keys=True,separators=(',',':')).encode()
 def revision(value):return hashlib.sha256(encoded(value)).hexdigest()
-if action=='project.node':
+# Fixed project recipes (Node since 2 Nov; Go, C++ and Docker since 13 Nov 2026). Each writes only
+# its own template files into a new or managed folder, never overwrites an owner edit, verifies
+# every byte, and never downloads, builds or runs anything. The first runtime path is recorded
+# in the marker; `runtime_present` reports whether any listed toolchain is installed.
+RECIPES={
+ 'project.node':('Node.js','node-stdlib-v1','.linxai-node.json',['/usr/bin/node'],{
+  'package.json':b'{\n  "name": "linxai-node-project",\n  "version": "0.1.0",\n  "private": true,\n  "type": "module",\n  "scripts": {"start": "node index.js"},\n  "engines": {"node": ">=18"}\n}\n',
+  'index.js':b'import http from "node:http";\nconst port = Number(process.env.PORT || 3000);\nhttp.createServer((req, res) => {\n  res.writeHead(200, {"content-type": "application/json"});\n  res.end(JSON.stringify({status: "ok"}));\n}).listen(port, "127.0.0.1", () => console.log("listening on 127.0.0.1:" + port));\n',
+  'README.md':b'# Managed Node.js project\nRun with npm start (or node index.js). Dependencies are not downloaded.\n',
+  '.gitignore':b'node_modules/\n'}),
+ 'project.go':('Go','go-stdlib-v1','.linxai-go.json',['/usr/bin/go','/usr/local/go/bin/go','/usr/lib/go/bin/go'],{
+  'go.mod':b'module linxai.local/project\n\ngo 1.22\n',
+  'main.go':b'// Managed Go project: standard library only, so it builds offline.\npackage main\n\nimport (\n\t"encoding/json"\n\t"log"\n\t"net/http"\n\t"os"\n)\n\nfunc health(w http.ResponseWriter, r *http.Request) {\n\tw.Header().Set("Content-Type", "application/json")\n\t_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})\n}\n\nfunc main() {\n\taddr := os.Getenv("ADDR")\n\tif addr == "" {\n\t\taddr = "127.0.0.1:8080"\n\t}\n\thttp.HandleFunc("/", health)\n\tlog.Printf("listening on %s", addr)\n\tlog.Fatal(http.ListenAndServe(addr, nil))\n}\n',
+  'main_test.go':b'package main\n\nimport (\n\t"net/http"\n\t"net/http/httptest"\n\t"testing"\n)\n\nfunc TestHealth(t *testing.T) {\n\trec := httptest.NewRecorder()\n\thealth(rec, httptest.NewRequest(http.MethodGet, "/", nil))\n\tif rec.Code != http.StatusOK || rec.Body.String() != "{\\"status\\":\\"ok\\"}\\n" {\n\t\tt.Fatalf("unexpected response %d %q", rec.Code, rec.Body.String())\n\t}\n}\n',
+  'README.md':b'# Managed Go project\nStandard library only. Build with `go build ./...`, test with `go test ./...`, run with `go run .`\n(listens on 127.0.0.1:8080; set ADDR to change). Nothing is downloaded by LINxAI.\n',
+  '.gitignore':b'/bin/\n/project\n'}),
+ 'project.cpp':('C++','cpp-cmake-v1','.linxai-cpp.json',['/usr/bin/cmake','/usr/bin/g++','/usr/bin/c++'],{
+  'CMakeLists.txt':b'cmake_minimum_required(VERSION 3.16)\nproject(linxai_project LANGUAGES CXX)\n\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)\nset(CMAKE_CXX_EXTENSIONS OFF)\n\nadd_executable(app main.cpp)\nif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")\n  target_compile_options(app PRIVATE -Wall -Wextra -Wpedantic)\nendif()\n\nenable_testing()\nadd_test(NAME smoke COMMAND app --self-test)\n',
+  'main.cpp':b'// Managed C++17 project (CMake). Standard library only.\n#include <iostream>\n#include <string>\n\nint main(int argc, char** argv) {\n    if (argc > 1 && std::string(argv[1]) == "--self-test") {\n        return std::string("ok").size() == 2 ? 0 : 1;\n    }\n    std::cout << "Hello from LINxAI" << std::endl;\n    return 0;\n}\n',
+  'README.md':b'# Managed C++ project\nConfigure and build: `cmake -S . -B build && cmake --build build`; test: `ctest --test-dir build`;\nrun: `./build/app`. Without CMake: `g++ -std=c++17 -Wall -o app main.cpp`.\n',
+  '.gitignore':b'/build/\n/app\n'}),
+ 'project.docker':('Docker','docker-python-v1','.linxai-docker.json',['/usr/bin/docker','/usr/local/bin/docker'],{
+  'Dockerfile':b'# Managed container project: small Python standard-library web service.\nFROM python:3.12-slim\nENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1\nWORKDIR /app\nRUN useradd --system --uid 10001 --no-create-home app\nCOPY --chown=app:app app.py .\nUSER app\nEXPOSE 8000\nHEALTHCHECK --interval=30s --timeout=3s CMD ["python", "-c", "import urllib.request; urllib.request.urlopen(\'http://127.0.0.1:8000/\', timeout=2)"]\nCMD ["python", "app.py"]\n',
+  'app.py':b'# Managed container service: standard library only.\nimport json\nimport os\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n\n\nclass Health(BaseHTTPRequestHandler):\n    def do_GET(self):\n        body = json.dumps({"status": "ok"}).encode()\n        self.send_response(200)\n        self.send_header("Content-Type", "application/json")\n        self.send_header("Content-Length", str(len(body)))\n        self.end_headers()\n        self.wfile.write(body)\n\n\nif __name__ == "__main__":\n    port = int(os.environ.get("PORT", "8000"))\n    ThreadingHTTPServer(("0.0.0.0", port), Health).serve_forever()   # inside the container only\n',
+  'compose.yaml':b'services:\n  app:\n    build: .\n    ports:\n      - "127.0.0.1:8000:8000"   # published on this machine only\n    read_only: true\n    security_opt:\n      - no-new-privileges:true\n    restart: unless-stopped\n',
+  '.dockerignore':b'.git\n.linxai-*.json\n__pycache__/\n*.pyc\n',
+  'README.md':b'# Managed container project\nBuild and run: `docker compose up --build` (the image download happens in Docker, not LINxAI).\nThe service runs as a non-root user and is published on 127.0.0.1:8000 only.\n'}),
+}
+if action in RECIPES:
+    label,recipe,marker_name,runtimes,templates=RECIPES[action]
     root=pathlib.Path(request['workspace']);chain(root,True)
     relative=pathlib.PurePosixPath(params['path'])
     if relative.is_absolute() or any(part in ('','.','..') for part in relative.parts):raise ValueError('Invalid relative project')
     project=root.joinpath(*relative.parts);chain(project.parent)
     existing=project.exists()
     if existing:chain(project,True)
-    runtime='/usr/bin/node'
-    expected={'schema':1,'recipe':'node-stdlib-v1','runtime':runtime}
-    templates={'package.json':b'{\n  "name": "linxai-node-project",\n  "version": "0.1.0",\n  "private": true,\n  "type": "module",\n  "scripts": {"start": "node index.js"},\n  "engines": {"node": ">=18"}\n}\n',
-               'index.js':b'import http from "node:http";\nconst port = Number(process.env.PORT || 3000);\nhttp.createServer((req, res) => {\n  res.writeHead(200, {"content-type": "application/json"});\n  res.end(JSON.stringify({status: "ok"}));\n}).listen(port, "127.0.0.1", () => console.log("listening on 127.0.0.1:" + port));\n',
-               'README.md':b'# Managed Node.js project\nRun with npm start (or node index.js). Dependencies are not downloaded.\n',
-               '.gitignore':b'node_modules/\n'}
-    marker=project/'.linxai-node.json'
+    expected={'schema':1,'recipe':recipe,'runtime':runtimes[0]}
+    present=any(os.path.isfile(r) for r in runtimes)
+    marker=project/marker_name
     for name,data in templates.items():
         if os.path.lexists(project/name) and read(project/name)!=data:raise ValueError('Existing recipe file differs; no overwrite')
     if os.path.lexists(marker) and json.loads(read(marker)).get('recipe')!=expected['recipe']:raise ValueError('Existing project is not this managed recipe; review')
     before={'project_exists':existing,'parent':chain(project.parent),'managed':os.path.lexists(marker),'recipe':expected,
-            'runtime_present':os.path.isfile(runtime)}
+            'runtime_present':present}
     if mode=='check':print(json.dumps(before));raise SystemExit(0)
     if mode=='apply':
         if not existing:project.mkdir(mode=0o700)
@@ -67,11 +92,12 @@ if action=='project.node':
         for name,data in templates.items():
             if not os.path.lexists(project/name):atomic(project/name,data,True)
         if not os.path.lexists(marker):atomic(marker,encoded(expected),True)
-    elif not os.path.lexists(marker):raise ValueError('Node project missing')
+    elif not os.path.lexists(marker):raise ValueError(label+' project missing')
     for name,data in templates.items():
-        if read(project/name)!=data:raise ValueError('Node project verification failed')
-    if json.loads(read(marker))!=expected:raise ValueError('Node project marker differs')
-    print(json.dumps({'verified':True,'project':str(project),'recipe':expected,'created':not existing,'runtime_present':os.path.isfile(runtime)}))
+        if read(project/name)!=data:raise ValueError(label+' project verification failed')
+    if json.loads(read(marker))!=expected:raise ValueError(label+' project marker differs')
+    print(json.dumps({'verified':True,'project':str(project),'recipe':expected,'created':not existing,'runtime_present':present,
+                      'files':sorted(templates)}))
 elif action in ('environment.python','project.scaffold'):
     root=pathlib.Path(request['workspace']);chain(root,True)
     relative=pathlib.PurePosixPath(params['path'])
