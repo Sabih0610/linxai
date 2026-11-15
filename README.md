@@ -37,5 +37,8 @@ profiles](docs/DISCOVERY.md) (Nokia SR Linux lab and Cisco IOS XR sandbox, local
 `qwen2.5:1.5b`/`0.5b` with blind evaluation), [IoT](docs/IOT.md) and
 [agentless Linux/Windows targets](docs/AGENTLESS.md). Progress log: [PROGRESS.md](docs/PROGRESS.md).
 
+Test labs (the VirtualBox `LINxAI` VM and the WSL2 network/IoT lab), how they were built
+and how to rebuild them: [VM_LAB.md](docs/VM_LAB.md).
+
 Older status, sudo-installer and timing claims are retained only as
 [historical documentation](docs/history/README_PRE_CANDIDATE.md).

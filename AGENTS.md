@@ -42,7 +42,7 @@ Leave work reviewable; commit, publish or deploy when the user requests those ac
 
 ## Cloud/local development entry
 
-Read docs/CLOUD_HANDOFF.md, docs/ARCHITECTURE_REVIEW_2026-11-02.md and docs/DEVELOPMENT_ENVIRONMENT.md before choosing work. Preserve original inventory IDs 1–72 and use acceptance gates A–H; older completion claims are historical.
+Read docs/CLOUD_HANDOFF.md, docs/ARCHITECTURE_REVIEW_2026-11-02.md and docs/DEVELOPMENT_ENVIRONMENT.md before choosing work. For anything run on the lab VM or the WSL network/IoT lab, read docs/VM_LAB.md first (layout, deploy order, console-only steps, known unknowns). Preserve original inventory IDs 1–72 and use acceptance gates A–H; older completion claims are historical.
 
 Setup: python3 scripts/setup_dev.py. Use .venv/bin/python explicitly.
 Fast offline checks: .venv/bin/python -B scripts/test.py offline.

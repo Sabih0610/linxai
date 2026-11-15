@@ -3,6 +3,7 @@
 > **Current status (13 November 2026):** start at the repository [README](../README.md),
 > the [requirement matrix](REQUIREMENTS_TRACEABILITY.md) and [PROGRESS.md](PROGRESS.md).
 > Network work: [NETWORK_DEVICES.md](NETWORK_DEVICES.md) and [DISCOVERY.md](DISCOVERY.md).
+> Test labs (VM and WSL): [VM_LAB.md](VM_LAB.md). The Multipass VM in SETUP.md is historical.
 
 # LINxAI Documentation Pack
 
