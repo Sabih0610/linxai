@@ -1,0 +1,72 @@
+{
+  "assets": {
+    "vmloop": [
+      {
+        "action": "memory.usage",
+        "status": "succeeded",
+        "verified": true,
+        "peer_status": "succeeded",
+        "peer_verified": true,
+        "seconds": 1.75
+      },
+      {
+        "action": "disk.usage",
+        "status": "succeeded",
+        "verified": true,
+        "peer_status": "succeeded",
+        "peer_verified": true,
+        "seconds": 1.71
+      },
+      {
+        "action": "service.status",
+        "status": "succeeded",
+        "verified": true,
+        "peer_status": "succeeded",
+        "peer_verified": true,
+        "seconds": 1.82
+      }
+    ],
+    "vmnat": [
+      {
+        "action": "memory.usage",
+        "status": "succeeded",
+        "verified": true,
+        "peer_status": "succeeded",
+        "peer_verified": true,
+        "seconds": 3.24
+      },
+      {
+        "action": "disk.usage",
+        "status": "succeeded",
+        "verified": true,
+        "peer_status": "succeeded",
+        "peer_verified": true,
+        "seconds": 1.57
+      },
+      {
+        "action": "service.status",
+        "status": "succeeded",
+        "verified": true,
+        "peer_status": "succeeded",
+        "peer_verified": true,
+        "seconds": 1.77
+      }
+    ]
+  },
+  "negative": {
+    "host_key_mismatch": {
+      "status": "execution_failed",
+      "verified": false,
+      "stderr_has_host_key_error": true
+    },
+    "refused_before_ssh": {
+      "raw_shell": "refused: InvalidParameters",
+      "nested_remote": "refused: InvalidParameters",
+      "unknown_asset": "refused: InvalidParameters"
+    },
+    "replay": {
+      "first_exit": 0,
+      "second_exit": 1
+    }
+  }
+}

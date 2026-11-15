@@ -1,0 +1,81 @@
+{
+  "ai_preview": {
+    "ok": true,
+    "trace": [
+      "normalize",
+      "deterministic",
+      "classify_fast",
+      "validate",
+      "adapt"
+    ]
+  },
+  "ops_execute_verify_audit": {
+    "ok": true,
+    "state": "succeeded"
+  },
+  "context_follow_up_and_admin_preview": {
+    "ok": true,
+    "privilege": "authenticated_admin"
+  },
+  "conflict_decision": {
+    "ok": true,
+    "decision": "warn"
+  },
+  "security_kernel_incident": {
+    "ok": true,
+    "latency_s": 0.38,
+    "lineage": "verified"
+  },
+  "security_warning_on_next_preview": {
+    "ok": true,
+    "warnings": 5
+  },
+  "explain_incident_and_job": {
+    "ok": true
+  },
+  "timeline_cross_module": {
+    "ok": true,
+    "modules": [
+      "audit",
+      "learning",
+      "operations",
+      "security"
+    ]
+  },
+  "resource_lower_verified": {
+    "ok": true,
+    "state": "succeeded"
+  },
+  "path_inspection": {
+    "ok": true,
+    "owner": "root"
+  },
+  "devops_node_recipe": {
+    "ok": true,
+    "state": "succeeded"
+  },
+  "learning_lake_cycle": {
+    "ok": true,
+    "cycle": {
+      "updated": 1794221567.3824263,
+      "last_cycle": {
+        "bronze": 808,
+        "silver": 808,
+        "quarantine": 0,
+        "trained": 793,
+        "duplicates": 192
+      },
+      "model_version": 60,
+      "trained_events": 19565,
+      "ready": [
+        "0:file_open",
+        "0:process_exec",
+        "1000:process_exec"
+      ]
+    }
+  },
+  "policy_daemon_qualified": {
+    "ok": true,
+    "qualified": true
+  }
+}

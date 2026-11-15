@@ -1,0 +1,56 @@
+{
+  "inspect": {
+    "ok": true,
+    "before": true,
+    "capabilities": 10,
+    "reason": "All required postconditions verified"
+  },
+  "set_verified_with_restoration": {
+    "ok": true,
+    "diff": {
+      "interface": "ethernet-1/1",
+      "from": true,
+      "to": false
+    },
+    "reason": "All required postconditions verified",
+    "err": ""
+  },
+  "independent_read_after_set": {
+    "ok": true
+  },
+  "reused_transaction_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "stale_revision_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "pending_foreign_edits_refused_not_discarded": {
+    "ok": true,
+    "status": "execution_failed"
+  },
+  "restore_verified": {
+    "ok": true,
+    "reason": "All required postconditions verified"
+  },
+  "independent_read_after_restore": {
+    "ok": true
+  },
+  "non_allowlisted_interface_refused": {
+    "ok": true,
+    "error": "InvalidParameters"
+  },
+  "pinned_host_key_mismatch_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "device_auto_rollback_of_unconfirmed_commit": {
+    "ok": true,
+    "original": true,
+    "timer_during_unconfirmed": false,
+    "timer_after_expiry": true,
+    "drop_during_unconfirmed": false,
+    "drop_after_session_close": true
+  }
+}

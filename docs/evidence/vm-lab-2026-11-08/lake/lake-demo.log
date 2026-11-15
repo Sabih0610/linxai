@@ -1,0 +1,5 @@
+cycle {'bronze': 1000, 'silver': 1000, 'quarantine': 0, 'trained': 1000, 'duplicates': 0} ready ['0:process_exec', '1000:process_exec']
+cycle {'bronze': 1000, 'silver': 1000, 'quarantine': 0, 'trained': 1000, 'duplicates': 0} ready ['0:process_exec', '1000:process_exec']
+cycle {'bronze': 1000, 'silver': 1000, 'quarantine': 0, 'trained': 1000, 'duplicates': 0} ready ['0:process_exec', '1000:process_exec']
+anomalies for uid 1000: [{"key": "/usr/bin/factor", "score_bits": 8.6, "baseline_events": 3095, "severity": "info"}]
+incidents for /usr/bin/factor: 0 | monitor: {'state': 'ready', 'events': 6281, 'incidents': 6, 'anomalies': 1}

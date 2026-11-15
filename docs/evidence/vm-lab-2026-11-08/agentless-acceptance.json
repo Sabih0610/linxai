@@ -1,0 +1,60 @@
+{
+  "vmloop_reads_verified": {
+    "ok": true,
+    "root": {
+      "mount": "/",
+      "size_kb": 49222292,
+      "used_kb": 17408308,
+      "avail_kb": 29281224,
+      "use_pct": 38
+    },
+    "memory_pct": 18.1,
+    "ssh": "active"
+  },
+  "vmnat_reads_verified": {
+    "ok": true,
+    "root": {
+      "mount": "/",
+      "size_kb": 49222292,
+      "used_kb": 17408360,
+      "avail_kb": 29281172,
+      "use_pct": 38
+    },
+    "memory_pct": 17.7,
+    "ssh": "active"
+  },
+  "user_service_start_verified": {
+    "ok": true,
+    "before": "inactive",
+    "after": "active",
+    "reason": "All required postconditions verified"
+  },
+  "user_service_restart_new_activation": {
+    "ok": true,
+    "before": "10444368743",
+    "after": "10452927724"
+  },
+  "user_service_stop_verified": {
+    "ok": true,
+    "after": "inactive"
+  },
+  "system_change_needs_target_sudo_policy": {
+    "ok": true,
+    "status": "execution_failed",
+    "stderr": "204, in <module>\nPermissionError: Target sudo policy does not allow this systemctl action non-interactively; the target owner must grant a narrow NOPASSWD rule\n"
+  },
+  "unloaded_unit_refused_at_check": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "injection_raw_and_file_actions_refused": {
+    "ok": true,
+    "shell_injection": "refused: InvalidParameters",
+    "raw_command": "refused: InvalidParameters",
+    "file_write": "refused: InvalidParameters"
+  },
+  "host_key_mismatch_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  }
+}

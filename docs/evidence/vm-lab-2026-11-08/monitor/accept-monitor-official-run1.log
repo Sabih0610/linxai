@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/linxai/linxai-lab/src/scripts/accept_monitor.py", line 58, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/linxai/linxai-lab/src/scripts/accept_monitor.py", line 25, in main
+    if before["health"]["state"] != "ready": raise RuntimeError("Real kernel capture not ready")
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Real kernel capture not ready
+accept_monitor exit=1

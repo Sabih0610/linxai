@@ -1,0 +1,99 @@
+{
+  "modbus_inspect": {
+    "ok": true,
+    "points": {
+      "pump": false,
+      "setpoint": 21,
+      "temperature": 247
+    },
+    "reason": "All required postconditions verified",
+    "err": ""
+  },
+  "mqtt_inspect": {
+    "ok": true,
+    "points": {
+      "fan": 0,
+      "humidity": "52",
+      "lamp": "OFF"
+    }
+  },
+  "plc_setpoint_set_verified": {
+    "ok": true,
+    "prior": 21,
+    "device": 25,
+    "reason": "All required postconditions verified"
+  },
+  "plc_setpoint_replay_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "plc_setpoint_restore_verified": {
+    "ok": true,
+    "device": 21
+  },
+  "plc_pump_set_verified": {
+    "ok": true,
+    "prior": false,
+    "device": true,
+    "reason": "All required postconditions verified"
+  },
+  "plc_pump_replay_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "plc_pump_restore_verified": {
+    "ok": true,
+    "device": false
+  },
+  "home_lamp_set_verified": {
+    "ok": true,
+    "prior": "OFF",
+    "device": "ON",
+    "reason": "All required postconditions verified"
+  },
+  "home_lamp_replay_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "home_lamp_restore_verified": {
+    "ok": true,
+    "device": "OFF"
+  },
+  "home_fan_set_verified": {
+    "ok": true,
+    "prior": 0,
+    "device": 3,
+    "reason": "All required postconditions verified"
+  },
+  "home_fan_replay_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "home_fan_restore_verified": {
+    "ok": true,
+    "device": 0
+  },
+  "bounds_and_read_only_refused_before_dispatch": {
+    "ok": true,
+    "out_of_bounds": "refused",
+    "read_only": "refused",
+    "wrong_type": "refused"
+  },
+  "stale_revision_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "silent_device_not_reported_as_success": {
+    "ok": true,
+    "status": "execution_failed",
+    "reason": "Command exited 1"
+  },
+  "broker_acl_blocks_forged_state": {
+    "ok": true,
+    "state": "OFF"
+  },
+  "wrong_broker_credentials_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  }
+}

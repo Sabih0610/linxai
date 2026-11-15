@@ -1,0 +1,25 @@
+{
+  "pid": 8187,
+  "lower": {
+    "status": "succeeded",
+    "verified": true,
+    "nice_after": 10
+  },
+  "refusals": {
+    "above_floor": "refused: InvalidParameters"
+  },
+  "restore": {
+    "operation_id": "a1800729-19f9-49e4-9958-02b58960b7dc",
+    "status": "succeeded",
+    "reason": "All required postconditions verified",
+    "fingerprint": "682c1a576f1fe989019f2a344a614ac9af051db0ac34335a6dbbd01486e17cdf",
+    "executed": true,
+    "verified": true,
+    "stdout": "{\"verified\": true, \"pid\": 8187, \"start_ticks\": 4918931, \"prior_nice\": 10, \"nice\": 0, \"threads_changed\": 1, \"threads_failed\": 0}\n",
+    "stderr": "",
+    "recovery": "unsupported",
+    "audit_complete": true,
+    "restoration": null
+  },
+  "nice_final": 0
+}

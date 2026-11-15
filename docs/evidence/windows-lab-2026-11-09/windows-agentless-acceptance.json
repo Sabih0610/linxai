@@ -1,0 +1,55 @@
+{
+  "windows_reads_verified": {
+    "ok": true,
+    "c_drive": {
+      "mount": "C:",
+      "size_kb": 248762364,
+      "avail_kb": 55787376,
+      "use_pct": 78
+    },
+    "memory_pct": 89.5,
+    "service": {
+      "Id": "Spooler",
+      "ActiveState": "Stopped",
+      "StartMode": "Manual",
+      "ServiceType": "Own Process",
+      "ProcessId": 0
+    },
+    "reason": "All required postconditions verified"
+  },
+  "service.start_verified": {
+    "ok": true,
+    "after": "Running",
+    "reason": "All required postconditions verified"
+  },
+  "service.restart_verified": {
+    "ok": true,
+    "after": "Running",
+    "reason": "All required postconditions verified",
+    "proof": "process_id_changed"
+  },
+  "service.stop_verified": {
+    "ok": true,
+    "after": "Stopped",
+    "reason": "All required postconditions verified"
+  },
+  "service_returned_to_original_state": {
+    "ok": true,
+    "original": "Stopped",
+    "final": "Stopped"
+  },
+  "unknown_service_refused_at_check": {
+    "ok": true,
+    "status": "validation_failed"
+  },
+  "injection_raw_and_file_actions_refused": {
+    "ok": true,
+    "powershell_injection": "refused: InvalidParameters",
+    "raw_command": "refused: InvalidParameters",
+    "file_write": "refused: InvalidParameters"
+  },
+  "host_key_mismatch_refused": {
+    "ok": true,
+    "status": "validation_failed"
+  }
+}
